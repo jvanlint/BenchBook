@@ -12,6 +12,7 @@ struct BenchBookApp: App {
             case .success(let library):
                 ContentView()
                     .libraryEnvironment(library)
+                    .windowFrameAutosave("BenchBook Main Window")
                     .onAppear { library.capture.startInbox() }
                     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
                         library.capture.processInbox()
