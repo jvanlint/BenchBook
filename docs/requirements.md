@@ -19,9 +19,9 @@ The HTML prototype is a visual/workflow reference only, not the implementation p
 ## Product principles
 
 - **Capture is the core workflow.** Saving must take seconds and remember the active Project.
-- **Capture creates no homework.** Notes and topics are optional; there is no mandatory inbox or classification queue.
+- **Capture creates no homework.** Notes and tags are optional; there is no mandatory inbox or classification queue.
 - **Visual first.** References appear as an image-dominant gallery and lightbox, not a database table.
-- **Organise only when useful.** Topics are lightweight facets, never folders.
+- **Organise only when useful.** Tags are lightweight facets, never folders.
 - **Preserve assets and provenance.** Images and PDFs become durable private copies while original URLs remain available. Webpages retain URL/metadata only.
 - **Keep domain meanings separate.** Real-world Colour, commercial Paint, ownership, and the Paint selected for a Project are distinct facts.
 
@@ -37,12 +37,14 @@ The main Project tabs are **References**, **Paint**, and **Aftermarket**. Refere
 
 Each Reference belongs to one Project and is one of:
 
-- image: JPG, PNG, or WebP;
-- PDF; or
+- image: JPG, PNG, WebP, or HEIC;
+- PDF;
+- Markdown file;
+- highlighted text snippet, with its source page when available;
 - webpage link; or
 - video link, including YouTube, with optional timestamped moments.
 
-It may retain title, optional note, optional topics, source page URL, original resource URL, capture time, and stored-file metadata. Stored metadata includes original filename, MIME type, size, SHA-256, and image dimensions where applicable.
+It may retain title, optional note, optional tags, source page URL, original resource URL, capture time, and stored-file metadata. Stored metadata includes original filename, MIME type, size, SHA-256, and image dimensions where applicable.
 
 Images and PDFs are copied into an app-managed library in private Application Support storage. Preserve original bytes without resizing or recompressing them. SwiftData stores metadata, relationships, and relative asset locations; originals are separate files. Moving or deleting the source download must not affect a saved Reference.
 
@@ -50,13 +52,13 @@ The gallery uses generated thumbnails; large previews load originals on demand. 
 
 Complete library exports/backups must include both the SwiftData records and originals. Cloud replication is an optional architecture decision. Full webpage HTML and dependent assets are not archived.
 
-The tile gallery must support visual browsing, topic filters, an Add action, and a lightbox/side-panel with a large preview, note, topics, source link, previous/next, and preserved gallery context.
+The tile gallery must support visual browsing, tag filters, an Add action, and a lightbox/side-panel with a large preview, note, tags, source link, previous/next, and preserved gallery context.
 
 ### Image inspection and native presentation
 
 Photos are the primary reference material. Preserve their original resolution and bytes. The viewer must support smooth zoom and pan, fit-to-window, and actual-size viewing so the user can inspect a wheel, wing section, or other small detail. Inspection must use the original source rather than an enlarged thumbnail.
 
-Use the system font, system colours, SF Symbols, and standard SwiftUI controls by default. Custom controls require an explicit discussion and agreement. Present objects as individual tiles, not freely positioned objects on an infinite canvas. Tiles show a thumbnail or type placeholder, title, clear object type, and associated topics; detailed metadata belongs in the detail view.
+Use the system font, system colours, SF Symbols, and standard SwiftUI controls by default. Custom controls require an explicit discussion and agreement. Present objects as individual tiles, not freely positioned objects on an infinite canvas. Tiles show a thumbnail or type placeholder, title, clear object type, and associated tags; detailed metadata belongs in the detail view.
 
 ### Video links and timestamps
 
@@ -64,7 +66,7 @@ Save video URLs rather than video files. Support optional named/noted timestampe
 
 ### Search
 
-The native app presents local, Project-scoped search results across Reference title, optional note, and Topic names. Typing `wheel well` must retrieve matching F-16 references. The same search UX should later accommodate semantic/image search without changing the user's workflow.
+The native app presents local, Project-scoped search results across Reference title, optional note, and Tag names. Typing `wheel well` must retrieve matching F-16 references. The same search UX should later accommodate semantic/image search without changing the user's workflow.
 
 ### Browser capture
 
@@ -77,7 +79,7 @@ The extension must:
 - save the current page URL/title;
 - add **Save image to Model Research** to an image context menu;
 - retain source page and direct image URLs separately;
-- accept optional note/topics;
+- accept optional note/tags;
 - hand off to the native capture/import service; and
 - confirm success with an optional **View reference** action that opens the reference in the macOS app.
 

@@ -33,9 +33,9 @@ This is the scope of the initial coding-agent prompt. Stop at this reviewable de
 
 ## Phase 2 — Reference library and assets
 
-Before implementing: validate the full SwiftData relationship design from data-model.md, choose import limits, and prototype title/note/topic predicates. Establish the Application Support Library/Originals and Library/Thumbnails layout and the coordinated save/cleanup lifecycle.
+Before implementing: validate the full SwiftData relationship design from data-model.md, choose import limits, and prototype title/note/tag predicates. Establish the Application Support Library/Originals and Library/Thumbnails layout and the coordinated save/cleanup lifecycle.
 
-- SwiftData Reference, Topic, and join models with deliberate inverses/delete rules.
+- SwiftData Reference, Tag, and join models with deliberate inverses/delete rules.
 - File-panel and drag/drop imports for JPG/PNG/WebP/PDF; webpage and video-link metadata entry.
 - VideoMoment records with nonnegative second offsets, optional titles/notes, recognized YouTube timestamp import, manual editing, and provider playback links; no video downloads.
 - Validated originals copied byte-for-byte into managed files with stable asset UUIDs; SwiftData stores metadata/SHA-256 and relative paths, without original binary payloads.
@@ -47,7 +47,7 @@ Accept when originals survive source-file removal and app relaunch with unchange
 ## Phase 3 — Browser capture service
 
 - A validated capture envelope and shared import service.
-- Project discovery, persistent active Project, optional note/topics, and durable acknowledgements.
+- Project discovery, persistent active Project, optional note/tags, and durable acknowledgements.
 - Controlled native handoff and app-launch/recovery behaviour.
 - Browser-context resource acquisition, safe app-side retrieval where used, and Project-scoped gentle duplicate detection.
 
@@ -57,17 +57,17 @@ Accept when duplicate capture reports Already saved to this project; rejected pa
 
 - Shared WebExtensions capture logic with separate manifests, permissions, native adapters, and packaging.
 - Save Page and Save image to Model Research context menu.
-- Optional note/topics, clear failure feedback, and View Reference opening the native app.
+- Optional note/tags, clear failure feedback, and View Reference opening the native app.
 - Safari containing app/extension and App Group handoff if selected; Chromium native host or other chosen transport.
 
 Accept when both browsers remember the F-16 Project, capture page/image/PDF resources in seconds without classification chores, and handle browser-only resource access. Test connection/permission removal independently and capture while the app is closed. Extensions contain no library-wide arbitrary file access or cloud credentials.
 
 ## Phase 5 — Gallery, search, and reference viewer
 
-- SwiftUI image-first tile gallery with bounded fetching, thumbnails, titles, clear object-type indicators, and topics; no infinite canvas.
+- SwiftUI image-first tile gallery with bounded fetching, thumbnails, titles, clear object-type indicators, and tags; no infinite canvas.
 - System typography and standard SwiftUI controls; custom controls require explicit agreement.
-- Project-scoped title/note/topic search and optional filters behind a query service.
-- Inline note/topic editing, Project cover choice, and accessible reference viewer/inspector.
+- Project-scoped title/note/tag search and optional filters behind a query service.
+- Inline note/tag editing, Project cover choice, and accessible reference viewer/inspector.
 - Previous/next, keyboard commands, original-resolution image viewing with smooth zoom/pan, fit-to-window and actual-size actions, provenance, and retained selection/filter context.
 
 Accept when wheel well finds matching References, closing the viewer preserves context, and realistic libraries remain responsive without loading all originals into memory. Validate PDF viewing behaviour and macOS accessibility. Inspect small details in a large original image without substituting an enlarged thumbnail; open a saved YouTube moment at the selected timestamp.
@@ -103,3 +103,14 @@ If cross-device sync or remote capture is required, choose CloudKit or an explic
 Verify domain integrity, migration, file/model failure recovery, browser transport, search, duplicate handling, and representative library performance. Manual acceptance includes the F-16 Project, page/image/PDF capture, wheel well search, FS 36270 Paint selection, decals, and FOD cover.
 
 Defer AI/semantic search, full webpage archival, mobile/bulk capture, stash management, complex paint inventory, build logs, and social features. The native architecture does not expand product scope.
+
+## Interim capture — macOS Share menu and drag and drop
+
+Agreed ahead of Phases 3–4: browser capture starts with a macOS Share extension rather than Safari/Chromium WebExtensions.
+
+- Drag and drop onto the workspace or a sidebar Project, paste (⌘V), and Add Files (⌘O) import directly through the shared import service.
+- The Share extension writes a validated envelope (files plus JSON) to the App Group inbox and never touches the library. BenchBook imports envelopes on launch, on activation, and when the inbox changes. The extension starts BenchBook in the background after sending.
+- The share sheet preselects the active Project (the last one selected in the app or shared to) from a Project list the app publishes to the App Group, and accepts optional tags and a note.
+- Every item becomes a durable Reference, a gentle duplicate ("Already saved to this project"), or a reported failure before its envelope is removed.
+
+WebExtensions capture remains Phases 3–4 and can reuse the same inbox and import path.

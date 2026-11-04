@@ -1,9 +1,7 @@
 import Foundation
 import SwiftData
 
-/// The first shipped schema. Later schema changes get a new `VersionedSchema`
-/// and a stage in `BenchBookMigrationPlan`; never edit this one in place
-/// after release.
+/// Schema 1: Projects only. Frozen; kept so existing libraries can migrate.
 enum BenchBookSchemaV1: VersionedSchema {
     static let versionIdentifier = Schema.Version(1, 0, 0)
 
@@ -57,16 +55,3 @@ enum BenchBookSchemaV1: VersionedSchema {
         }
     }
 }
-
-enum BenchBookMigrationPlan: SchemaMigrationPlan {
-    static var schemas: [any VersionedSchema.Type] {
-        [BenchBookSchemaV1.self]
-    }
-
-    static var stages: [MigrationStage] {
-        []
-    }
-}
-
-/// The current version of each model. Update these when a new schema ships.
-typealias Project = BenchBookSchemaV1.Project

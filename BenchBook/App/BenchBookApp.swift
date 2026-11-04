@@ -3,14 +3,22 @@ import SwiftUI
 
 @main
 struct BenchBookApp: App {
-    private let container = Result { try PersistenceController.makeContainer() }
+    private let library = Result { try LibraryEnvironment() }
 
     var body: some Scene {
         WindowGroup {
-            switch container {
-            case .success(let container):
+            switch library {
+            case .success(let library):
                 ContentView()
-                    .modelContainer(container)
+                    .modelContainer(library.container)
+                    .environment(\.assetLibrary, library.assetLibrary)
+                    .environment(\.thumbnailStore, library.thumbnails)
+                    .environment(\.captureCoordinator, library.capture)
+                    .environment(\.projectDirectory, library.projectDirectory)
+                    .onAppear { library.capture.startInbox() }
+                    .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                        library.capture.processInbox()
+                    }
             case .failure(let error):
                 LibraryErrorView(error: error)
             }

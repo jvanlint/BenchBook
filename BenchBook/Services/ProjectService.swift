@@ -90,10 +90,4 @@ private extension String {
     var trimmed: String {
         trimmingCharacters(in: .whitespacesAndNewlines)
     }
-
-    /// Blank optional text is stored as nil.
-    var trimmedOrNil: String? {
-        let value = trimmed
-        return value.isEmpty ? nil : value
-    }
 }

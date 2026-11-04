@@ -22,7 +22,7 @@ No User, owner foreign key, login, or ExtensionToken model is required for the l
 Project
 ├── references: [Reference]
 │   ├── asset: ManagedAsset?             image/PDF only
-│   ├── topicLinks: [ReferenceTopic] ──> Topic
+│   ├── tagLinks: [ReferenceTag] ──> Tag
 │   └── videoMoments: [VideoMoment]      video links only
 ├── paintRequirements: [ProjectPaint] ──> Colour
 │                                       └── matches: [PaintMatch] ──> Paint
@@ -48,21 +48,22 @@ Example: Tamiya F-16CJ 50th Anniversary; Tamiya; F-16CJ Block 50; 1:48.
 
 ## Reference
 
-One saved object in a Project. `ReferenceKind` has `image`, `pdf`, `webpage`, and `videoLink` cases. Video links do not imply local video storage.
+One saved object in a Project. `ReferenceKind` has `image`, `pdf`, `markdown`, `webpage`, `videoLink`, and `textSnippet` cases. Video links do not imply local video storage. A text snippet is text the user highlighted and shared, kept with its source page URL when the browser provides one; a Markdown file is stored as a managed original like an image or PDF.
 
 | Property | Swift type | Meaning |
 |---|---|---|
 | project | Project | Required domain relationship |
 | kindRaw | String | Typed ReferenceKind accessor |
 | title, note | String? | Optional description |
+| text | String? | The captured text; textSnippet only |
 | sourcePageURL | URL? | Original context; required for webpage/videoLink |
 | originalResourceURL | URL? | Direct image/PDF resource URL when available |
 | capturedAt | Date | Capture time |
-| asset | ManagedAsset? | Required for image/PDF; absent for webpage/videoLink |
-| topicLinks | [ReferenceTopic] | Inverse: ReferenceTopic.reference |
+| asset | ManagedAsset? | Required for image/PDF/markdown; absent for webpage/videoLink/textSnippet |
+| tagLinks | [ReferenceTag] | Inverse: ReferenceTag.reference |
 | videoMoments | [VideoMoment] | Inverse: VideoMoment.reference; empty for other kinds |
 
-Source URLs preserve provenance; never use an external URL as the only copy of a saved image or PDF. Local file imports may have no source URL. Tiles show thumbnail/preview, title, clear object type, and associated topics. A video link can use a type placeholder; remote preview artwork is optional and does not become a video archive.
+Source URLs preserve provenance; never use an external URL as the only copy of a saved image or PDF. Local file imports may have no source URL. Tiles show thumbnail/preview, title, clear object type, and associated tags. A video link can use a type placeholder; remote preview artwork is optional and does not become a video archive.
 
 ## ManagedAsset
 
@@ -81,18 +82,18 @@ Metadata for one app-managed original file. Original bytes are not SwiftData Dat
 
 `id` is the asset ID used in filenames. Originals live in private Application Support Library/Originals; generated thumbnails/PDF page previews live in Library/Thumbnails and are identified by asset ID. Derived preview paths need not be persisted. Never persist absolute library paths or temporary security-scoped source URLs.
 
-Preserve imported bytes without resizing/recompression. Validate JPEG/PNG/WebP/PDF content, size, and pixel limits. Copy files rather than linking to downloads. Thumbnail failure must not destroy or invalidate a durable original.
+Preserve imported bytes without resizing/recompression. Validate JPEG/PNG/WebP/HEIC/PDF content and Markdown UTF-8 text, size, and pixel limits (currently 200 MB per file, 5 MB per Markdown file, 300 megapixels per image). Image data a browser offers only as TIFF is stored losslessly as PNG. Copy files rather than linking to downloads. Thumbnail failure must not destroy or invalidate a durable original.
 
 Use ManagedAsset for optional Aftermarket images too; attaching one does not create a Reference. The inverse collections allow safe reference checking, but automatic cross-Project physical deduplication is not required. Do not add sharing merely because the model can represent it.
 
-## Topic and ReferenceTopic
+## Tag and ReferenceTag
 
 | Entity | Properties beyond shared fields | Rules |
 |---|---|---|
-| Topic | `name: String`, `normalizedName: String`, `referenceLinks: [ReferenceTopic]` | One normalized name per local library; inverse: ReferenceTopic.topic |
-| ReferenceTopic | `reference: Reference`, `topic: Topic` | One link for each Reference/Topic pair |
+| Tag | `name: String`, `normalizedName: String`, `referenceLinks: [ReferenceTag]` | One normalized name per local library; inverse: ReferenceTag.tag |
+| ReferenceTag | `reference: Reference`, `tag: Tag` | One link for each Reference/Tag pair |
 
-Topics are optional facets, not folders or an inbox. Normalize case/spacing for duplicate checks. Deleting a Topic removes its links without deleting References.
+Tags are optional facets, not folders or an inbox. Normalize case/spacing for duplicate checks. Deleting a Tag removes its links without deleting References.
 
 ## VideoMoment
 
@@ -139,8 +140,8 @@ Examples: Galaxy Models 50th Anniversary 2015 — Decals — 1:48 — Using; FOD
 ## Deletion and integrity
 
 - Project deletion requires confirmation and cascades to its References, ProjectPaint requirements, and AftermarketItems.
-- Reference deletion cascades to ReferenceTopic links and VideoMoments. Clear any Project cover relationship to it.
-- Topic deletion cascades to its join links, never the References.
+- Reference deletion cascades to ReferenceTag links and VideoMoments. Clear any Project cover relationship to it.
+- Tag deletion cascades to its join links, never the References.
 - Reference/Aftermarket deletion must not cascade directly to ManagedAsset. A coordinated cleanup service deletes originals, previews, and asset metadata only when no live record refers to them.
 - Do not permit direct ManagedAsset deletion while referenced. Do not permit ColourStandard, Colour, or Paint deletion while used by surviving records; enforce this in domain services and compatible store rules.
 - Removing ownership deletes only OwnedPaint.
@@ -148,13 +149,13 @@ Examples: Galaxy Models 50th Anniversary 2015 — Decals — 1:48 — Using; FOD
 
 ## Stored data versus viewer state
 
-Persist original metadata, provenance, notes, topics, and video moments. Do not persist decoded images, SwiftUI views, thumbnail bytes, scroll positions, current selection, or image zoom/pan in the domain entities. Window restoration may separately preserve transient view state if useful.
+Persist original metadata, provenance, notes, tags, and video moments. Do not persist decoded images, SwiftUI views, thumbnail bytes, scroll positions, current selection, or image zoom/pan in the domain entities. Window restoration may separately preserve transient view state if useful.
 
 The image viewer must use the original-resolution source, support smooth zoom and pan to inspect small details, offer fit-to-window and actual-size viewing, and retain useful navigation context. Thumbnails must never substitute for originals at inspection zoom. Decode/cache appropriate image regions or resolutions as needed; full-resolution preservation does not require keeping every image fully decoded in memory.
 
 ## Queries, migration, and recovery
 
-Keep query logic behind services. Required access patterns include Project recency, References by Project/capture time/type, title/note/topic search, Project/SHA duplicate checks, Paint identity/matches/ownership, and Aftermarket status. Prototype relationship predicates and benchmark representative libraries before choosing SwiftData indexes or denormalized fields.
+Keep query logic behind services. Required access patterns include Project recency, References by Project/capture time/type, title/note/tag search, Project/SHA duplicate checks, Paint identity/matches/ownership, and Aftermarket status. Prototype relationship predicates and benchmark representative libraries before choosing SwiftData indexes or denormalized fields.
 
 Version shipped schemas using VersionedSchema and SchemaMigrationPlan. Test upgrades with populated stores. Complete backup/export includes a consistent store snapshot and every referenced original with relative mappings; thumbnails may be rebuilt. Restore must verify file resolution. Never reset a user's store after a migration error.
 

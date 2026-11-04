@@ -4,15 +4,15 @@ A native macOS app for gathering and using scale-modelling research, organised b
 
 ## Current scope
 
-This is Phase 0–1 of [`docs/implementation-plan.md`](docs/implementation-plan.md):
+Phases 0–1 of [`docs/implementation-plan.md`](docs/implementation-plan.md), plus the interim capture work described at the end of that file:
 
-- Project sidebar with Add Project.
-- A sheet for creating and editing a Project: name (required, nonblank), manufacturer, subject, scale, kit number, markings scheme and notes.
-- Local SwiftData persistence.
-- A Project workspace with References, Paint and Aftermarket sections. References opens first. Each section shows an empty state for now.
-- Empty states for an empty library and for no selection.
+- Project sidebar, a create/edit sheet (name required), and a References / Paint / Aftermarket workspace.
+- References: images (JPEG, PNG, WebP, HEIC), PDFs, Markdown files, webpage links, video links (YouTube timestamps become moments) and highlighted text snippets.
+- Capture by dragging onto the window or a sidebar project, pasting (⌘V), Add Files (⌘O), or the macOS Share menu (**BenchBook**), with optional tags and a note.
+- A gallery of tiles (preview, title, type, tags). Open to Quick Look files, open links in the browser, edit details and tags, and delete.
+- Local SwiftData persistence, with originals copied byte-for-byte into an app-managed file library.
 
-Deferred until agreed or scheduled: Project status, cover, all other models, capture, import, viewing, paint, aftermarket entry and sync.
+Deferred: Project status, cover and deletion; search and tag filters; a dedicated image viewer; paint; aftermarket; Safari/Chromium extensions; and sync.
 
 ## Requirements
 
@@ -28,26 +28,47 @@ Why macOS 15: everything used now (SwiftData, `VersionedSchema`, `ContentUnavail
 
 ```text
 BenchBook/
-  App/        App entry point and menu commands
-  Models/     Versioned SwiftData schema (BenchBookSchemaV1) and display helpers
-  Services/   PersistenceController (store setup), ProjectService (validation and saves)
-  Views/      Sidebar, workspace, project editor
-BenchBookTests/  Swift Testing unit tests for ProjectService and persistence
+  App/        App entry point, menu commands, LibraryEnvironment (shared services)
+  Models/     Versioned SwiftData schemas (V1, V2), migration plan, display helpers
+  Services/   Store setup, Project/Reference services, import, file checks,
+              asset library, thumbnails, Share inbox
+  Views/      Sidebar, workspace, references gallery, editors
+Shared/       Code compiled into both the app and the Share extension
+BenchBookShare/  The Share extension (share sheet UI)
+BenchBookTests/  Swift Testing unit tests
 ```
 
 Rules:
 
 - Views edit a `ProjectDraft` and hand it to `ProjectService`. The service validates the draft, normalises blank optional text to `nil`, updates `updatedAt` and saves explicitly.
-- The schema is versioned from the start (`BenchBookSchemaV1` and `BenchBookMigrationPlan`). Add a new `VersionedSchema` and migration stage for model changes instead of editing V1 after release.
+- Every capture path goes through `ReferenceImporter`. It checks file contents (not names), copies the original byte-for-byte into the asset library, then saves the Reference. Within a Project, an identical file is reported as already saved instead of being added twice.
+- The Share extension never writes to the library. It leaves an envelope (files plus JSON) in the App Group inbox, and `CaptureCoordinator` imports it when BenchBook is running. The extension starts BenchBook in the background after sending. The App Group also holds the Project list and the active Project shown in the share sheet.
+- Schemas are versioned (`BenchBookSchemaV1`, `BenchBookSchemaV2`, `BenchBookMigrationPlan`). Add a new schema and stage for each model change; never edit one that has shipped.
 - If the store fails to open, the app shows an error and leaves the store alone. It never deletes or resets it.
 
-The library is stored at `~/Library/Containers/com.jasonvanlint.BenchBook/Data/Library/Application Support/BenchBook.store`.
+Storage, inside `~/Library/Containers/com.jasonvanlint.BenchBook/Data/Library/Application Support/`:
+
+- `BenchBook.store`: the SwiftData store.
+- `Library/Originals/<asset-id>.<ext>`: saved files.
+- `Library/Thumbnails/<asset-id>.png`: generated previews, safe to delete.
+
+The App Group (`952LYY5FW2.com.jasonvanlint.BenchBook`) holds the share inbox and the shared Project list.
+
+## Using the Share menu
+
+1. Run BenchBook once from Xcode so macOS registers the extension.
+2. If BenchBook doesn't appear in a Share menu, turn it on in System Settings → General → Login Items & Extensions → Sharing.
+3. In Safari, use File → Share or the toolbar Share button for a page, or select text and Control-click → Share. In Chrome, use File → Share. In Finder, select files and Share.
 
 ## Keyboard
 
 | Shortcut | Action |
 |---|---|
 | ⌘N | New Project |
+| ⌘O | Add files to the selected Project |
+| ⌘V | Paste images, files, links or text into the selected Project |
+| Return / Space | Open the selected reference |
+| ⌫ | Delete the selected reference (asks first) |
 | ⌘I | Edit selected Project |
 | ⌘1 / ⌘2 / ⌘3 | References / Paint / Aftermarket |
 | ⌃⌘S | Show or hide sidebar |
@@ -58,7 +79,7 @@ The library is stored at `~/Library/Containers/com.jasonvanlint.BenchBook/Data/L
 xcodebuild -project BenchBook.xcodeproj -scheme BenchBook -destination 'platform=macOS' test
 ```
 
-To try the app without touching your real library, launch a Debug build with a separate store:
+To try the app without touching your real library, launch a Debug build with a separate store. This also keeps it out of Share-extension handoff:
 
 ```sh
 open BenchBook.app --args -BenchBookStoreName BenchBookScratch

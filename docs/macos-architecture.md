@@ -39,7 +39,7 @@ SwiftUI windows, sidebar, gallery, inspector, commands
 
 ## Native presentation and image viewing
 
-Use system typography, colours, SF Symbols, and standard SwiftUI controls unless a custom interaction has been explicitly agreed. The browsing model is individual object tiles with thumbnails, titles, type indicators, and topics, rather than an infinite canvas. Exact window/navigation structure remains open.
+Use system typography, colours, SF Symbols, and standard SwiftUI controls unless a custom interaction has been explicitly agreed. The browsing model is individual object tiles with thumbnails, titles, type indicators, and tags, rather than an infinite canvas. Exact window/navigation structure remains open.
 
 Image inspection is a core workflow: zoom/pan, fit-to-window, and actual-size viewing must draw from the preserved original. Use SwiftUI with AppKit integration as needed for responsive large-image viewing; choose the implementation after a representative image prototype. Keep zoom/pan and decoded image caches outside persisted domain models.
 
@@ -57,7 +57,7 @@ Keep expensive downloads, hashing, image decoding, and thumbnail work off the ma
 
 ## SwiftData suitability and constraints
 
-Projects, References, Topics, PaintMatches, ownership, and Project choices are ordinary related records and are a good candidate for SwiftData. Use explicit inverse relationships and deliberate deletion rules. Keep join entities where they carry meaning or metadata.
+Projects, References, Tags, PaintMatches, ownership, and Project choices are ordinary related records and are a good candidate for SwiftData. Use explicit inverse relationships and deliberate deletion rules. Keep join entities where they carry meaning or metadata.
 
 ### Managed image and PDF library
 
@@ -94,11 +94,11 @@ A complete library export or backup must include a consistent snapshot of SwiftD
 
 ### Search and scale
 
-Start with title/note/topic matching and bounded fetches. Rich full-text ranking may eventually require a dedicated local search index. Prototype the actual topic relationship query and benchmark realistic libraries before choosing indexes or denormalized search text. Keep the UI independent of the query implementation. Avoid fetching full-resolution assets or the entire library into a gallery.
+Start with title/note/tag matching and bounded fetches. Rich full-text ranking may eventually require a dedicated local search index. Prototype the actual tag relationship query and benchmark realistic libraries before choosing indexes or denormalized search text. Keep the UI independent of the query implementation. Avoid fetching full-resolution assets or the entire library into a gallery.
 
 ### Integrity and migration
 
-Use stable UUIDs for domain identity and portable exports. Enforce same-Project covers, normalized topic names, paint identities, and gentle SHA-256 duplicate handling in domain services. Choose store constraints only after OS and sync decisions. Version the schema from the first shipped release with VersionedSchema/SchemaMigrationPlan and verify migrations on populated libraries. Backup/restore must include both the store and originals through a consistent, supported process.
+Use stable UUIDs for domain identity and portable exports. Enforce same-Project covers, normalized tag names, paint identities, and gentle SHA-256 duplicate handling in domain services. Choose store constraints only after OS and sync decisions. Version the schema from the first shipped release with VersionedSchema/SchemaMigrationPlan and verify migrations on populated libraries. Backup/restore must include both the store and originals through a consistent, supported process.
 
 ### Optional sync
 

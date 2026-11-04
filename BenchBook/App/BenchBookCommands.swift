@@ -5,6 +5,8 @@ struct ProjectActions {
     var newProject: () -> Void
     /// Nil when no Project is selected.
     var editProject: (() -> Void)?
+    /// Nil when no Project is selected.
+    var addFiles: (() -> Void)?
 }
 
 extension FocusedValues {
@@ -23,6 +25,12 @@ struct BenchBookCommands: Commands {
             }
             .keyboardShortcut("n")
             .disabled(projectActions == nil)
+
+            Button("Add Files to Project…") {
+                projectActions?.addFiles?()
+            }
+            .keyboardShortcut("o")
+            .disabled(projectActions?.addFiles == nil)
         }
 
         CommandMenu("Project") {

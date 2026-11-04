@@ -27,11 +27,32 @@ enum WorkspaceSection: String, CaseIterable, Identifiable {
 struct ProjectWorkspaceView: View {
     let project: Project
     let onEdit: () -> Void
+    let onAddFiles: () -> Void
 
+    @Environment(\.captureCoordinator) private var captureCoordinator
     @State private var section: WorkspaceSection = .references
+    /// Kept here so it survives switching sections; resets per Project.
+    @State private var referenceFilter = ReferenceFilter()
+    @State private var isDropTargeted = false
 
     var body: some View {
-        WorkspaceSectionPlaceholder(section: section)
+        content
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay {
+                if isDropTargeted {
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(Color.accentColor, lineWidth: 3)
+                        .padding(6)
+                        .allowsHitTesting(false)
+                }
+            }
+            .onDrop(of: CaptureDrop.types, isTargeted: $isDropTargeted) { providers in
+                capture(providers)
+                return true
+            }
+            .onPasteCommand(of: CaptureDrop.types) { providers in
+                capture(providers)
+            }
             .navigationTitle(project.name)
             .navigationSubtitle(project.summary)
             .toolbar {
@@ -45,27 +66,21 @@ struct ProjectWorkspaceView: View {
                     .fixedSize()
                     .help("Switch between References, Paint and Aftermarket")
                 }
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button("Add Files", systemImage: "plus.rectangle.on.rectangle", action: addFiles)
+                        .help("Add images, PDFs or Markdown files to this project")
                     Button("Edit Project", systemImage: "pencil", action: onEdit)
                         .help("Edit Project")
                 }
             }
             .focusedSceneValue(\.workspaceSection, $section)
     }
-}
 
-/// Empty states for each section until adding items is built.
-private struct WorkspaceSectionPlaceholder: View {
-    let section: WorkspaceSection
-
-    var body: some View {
+    @ViewBuilder
+    private var content: some View {
         switch section {
         case .references:
-            ContentUnavailableView(
-                "No References",
-                systemImage: "photo.on.rectangle.angled",
-                description: Text("Images, PDFs, webpages and video links you save for this project will appear here.")
-            )
+            ReferencesView(project: project, filter: $referenceFilter, onAddFiles: addFiles)
         case .paint:
             ContentUnavailableView(
                 "No Paint",
@@ -79,5 +94,17 @@ private struct WorkspaceSectionPlaceholder: View {
                 description: Text("Decals, resin, photo-etch and other parts you're using or considering for this build will appear here.")
             )
         }
+    }
+
+    private func addFiles() {
+        referenceFilter = ReferenceFilter()
+        onAddFiles()
+    }
+
+    /// Everything dropped or pasted becomes a Reference, so show all References.
+    private func capture(_ providers: [NSItemProvider]) {
+        section = .references
+        referenceFilter = ReferenceFilter()
+        captureCoordinator?.capture(providers, into: project)
     }
 }

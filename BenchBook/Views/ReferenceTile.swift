@@ -1,0 +1,94 @@
+import SwiftUI
+
+/// One Reference in the gallery: preview, title, type and tags.
+struct ReferenceTile: View {
+    let reference: Reference
+    let isSelected: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ReferencePreview(reference: reference)
+                .frame(height: 140)
+                .frame(maxWidth: .infinity)
+                .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+            Text(reference.displayTitle)
+                .lineLimit(2)
+
+            Label(typeLine, systemImage: reference.kind?.systemImage ?? "questionmark.square")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+
+            if !reference.tags.isEmpty {
+                TagChips(names: reference.tags.map(\.name))
+                    .padding(.top, 2)
+            }
+        }
+        .padding(8)
+        .background(
+            isSelected ? AnyShapeStyle(.selection) : AnyShapeStyle(.clear),
+            in: RoundedRectangle(cornerRadius: 10)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 10))
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    /// e.g. "Image", "Video · 1:30", "Webpage · example.com".
+    private var typeLine: String {
+        let kindName = reference.kind?.displayName ?? String(localized: "Unknown Type")
+        switch reference.kind {
+        case .videoLink:
+            if let first = reference.sortedVideoMoments.first {
+                return "\(kindName) · \(VideoLink.format(seconds: first.offsetSeconds))"
+            }
+        case .webpage, .textSnippet:
+            if let host = reference.sourcePageURL?.host() {
+                return "\(kindName) · \(host)"
+            }
+        default:
+            break
+        }
+        return kindName
+    }
+}
+
+private struct ReferencePreview: View {
+    let reference: Reference
+
+    @Environment(\.thumbnailStore) private var thumbnailStore
+    @State private var thumbnail: NSImage?
+
+    var body: some View {
+        if let thumbnail {
+            Image(nsImage: thumbnail)
+                .resizable()
+                .scaledToFill()
+                .accessibilityHidden(true)
+        } else if reference.kind == .textSnippet, let text = reference.text {
+            Text(text)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .lineLimit(7)
+                .padding(10)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else {
+            Image(systemName: reference.kind?.systemImage ?? "questionmark.square")
+                .font(.system(size: 36))
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+                .task(id: reference.asset?.id) { await loadThumbnail() }
+        }
+    }
+
+    private func loadThumbnail() async {
+        guard let asset = reference.asset, let thumbnailStore else { return }
+        thumbnail = await thumbnailStore.thumbnail(
+            assetID: asset.id,
+            originalRelativePath: asset.originalRelativePath
+        )
+    }
+}
