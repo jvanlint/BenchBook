@@ -9,10 +9,11 @@ Phases 0–1 of [`docs/implementation-plan.md`](docs/implementation-plan.md), pl
 - Project sidebar, a create/edit sheet (name required), and a References / Paint / Aftermarket workspace.
 - References: images (JPEG, PNG, WebP, HEIC), PDFs, Markdown files, webpage links, video links (YouTube timestamps become moments) and highlighted text snippets.
 - Capture by dragging onto the window or a sidebar project, pasting (⌘V), Add Files (⌘O), or the macOS Share menu (**BenchBook**), with optional tags and a note.
-- A gallery of tiles (preview, title, type, tags). Open to Quick Look files, open links in the browser, edit details and tags, and delete.
+- A gallery of tiles (preview, title, type, tags) with type and tag filters. Images open in a viewer window; other files open in Quick Look (Space previews anything); links open in the browser.
+- Image notes: zoom and pan a photo, draw boxes around features, and attach a numbered note to each. The original image is never changed.
 - Local SwiftData persistence, with originals copied byte-for-byte into an app-managed file library.
 
-Deferred: Project status, cover and deletion; search and tag filters; a dedicated image viewer; paint; aftermarket; Safari/Chromium extensions; and sync.
+Deferred: Project status, cover and deletion; search; paint; aftermarket; Safari/Chromium extensions; and sync.
 
 ## Requirements
 
@@ -32,7 +33,8 @@ BenchBook/
   Models/     Versioned SwiftData schemas (V1, V2), migration plan, display helpers
   Services/   Store setup, Project/Reference services, import, file checks,
               asset library, thumbnails, Share inbox
-  Views/      Sidebar, workspace, references gallery, editors
+  Views/      Sidebar, workspace, references gallery, editors,
+              ImageViewer/ (viewer window, zoomable canvas, notes panel)
 Shared/       Code compiled into both the app and the Share extension
 BenchBookShare/  The Share extension (share sheet UI)
 BenchBookTests/  Swift Testing unit tests
@@ -43,7 +45,7 @@ Rules:
 - Views edit a `ProjectDraft` and hand it to `ProjectService`. The service validates the draft, normalises blank optional text to `nil`, updates `updatedAt` and saves explicitly.
 - Every capture path goes through `ReferenceImporter`. It checks file contents (not names), copies the original byte-for-byte into the asset library, then saves the Reference. Within a Project, an identical file is reported as already saved instead of being added twice.
 - The Share extension never writes to the library. It leaves an envelope (files plus JSON) in the App Group inbox, and `CaptureCoordinator` imports it when BenchBook is running. The extension starts BenchBook in the background after sending. The App Group also holds the Project list and the active Project shown in the share sheet.
-- Schemas are versioned (`BenchBookSchemaV1`, `BenchBookSchemaV2`, `BenchBookMigrationPlan`). Add a new schema and stage for each model change; never edit one that has shipped.
+- Schemas are versioned (`BenchBookSchemaV1` to `BenchBookSchemaV3`, `BenchBookMigrationPlan`). Add a new schema and stage for each model change; never edit one that has shipped.
 - If the store fails to open, the app shows an error and leaves the store alone. It never deletes or resets it.
 
 Storage, inside `~/Library/Containers/com.jasonvanlint.BenchBook/Data/Library/Application Support/`:
@@ -67,11 +69,24 @@ The App Group (`952LYY5FW2.com.jasonvanlint.BenchBook`) holds the share inbox an
 | ⌘N | New Project |
 | ⌘O | Add files to the selected Project |
 | ⌘V | Paste images, files, links or text into the selected Project |
-| Return / Space | Open the selected reference |
+| Return | Open the selected reference |
+| Space | Quick Look the selected reference |
 | ⌫ | Delete the selected reference (asks first) |
 | ⌘I | Edit selected Project |
 | ⌘1 / ⌘2 / ⌘3 | References / Paint / Aftermarket |
 | ⌃⌘S | Show or hide sidebar |
+
+In the image viewer:
+
+| Shortcut | Action |
+|---|---|
+| ⌘D | Draw Box (Esc cancels) |
+| ⌘B | Show or hide boxes |
+| ⌫ | Delete the selected box (asks first) |
+| ⌘= / ⌘− | Zoom in / out (or pinch, a mouse scroll wheel, or ⌘-scroll) |
+| ⌘9 / ⌘0 | Zoom to Fit (or middle-click) / Actual Size |
+| ⌘[ / ⌘] | Previous / next image |
+| ⌥⌘I | Show or hide the Notes and Info panel |
 
 ## Testing
 

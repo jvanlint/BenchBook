@@ -13,6 +13,7 @@ struct ReferencesView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.assetLibrary) private var assetLibrary
     @Environment(\.openURL) private var openURL
+    @Environment(\.openWindow) private var openWindow
 
     @FocusState private var focusedID: UUID?
     @State private var quickLookURL: URL?
@@ -111,7 +112,7 @@ struct ReferencesView: View {
                             return .handled
                         }
                         .onKeyPress(.space) {
-                            open(reference)
+                            quickLook(reference)
                             return .handled
                         }
                         .onDeleteCommand { referencePendingDeletion = reference }
@@ -128,6 +129,7 @@ struct ReferencesView: View {
     private func menu(for reference: Reference) -> some View {
         Button("Open") { open(reference) }
         if reference.asset != nil {
+            Button("Quick Look") { quickLook(reference) }
             Button("Open in Default App") { openInDefaultApp(reference) }
         }
         if reference.kind == .videoLink {
@@ -180,9 +182,10 @@ struct ReferencesView: View {
     private func open(_ reference: Reference) {
         focusedID = reference.id
         switch reference.kind {
-        case .image, .pdf, .markdown:
-            guard let url = originalURL(of: reference) else { return }
-            quickLookURL = url
+        case .image:
+            openWindow(id: ImageViewerWindow.id, value: reference.id)
+        case .pdf, .markdown:
+            quickLook(reference)
         case .webpage:
             if let url = reference.sourcePageURL { openURL(url) }
         case .videoLink:
@@ -194,6 +197,18 @@ struct ReferencesView: View {
             }
         case .textSnippet, nil:
             detailsReference = reference
+        }
+    }
+
+    /// Space bar preview, as in Finder. Non-file references open normally.
+    private func quickLook(_ reference: Reference) {
+        guard reference.asset != nil else {
+            open(reference)
+            return
+        }
+        focusedID = reference.id
+        if let url = originalURL(of: reference) {
+            quickLookURL = url
         }
     }
 

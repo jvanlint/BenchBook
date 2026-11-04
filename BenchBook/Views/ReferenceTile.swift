@@ -44,6 +44,11 @@ struct ReferenceTile: View {
     private var typeLine: String {
         let kindName = reference.kind?.displayName ?? String(localized: "Unknown Type")
         switch reference.kind {
+        case .image:
+            let count = reference.imageNotes.count
+            if count > 0 {
+                return "\(kindName) · " + String(localized: "\(count) notes")
+            }
         case .videoLink:
             if let first = reference.sortedVideoMoments.first {
                 return "\(kindName) · \(VideoLink.format(seconds: first.offsetSeconds))"

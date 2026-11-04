@@ -11,11 +11,7 @@ struct BenchBookApp: App {
             switch library {
             case .success(let library):
                 ContentView()
-                    .modelContainer(library.container)
-                    .environment(\.assetLibrary, library.assetLibrary)
-                    .environment(\.thumbnailStore, library.thumbnails)
-                    .environment(\.captureCoordinator, library.capture)
-                    .environment(\.projectDirectory, library.projectDirectory)
+                    .libraryEnvironment(library)
                     .onAppear { library.capture.startInbox() }
                     .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
                         library.capture.processInbox()
@@ -28,6 +24,26 @@ struct BenchBookApp: App {
             SidebarCommands()
             BenchBookCommands()
         }
+
+        // One window per image; reopening an image brings its window forward.
+        WindowGroup("Image", id: ImageViewerWindow.id, for: UUID.self) { $referenceID in
+            if case .success(let library) = library {
+                ImageViewerWindow(referenceID: $referenceID)
+                    .libraryEnvironment(library)
+            }
+        }
+        .defaultSize(width: 1100, height: 760)
+    }
+}
+
+private extension View {
+    /// The store and services every window needs.
+    func libraryEnvironment(_ library: LibraryEnvironment) -> some View {
+        modelContainer(library.container)
+            .environment(\.assetLibrary, library.assetLibrary)
+            .environment(\.thumbnailStore, library.thumbnails)
+            .environment(\.captureCoordinator, library.capture)
+            .environment(\.projectDirectory, library.projectDirectory)
     }
 }
 

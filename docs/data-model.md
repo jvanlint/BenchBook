@@ -23,7 +23,8 @@ Project
 ├── references: [Reference]
 │   ├── asset: ManagedAsset?             image/PDF only
 │   ├── tagLinks: [ReferenceTag] ──> Tag
-│   └── videoMoments: [VideoMoment]      video links only
+│   ├── videoMoments: [VideoMoment]      video links only
+│   └── imageNotes: [ImageNote]          images only
 ├── paintRequirements: [ProjectPaint] ──> Colour
 │                                       └── matches: [PaintMatch] ──> Paint
 └── aftermarketItems: [AftermarketItem]                              ▲
@@ -109,6 +110,18 @@ Preserve the original source URL. When a supported YouTube URL contains a recogn
 
 Generate the provider-specific playback URL from the video URL and offset when the user opens a moment. Open it in the browser/provider; embedded playback and video download are not required. Format seconds as minutes/seconds or hours/minutes/seconds for display. Unsupported providers may open the original link with a clearly displayed timestamp for manual seeking; do not promise timestamp seeking for every website.
 
+## ImageNote
+
+A box drawn on an image Reference to mark a feature of the subject, with a note about it. Notes are numbered in the order they were added. They are non-destructive: the original file is never changed.
+
+| Property | Swift type | Meaning |
+|---|---|---|
+| reference | Reference | Must have kind image |
+| x, y, width, height | Double | Box as fractions (0...1) of the upright image's width and height, from its top-left corner; independent of zoom, screen and display downscaling |
+| text | String | The note; may be empty while being written |
+
+Boxes are clamped inside the image and must be at least 8 image pixels on each side.
+
 ## Paint domain
 
 | Entity | Properties beyond shared fields | Relationships and rules |
@@ -140,7 +153,7 @@ Examples: Galaxy Models 50th Anniversary 2015 — Decals — 1:48 — Using; FOD
 ## Deletion and integrity
 
 - Project deletion requires confirmation and cascades to its References, ProjectPaint requirements, and AftermarketItems.
-- Reference deletion cascades to ReferenceTag links and VideoMoments. Clear any Project cover relationship to it.
+- Reference deletion cascades to ReferenceTag links, VideoMoments and ImageNotes. Clear any Project cover relationship to it.
 - Tag deletion cascades to its join links, never the References.
 - Reference/Aftermarket deletion must not cascade directly to ManagedAsset. A coordinated cleanup service deletes originals, previews, and asset metadata only when no live record refers to them.
 - Do not permit direct ManagedAsset deletion while referenced. Do not permit ColourStandard, Colour, or Paint deletion while used by surviving records; enforce this in domain services and compatible store rules.

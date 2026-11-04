@@ -114,3 +114,11 @@ Agreed ahead of Phases 3–4: browser capture starts with a macOS Share extensio
 - Every item becomes a durable Reference, a gentle duplicate ("Already saved to this project"), or a reported failure before its envelope is removed.
 
 WebExtensions capture remains Phases 3–4 and can reuse the same inbox and import path.
+
+## Image notes — viewer with boxes and notes
+
+Delivered ahead of the rest of Phase 5:
+
+- Images open in their own window (other files keep Quick Look), with previous/next through the Project's images.
+- Zoom and pan use AppKit's NSScrollView magnification: pinch, two-finger scroll, drag on empty space, zoom in/out, Zoom to Fit and Actual Size (one image pixel per screen pixel). The viewer shows the original, decoded upright; images over 16,384 pixels on a side are shown scaled to that GPU limit.
+- Draw Box marks a feature; boxes can be selected, moved, resized and deleted, and each has a numbered note edited in a side panel. Notes are stored as ImageNote records (schema V3), never in the image.

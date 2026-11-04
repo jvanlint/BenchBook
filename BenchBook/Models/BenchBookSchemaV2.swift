@@ -2,6 +2,7 @@ import Foundation
 import SwiftData
 
 /// Schema 2: adds References, managed files, Tags and video moments.
+/// Frozen; kept so existing libraries can migrate.
 ///
 /// Relationship rules (docs/data-model.md):
 /// - Deleting a Project deletes its References.
