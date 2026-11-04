@@ -6,6 +6,7 @@ import SwiftUI
 struct ReferencesView: View {
     let project: Project
     @Binding var filter: ReferenceFilter
+    @Binding var revealID: UUID?
     let onAddFiles: () -> Void
     let onNewNote: () -> Void
 
@@ -22,10 +23,13 @@ struct ReferencesView: View {
     @State private var detailsReference: Reference?
     @State private var referencePendingDeletion: Reference?
     @State private var errorMessage: String?
+    @State private var scrollTarget: UUID?
 
-    init(project: Project, filter: Binding<ReferenceFilter>, onAddFiles: @escaping () -> Void, onNewNote: @escaping () -> Void) {
+    init(project: Project, filter: Binding<ReferenceFilter>, revealID: Binding<UUID?>,
+         onAddFiles: @escaping () -> Void, onNewNote: @escaping () -> Void) {
         self.project = project
         _filter = filter
+        _revealID = revealID
         self.onAddFiles = onAddFiles
         self.onNewNote = onNewNote
         let projectID = project.id
@@ -76,6 +80,14 @@ struct ReferencesView: View {
                 availableTags: Set(tagUsage.map(\.normalizedName))
             )
         }
+        // Show a Reference found by search: clear filters that could hide it.
+        .onChange(of: revealID, initial: true) { _, id in
+            guard let id, references.contains(where: { $0.id == id }) else { return }
+            filter = ReferenceFilter()
+            focusedID = id
+            scrollTarget = id
+            revealID = nil
+        }
         .quickLookPreview($quickLookURL, in: previewableURLs)
         .sheet(item: $detailsReference) { reference in
             if reference.kind == .note {
@@ -107,10 +119,12 @@ struct ReferencesView: View {
     }
 
     private var grid: some View {
+        ScrollViewReader { proxy in
         ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 180, maximum: 260), spacing: 16)], spacing: 16) {
                 ForEach(visibleReferences) { reference in
                     ReferenceTile(reference: reference, isSelected: focusedID == reference.id)
+                        .id(reference.id)
                         .focusable()
                         .focused($focusedID, equals: reference.id)
                         .onTapGesture(count: 2) { open(reference) }
@@ -130,6 +144,12 @@ struct ReferencesView: View {
                 }
             }
             .padding(20)
+        }
+        .onChange(of: scrollTarget, initial: true) { _, id in
+            guard let id else { return }
+            withAnimation { proxy.scrollTo(id, anchor: .center) }
+            scrollTarget = nil
+        }
         }
     }
 

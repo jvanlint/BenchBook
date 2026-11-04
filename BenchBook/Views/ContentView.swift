@@ -4,6 +4,8 @@ import SwiftUI
 struct ContentView: View {
     @Query(sort: [SortDescriptor(\Project.name, comparator: .localizedStandard)])
     private var projects: [Project]
+    @Query(sort: [SortDescriptor(\Tag.name, comparator: .localizedStandard)])
+    private var tags: [Tag]
 
     @Environment(\.captureCoordinator) private var captureCoordinator
     @Environment(\.projectDirectory) private var projectDirectory
@@ -11,6 +13,15 @@ struct ContentView: View {
     @State private var selection: SidebarItem?
     @State private var editorRequest: ProjectEditorRequest?
     @State private var isAddingFiles = false
+    @State private var searchText = ""
+    @State private var searchTokens: [SearchTagToken] = []
+    @FocusState private var isSearchFocused: Bool
+    @State private var revealReferenceID: UUID?
+    @State private var revealPaintID: UUID?
+
+    private var searchQuery: SearchQuery {
+        SearchQuery(text: searchText, tags: Set(searchTokens.map(\.normalizedName)))
+    }
 
     private var selectedProjectID: UUID? { selection?.projectID }
 
@@ -31,6 +42,24 @@ struct ContentView: View {
             detail
         }
         .frame(minWidth: 760, minHeight: 480)
+        .searchable(text: $searchText, tokens: $searchTokens, placement: .toolbar, prompt: "Search All Projects") { token in
+            Label(token.name, systemImage: "tag")
+        }
+        .searchSuggestions {
+            ForEach(tagSuggestions) { token in
+                Label(token.name, systemImage: "tag")
+                    .searchCompletion(token)
+            }
+        }
+        .searchFocused($isSearchFocused)
+        .onChange(of: searchTokens) { old, new in
+            // Choosing a tag suggestion replaces the word typed to find it.
+            guard new.count > old.count, let added = new.last, let typed = lastWord,
+                  SearchField.fold(added.name).contains(SearchField.fold(typed))
+            else { return }
+            searchText = String(searchText.dropLast(typed.count)).trimmingCharacters(in: .whitespaces)
+        }
+        .focusedSceneValue(\.searchAction, SearchAction { isSearchFocused = true })
         .sheet(item: $editorRequest) { request in
             ProjectEditorView(request: request) { project in
                 selection = .project(project.id)
@@ -58,6 +87,8 @@ struct ContentView: View {
         }
         .focusedSceneValue(\.projectActions, editorRequest == nil ? projectActions : nil)
         .onAppear(perform: restoreSelection)
+        // Choosing something in the sidebar leaves search.
+        .onChange(of: selection) { endSearch() }
         .onChange(of: selection?.projectID) { _, id in
             if let id { projectDirectory?.activeProjectID = id }
         }
@@ -68,13 +99,33 @@ struct ContentView: View {
 
     @ViewBuilder
     private var detail: some View {
-        if selection == .paints {
-            PaintCatalogueView()
+        if !searchQuery.isEmpty {
+            SearchResultsView(
+                query: searchQuery,
+                onShowProject: { project in
+                    endSearch()
+                    selection = .project(project.id)
+                },
+                onShowReference: { reference in
+                    guard let projectID = reference.project?.id else { return }
+                    endSearch()
+                    selection = .project(projectID)
+                    revealReferenceID = reference.id
+                },
+                onShowPaint: { paint in
+                    endSearch()
+                    selection = .paints
+                    revealPaintID = paint.id
+                }
+            )
+        } else if selection == .paints {
+            PaintCatalogueView(revealID: $revealPaintID)
         } else if let project = selectedProject {
             ProjectWorkspaceView(
                 project: project,
                 onEdit: { editorRequest = .edit(project) },
-                onAddFiles: { isAddingFiles = true }
+                onAddFiles: { isAddingFiles = true },
+                revealReferenceID: $revealReferenceID
             )
             // A fresh workspace per Project, so each one opens on References.
             .id(project.id)
@@ -94,6 +145,27 @@ struct ContentView: View {
                 description: Text("Select a project in the sidebar.")
             )
         }
+    }
+
+    /// The word being typed, used to suggest tags.
+    private var lastWord: String? {
+        guard let last = searchText.last, !last.isWhitespace else { return nil }
+        return searchText.split(whereSeparator: \.isWhitespace).last.map(String.init)
+    }
+
+    /// Tags matching the word being typed, not already chosen.
+    private var tagSuggestions: [SearchTagToken] {
+        guard let word = lastWord.map(SearchField.fold) else { return [] }
+        let chosen = Set(searchTokens.map(\.normalizedName))
+        return tags
+            .filter { !chosen.contains($0.normalizedName) && SearchField.fold($0.name).contains(word) }
+            .prefix(8)
+            .map { SearchTagToken(normalizedName: $0.normalizedName, name: $0.name) }
+    }
+
+    private func endSearch() {
+        searchText = ""
+        searchTokens = []
     }
 
     private var projectActions: ProjectActions {

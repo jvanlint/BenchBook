@@ -9,6 +9,11 @@ struct ProjectActions {
     var addFiles: (() -> Void)?
 }
 
+/// Puts the cursor in the focused window's search field.
+struct SearchAction {
+    var focus: () -> Void
+}
+
 /// Writes a new note in the Project shown in the focused window.
 struct NoteAction {
     var newNote: () -> Void
@@ -19,12 +24,14 @@ extension FocusedValues {
     @Entry var workspaceSection: Binding<WorkspaceSection>?
     /// Nil when no Project is shown or a note is already open.
     @Entry var noteAction: NoteAction?
+    @Entry var searchAction: SearchAction?
 }
 
 struct BenchBookCommands: Commands {
     @FocusedValue(\.projectActions) private var projectActions
     @FocusedValue(\.workspaceSection) private var workspaceSection
     @FocusedValue(\.noteAction) private var noteAction
+    @FocusedValue(\.searchAction) private var searchAction
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -45,6 +52,15 @@ struct BenchBookCommands: Commands {
             }
             .keyboardShortcut("n", modifiers: [.command, .shift])
             .disabled(noteAction == nil)
+        }
+
+        CommandGroup(after: .pasteboard) {
+            Divider()
+            Button("Find…") {
+                searchAction?.focus()
+            }
+            .keyboardShortcut("f")
+            .disabled(searchAction == nil)
         }
 
         CommandMenu("Project") {

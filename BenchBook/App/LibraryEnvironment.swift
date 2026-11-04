@@ -8,6 +8,7 @@ final class LibraryEnvironment {
     let thumbnails: ThumbnailStore
     let capture: CaptureCoordinator
     let videoInfo: VideoInfoService
+    let search: SearchIndex
     /// Nil for tests and debug stores, which don't take part in sharing.
     let projectDirectory: ProjectDirectory?
 
@@ -22,6 +23,7 @@ final class LibraryEnvironment {
         capture = CaptureCoordinator(context: container.mainContext, library: assetLibrary, inbox: inbox)
         videoInfo = VideoInfoService(context: container.mainContext, library: assetLibrary)
         capture.videoInfo = videoInfo
+        search = SearchIndex(context: container.mainContext)
 
         try? ReferenceService(context: container.mainContext, library: assetLibrary).reconcileLibrary()
         // Video links saved while offline, or before video details existed.
@@ -34,5 +36,6 @@ extension EnvironmentValues {
     @Entry var thumbnailStore: ThumbnailStore?
     @Entry var captureCoordinator: CaptureCoordinator?
     @Entry var videoInfoService: VideoInfoService?
+    @Entry var searchIndex: SearchIndex?
     @Entry var projectDirectory: ProjectDirectory?
 }

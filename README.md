@@ -113,6 +113,12 @@ To try the app without touching your real library, launch a Debug build with a s
 open BenchBook.app --args -BenchBookStoreName BenchBookScratch
 ```
 
+## Search
+
+The search field in the main window's toolbar (Edit › Find…, ⌘F) searches every project at once: project details, paints (including FS / RLM codes), and references' titles, text, notes, tags, file names, links, video channels, descriptions and moments, and the notes on boxes drawn on images. Every word must match, ignoring case, accents and punctuation ("f16" finds "F-16"). Typing part of a tag name suggests it as a token, which limits results to references with that tag. Results are grouped by project; a matching image box or video moment has its own row that opens the image zoomed to the box, or the video at that time. Right-click for Show in Project or Show in Paints.
+
+Searchable text is prepared in memory (`SearchIndex`) and rebuilt after each save. Text inside PDFs and Markdown files, and text in images, isn't searched yet.
+
 ## Video details
 
 After a YouTube or Vimeo link is saved, BenchBook fetches its poster image, title, channel, length, publish date and description from the sites' public pages (oEmbed, plus the YouTube watch page). No account or API key is needed, and the video itself is never downloaded. Saving never waits for this: links saved while offline get their details the next time BenchBook launches, and right-clicking a video offers Refresh Video Details. A title the user typed is kept; a browser page title such as "… - YouTube" is replaced. This is the only network access the app makes (`com.apple.security.network.client`).

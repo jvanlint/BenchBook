@@ -29,6 +29,14 @@ struct ImageViewerWindow: View {
     }
 }
 
+/// Asks an image viewer to show one of its notes, e.g. from search.
+/// Keyed by Reference ID; the viewer clears the request once shown.
+@Observable
+final class ImageViewerRequests {
+    static let shared = ImageViewerRequests()
+    var noteToShow: [UUID: UUID] = [:]
+}
+
 /// The viewer's side panel tabs.
 enum ImageInspectorTab: String, CaseIterable {
     case notes, info
@@ -129,6 +137,9 @@ struct ImageViewer: View {
             }
             .toolbar { toolbar }
             .task(id: reference.id) { await loadImage() }
+            .task(id: RequestedNote(noteID: ImageViewerRequests.shared.noteToShow[reference.id], isLoaded: image != nil)) {
+                await showRequestedNote()
+            }
             .onDisappear { commit() }
             .onChange(of: selection) { commit() }
             // You can't draw boxes you can't see, so drawing shows them.
@@ -277,6 +288,25 @@ struct ImageViewer: View {
                 ? error.localizedDescription
                 : String(localized: "The saved copy of this image is missing from the library.")
         }
+    }
+
+    private struct RequestedNote: Equatable {
+        let noteID: UUID?
+        let isLoaded: Bool
+    }
+
+    /// Selects the requested note and zooms to its box, once the image is shown.
+    private func showRequestedNote() async {
+        guard image != nil, let id = ImageViewerRequests.shared.noteToShow[reference.id] else { return }
+        ImageViewerRequests.shared.noteToShow[reference.id] = nil
+        guard let box = noteBoxes.first(where: { $0.id == id }) else { return }
+        showsBoxes = true
+        showsNotes = true
+        inspectorTab = .notes
+        selection = id
+        // Let the canvas lay out at its window size before zooming.
+        try? await Task.sleep(for: .milliseconds(150))
+        controller.zoom(toPixelRect: box.rect)
     }
 
     private func create(_ rect: CGRect) {

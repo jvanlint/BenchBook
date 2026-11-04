@@ -36,6 +36,19 @@ final class ImageCanvasController {
         setMagnification(1 / backingScale(of: scrollView), in: scrollView)
     }
 
+    /// Zooms so the box (image pixels) fills most of the view, centred.
+    func zoom(toPixelRect rect: CGRect) {
+        guard let scrollView, let document = scrollView.documentView else { return }
+        isFitting = false
+        let margin = max(rect.width, rect.height, 80) * 0.5
+        let target = rect.insetBy(dx: -margin, dy: -margin).intersection(document.bounds)
+        scrollView.magnify(toFit: target.isEmpty ? rect : target)
+        if scrollView.magnification > Self.maximumMagnification {
+            setMagnification(Self.maximumMagnification, in: scrollView)
+        }
+        updateZoomPercent()
+    }
+
     fileprivate func fit() {
         guard let scrollView, let document = scrollView.documentView,
               document.bounds.width > 0, document.bounds.height > 0

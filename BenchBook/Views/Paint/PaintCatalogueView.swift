@@ -2,8 +2,12 @@ import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// The library-wide paint catalogue: a sortable, searchable table.
+/// The library-wide paint catalogue: a sortable table. Searching is done
+/// from the window's search field, which covers paints too.
 struct PaintCatalogueView: View {
+    /// A paint to scroll to and select, e.g. from search. Cleared once shown.
+    @Binding var revealID: UUID?
+
     @Query private var paints: [Paint]
     @Environment(\.modelContext) private var modelContext
 
@@ -12,7 +16,6 @@ struct PaintCatalogueView: View {
         KeyPathComparator(\Paint.brand, comparator: .localizedStandard),
         KeyPathComparator(\Paint.code, comparator: .localizedStandard),
     ]
-    @State private var searchText = ""
     @State private var showsOwnedOnly = false
     @State private var editorRequest: PaintEditorRequest?
     @State private var isImporting = false
@@ -24,10 +27,6 @@ struct PaintCatalogueView: View {
     private var visiblePaints: [Paint] {
         paints
             .filter { !showsOwnedOnly || $0.isOwned }
-            .filter { paint in
-                searchText.isEmpty || [paint.brand, paint.range, paint.code, paint.name, paint.standardCode, paint.notes ?? ""]
-                    .contains { $0.localizedCaseInsensitiveContains(searchText) }
-            }
             .sorted(using: sortOrder)
     }
 
@@ -39,7 +38,6 @@ struct PaintCatalogueView: View {
         content
             .navigationTitle("Paints")
             .navigationSubtitle(subtitle)
-            .searchable(text: $searchText, placement: .toolbar, prompt: "Search Paints")
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
                     Toggle(isOn: $showsOwnedOnly) {
@@ -94,14 +92,11 @@ struct PaintCatalogueView: View {
             }
         } else if visiblePaints.isEmpty {
             ContentUnavailableView {
-                Label("No Matching Paints", systemImage: "magnifyingglass")
+                Label("No Owned Paints", systemImage: "checkmark.circle")
             } description: {
-                Text(showsOwnedOnly ? "No paints you own match your search." : "No paints match your search.")
+                Text("Mark the paints you have as owned, in the table or when editing a paint.")
             } actions: {
-                Button("Show All Paints") {
-                    searchText = ""
-                    showsOwnedOnly = false
-                }
+                Button("Show All Paints") { showsOwnedOnly = false }
             }
         } else {
             table
@@ -109,6 +104,7 @@ struct PaintCatalogueView: View {
     }
 
     private var table: some View {
+        ScrollViewReader { proxy in
         Table(visiblePaints, selection: $selection, sortOrder: $sortOrder) {
             TableColumn("Swatch") { paint in
                 PaintSwatch(hex: paint.swatchHex)
@@ -161,6 +157,14 @@ struct PaintCatalogueView: View {
         }
         .onDeleteCommand {
             if !selectedPaints.isEmpty { pendingDeletion = selectedPaints }
+        }
+        .onChange(of: revealID, initial: true) { _, id in
+            guard let id, let paint = paints.first(where: { $0.id == id }) else { return }
+            if showsOwnedOnly, !paint.isOwned { showsOwnedOnly = false }
+            selection = [id]
+            proxy.scrollTo(id, anchor: .center)
+            revealID = nil
+        }
         }
     }
 

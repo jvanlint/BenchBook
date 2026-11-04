@@ -28,6 +28,8 @@ struct ProjectWorkspaceView: View {
     let project: Project
     let onEdit: () -> Void
     let onAddFiles: () -> Void
+    /// A Reference to scroll to and select, e.g. from search. Cleared once shown.
+    @Binding var revealReferenceID: UUID?
 
     @Environment(\.captureCoordinator) private var captureCoordinator
     @Environment(\.appearsActive) private var appearsActive
@@ -41,6 +43,9 @@ struct ProjectWorkspaceView: View {
     var body: some View {
         workspace
             .focusedSceneValue(\.workspaceSection, $section)
+            .onChange(of: revealReferenceID, initial: true) { _, id in
+                if id != nil { section = .references }
+            }
             .focusedSceneValue(\.noteAction, noteRequest == nil ? NoteAction(newNote: newNote) : nil)
             .sheet(item: $noteRequest) { request in
                 NoteEditorView(request: request)
@@ -97,7 +102,8 @@ struct ProjectWorkspaceView: View {
     private var content: some View {
         switch section {
         case .references:
-            ReferencesView(project: project, filter: $referenceFilter, onAddFiles: addFiles, onNewNote: newNote)
+            ReferencesView(project: project, filter: $referenceFilter, revealID: $revealReferenceID,
+                           onAddFiles: addFiles, onNewNote: newNote)
         case .paint:
             ProjectPaintView(project: project)
         case .aftermarket:

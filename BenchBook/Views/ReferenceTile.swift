@@ -67,8 +67,10 @@ struct ReferenceTile: View {
     }
 }
 
-private struct ReferencePreview: View {
+/// A Reference's thumbnail, poster or text, or its type icon.
+struct ReferencePreview: View {
     let reference: Reference
+    var showsDuration = true
 
     @Environment(\.thumbnailStore) private var thumbnailStore
     @State private var thumbnail: NSImage?
@@ -86,7 +88,7 @@ private struct ReferencePreview: View {
                 .scaledToFill()
                 .accessibilityHidden(true)
                 .overlay(alignment: .bottomTrailing) {
-                    if let duration = reference.videoDurationSeconds {
+                    if showsDuration, let duration = reference.videoDurationSeconds {
                         DurationBadge(seconds: duration)
                             .padding(6)
                     }
