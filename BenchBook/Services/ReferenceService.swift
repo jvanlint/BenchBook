@@ -14,6 +14,35 @@ struct ReferenceService {
         try save()
     }
 
+    /// Adds a note the user wrote to `project`. Needs a title or some text.
+    @discardableResult
+    func createNote(in project: Project, title: String, text: String, tagsText: String) throws -> Reference {
+        guard title.trimmedOrNil != nil || text.trimmedOrNil != nil else { throw NoteError.empty }
+        let reference = Reference(project: project, kind: .note)
+        context.insert(reference)
+        try fillNote(reference, title: title, text: text, tagsText: tagsText)
+        return reference
+    }
+
+    func updateNote(_ reference: Reference, title: String, text: String, tagsText: String) throws {
+        guard title.trimmedOrNil != nil || text.trimmedOrNil != nil else { throw NoteError.empty }
+        try fillNote(reference, title: title, text: text, tagsText: tagsText)
+    }
+
+    private func fillNote(_ reference: Reference, title: String, text: String, tagsText: String) throws {
+        reference.title = title.trimmedOrNil
+        // Keep the writer's line breaks and indentation; only trim the ends.
+        reference.text = text.trimmedOrNil.map { String($0.prefix(ReferenceImporter.maxTextLength)) }
+        reference.updatedAt = .now
+        do {
+            try setTags(TagNames.parse(tagsText), on: reference)
+        } catch {
+            context.rollback()
+            throw error
+        }
+        try save()
+    }
+
     /// Replaces the Reference's tags, reusing library Tags by normalized name.
     /// Does not save.
     func setTags(_ names: [String], on reference: Reference) throws {
@@ -46,21 +75,28 @@ struct ReferenceService {
     /// Deletes the Reference, then its stored file if nothing else uses it.
     func delete(_ reference: Reference) throws {
         let asset = reference.asset
+        let posterURL = library.videoPosterURL(referenceID: reference.id)
         context.delete(reference)
         try save()
+        try? FileManager.default.removeItem(at: posterURL)
         if let asset {
             try removeIfUnused(asset)
         }
     }
 
     /// Removes leftovers from interrupted imports or deletes: assets with no
-    /// References, and files in the library with no asset record.
+    /// References, files in the library with no asset record, and posters
+    /// of deleted video links (e.g. from deleting a whole Project).
     func reconcileLibrary() throws {
         for asset in try context.fetch(FetchDescriptor<ManagedAsset>()) where asset.references.isEmpty {
             try removeIfUnused(asset)
         }
         let knownIDs = Set(try context.fetch(FetchDescriptor<ManagedAsset>()).map(\.id))
         for file in library.orphanedFiles(knownAssetIDs: knownIDs) {
+            try? FileManager.default.removeItem(at: file)
+        }
+        let referenceIDs = Set(try context.fetch(FetchDescriptor<Reference>()).map(\.id))
+        for file in library.orphanedPosters(knownReferenceIDs: referenceIDs) {
             try? FileManager.default.removeItem(at: file)
         }
     }
@@ -84,8 +120,16 @@ struct ReferenceService {
     }
 }
 
+enum NoteError: LocalizedError, Equatable {
+    case empty
+
+    var errorDescription: String? {
+        String(localized: "Write a title or some text for the note.")
+    }
+}
+
 extension String {
-    var trimmedOrNil: String? {
+    nonisolated var trimmedOrNil: String? {
         let value = trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? nil : value
     }

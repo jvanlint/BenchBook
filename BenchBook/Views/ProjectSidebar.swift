@@ -1,18 +1,32 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+/// What the sidebar can show in the main area.
+enum SidebarItem: Hashable {
+    case paints
+    case project(UUID)
+
+    var projectID: UUID? {
+        if case .project(let id) = self { id } else { nil }
+    }
+}
+
 struct ProjectSidebar: View {
     let projects: [Project]
-    @Binding var selection: UUID?
+    @Binding var selection: SidebarItem?
     let onAdd: () -> Void
     let onEdit: (Project) -> Void
 
     var body: some View {
         List(selection: $selection) {
+            Section("Library") {
+                Label("Paints", systemImage: "paintpalette")
+                    .tag(SidebarItem.paints)
+            }
             Section("Projects") {
                 ForEach(projects) { project in
                     ProjectRow(project: project)
-                        .tag(project.id)
+                        .tag(SidebarItem.project(project.id))
                         .contextMenu {
                             Button("Edit Project…") { onEdit(project) }
                         }
@@ -58,13 +72,8 @@ private struct ProjectRow: View {
         .accessibilityElement(children: .combine)
         // Dropping onto a row adds to that project without selecting it.
         .onDrop(of: CaptureDrop.types, isTargeted: $isDropTargeted) { providers in
-            captureCoordinator?.capture(providers, into: project)
+            captureCoordinator?.capture(CaptureDrop.providers(fallback: providers), into: project)
             return true
         }
     }
-}
-
-/// What the window accepts from drags.
-enum CaptureDrop {
-    static let types = PasteRouter.supportedTypes
 }

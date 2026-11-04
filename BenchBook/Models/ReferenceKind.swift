@@ -8,12 +8,14 @@ nonisolated enum ReferenceKind: String, CaseIterable, Codable, Sendable {
     case webpage
     case videoLink
     case textSnippet
+    /// Text the user wrote in BenchBook, rather than captured.
+    case note
 
     /// Kinds whose original bytes are kept in the asset library.
     var storesFile: Bool {
         switch self {
         case .image, .pdf, .markdown: true
-        case .webpage, .videoLink, .textSnippet: false
+        case .webpage, .videoLink, .textSnippet, .note: false
         }
     }
 
@@ -25,6 +27,7 @@ nonisolated enum ReferenceKind: String, CaseIterable, Codable, Sendable {
         case .webpage: String(localized: "Webpage")
         case .videoLink: String(localized: "Video")
         case .textSnippet: String(localized: "Text")
+        case .note: String(localized: "Note")
         }
     }
 
@@ -36,6 +39,7 @@ nonisolated enum ReferenceKind: String, CaseIterable, Codable, Sendable {
         case .webpage: "globe"
         case .videoLink: "play.rectangle"
         case .textSnippet: "text.quote"
+        case .note: "note.text"
         }
     }
 }

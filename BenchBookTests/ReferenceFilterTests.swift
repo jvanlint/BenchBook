@@ -41,3 +41,35 @@ struct ReferenceFilterTests {
         #expect(!filter.isActive)
     }
 }
+
+@MainActor
+struct NoteTests {
+    @Test func createsEditsAndValidatesNotes() throws {
+        let container = try Fixtures.makeInMemoryContainer()
+        let context = container.mainContext
+        let folder = try TemporaryFolder()
+        let service = ReferenceService(context: context, library: AssetLibrary(rootURL: folder.url))
+        let project = Fixtures.makeProject("Spitfire", in: context)
+
+        let note = try service.createNote(in: project, title: "  ", text: "\n  Mask canopy first.\n  Then pre-shade.\n", tagsText: "canopy, Masking")
+        #expect(note.kind == .note)
+        #expect(note.title == nil)
+        #expect(note.text == "Mask canopy first.\n  Then pre-shade.")
+        #expect(note.displayTitle == "Mask canopy first.")
+        #expect(note.tags.map(\.name) == ["canopy", "Masking"])
+        #expect(project.references.count == 1)
+
+        try service.updateNote(note, title: "Canopy", text: "Liquid mask only.", tagsText: "canopy")
+        #expect(note.displayTitle == "Canopy")
+        #expect(note.tags.count == 1)
+
+        #expect(throws: NoteError.empty) {
+            try service.updateNote(note, title: " ", text: "\n", tagsText: "")
+        }
+        #expect(throws: NoteError.empty) {
+            try service.createNote(in: project, title: "", text: "", tagsText: "")
+        }
+        #expect(note.text == "Liquid mask only.")
+        #expect(try context.fetchCount(FetchDescriptor<Reference>()) == 1)
+    }
+}

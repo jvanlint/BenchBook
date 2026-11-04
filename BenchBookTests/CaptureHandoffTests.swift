@@ -133,3 +133,102 @@ struct MigrationTests {
         #expect(projects.first?.references.isEmpty == true)
     }
 }
+
+/// Browsers sometimes hand over an error page in place of a dragged image.
+@MainActor
+struct BrowserImageDragTests {
+    private func provider(jpegFile: URL, tiff: Data?, webURL: URL) -> NSItemProvider {
+        let provider = NSItemProvider()
+        provider.suggestedName = "220919-N-WU964-2126.JPG"
+        provider.registerFileRepresentation(forTypeIdentifier: UTType.jpeg.identifier, fileOptions: [], visibility: .all) { completion in
+            completion(jpegFile, false, nil)
+            return nil
+        }
+        if let tiff {
+            provider.registerDataRepresentation(forTypeIdentifier: UTType.tiff.identifier, visibility: .all) { completion in
+                completion(tiff, nil)
+                return nil
+            }
+        }
+        provider.registerObject(webURL as NSURL, visibility: .all)
+        return provider
+    }
+
+    @Test func realImageIsKeptWithItsAddress() async throws {
+        let folder = try TemporaryFolder()
+        let jpeg = try Fixtures.writeJPEG(to: folder.file("photo.jpg"))
+        let web = URL(string: "https://media.example.mil/photo.JPG")!
+        let reader = ItemProviderReader(fileDirectory: folder.url, copiesFileURLs: false)
+
+        let result = await reader.read([provider(jpegFile: jpeg, tiff: nil, webURL: web)])
+
+        guard case .file(_, let name, let resource) = try #require(result.items.first) else {
+            Issue.record("Expected a file, got \(result.items)")
+            return
+        }
+        #expect(name == "220919-N-WU964-2126.JPG")
+        #expect(resource == web)
+    }
+
+    @Test func errorPageFallsBackToOnScreenImage() async throws {
+        let folder = try TemporaryFolder()
+        let html = try Fixtures.writeText("<HTML><HEAD><TITLE>Access Denied</TITLE></HEAD></HTML>", to: folder.file("denied.jpg"))
+        let png = try Fixtures.writePNG(to: folder.file("screen.png"))
+        let tiff = try #require(NSImage(contentsOf: png)?.tiffRepresentation)
+        let reader = ItemProviderReader(fileDirectory: folder.url, copiesFileURLs: false)
+
+        let result = await reader.read([provider(jpegFile: html, tiff: tiff, webURL: URL(string: "https://media.example.mil/photo.JPG")!)])
+
+        guard case .file(let url, let name, _) = try #require(result.items.first) else {
+            Issue.record("Expected a file, got \(result.items)")
+            return
+        }
+        #expect(ItemProviderReader.isReadableImage(url))
+        #expect(name == "220919-N-WU964-2126.png")
+    }
+
+    @Test func errorPageWithoutPixelsBecomesALink() async throws {
+        let folder = try TemporaryFolder()
+        let html = try Fixtures.writeText("<HTML>Access Denied</HTML>", to: folder.file("denied.jpg"))
+        let web = URL(string: "https://media.example.mil/photo.JPG")!
+        let reader = ItemProviderReader(fileDirectory: folder.url, copiesFileURLs: false)
+
+        let result = await reader.read([provider(jpegFile: html, tiff: nil, webURL: web)])
+
+        #expect(result.items == [.link(url: web, title: "220919-N-WU964-2126.JPG")])
+        #expect(result.skipped.isEmpty)
+    }
+}
+
+/// Drops are read from the drag pasteboard, as Safari puts them there.
+@MainActor
+struct DragPasteboardTests {
+    @Test func safariStyleImageDragBecomesAnImage() async throws {
+        let folder = try TemporaryFolder()
+        let png = try Fixtures.writePNG(to: folder.file("screen.png"))
+        let tiff = try #require(NSImage(contentsOf: png)?.tiffRepresentation)
+        let web = URL(string: "https://media.example.mil/photo.JPG")!
+
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("BenchBookTests-\(UUID().uuidString)"))
+        defer { pasteboard.releaseGlobally() }
+        pasteboard.clearContents()
+        let item = NSPasteboardItem()
+        item.setData(tiff, forType: .tiff)
+        item.setString(web.absoluteString, forType: .URL)
+        item.setString("https://media.example.mil/photo.JPG", forType: .string)
+        pasteboard.writeObjects([item])
+
+        // SwiftUI's own providers are empty here, as when they fail.
+        let providers = CaptureDrop.providers(fallback: [], pasteboard: pasteboard)
+        let result = await ItemProviderReader(fileDirectory: folder.url, copiesFileURLs: false).read(providers)
+
+        guard case .file(let url, _, let resource) = try #require(result.items.first) else {
+            Issue.record("Expected an image, got \(result.items)")
+            return
+        }
+        #expect(ItemProviderReader.isReadableImage(url))
+        #expect(resource == web)
+        #expect(result.items.count == 1)
+        #expect(result.skipped.isEmpty)
+    }
+}

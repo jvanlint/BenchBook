@@ -1,10 +1,14 @@
 import AppKit
 import Foundation
+import ImageIO
+import OSLog
 import UniformTypeIdentifiers
 
 /// Turns dragged, pasted or shared `NSItemProvider`s into captured items.
 /// Used by the app (drag and drop, paste) and by the Share extension.
 nonisolated struct ItemProviderReader {
+    private static let log = Logger(subsystem: "com.jasonvanlint.BenchBook", category: "Capture")
+
     struct Result {
         var items: [CapturedItem] = []
         /// Names of things that were offered but can't be saved.
@@ -40,9 +44,25 @@ nonisolated struct ItemProviderReader {
                 }
             } else if let type = Self.fileTypes.first(where: { provider.hasItemConformingToTypeIdentifier($0.identifier) }),
                       let url = await loadFile(provider, type: type) {
-                result.items.append(.file(url: url, originalFilename: provider.suggestedName.map { name in
+                let name = provider.suggestedName.map { name in
                     name.contains(".") ? name : "\(name).\(type.preferredFilenameExtension ?? "")"
-                }, resourceURL: await webURL(alongside: provider)))
+                }
+                let webURL = await webURL(alongside: provider)
+                if !type.conforms(to: .image) || Self.isReadableImage(url) {
+                    result.items.append(.file(url: url, originalFilename: name, resourceURL: webURL))
+                } else {
+                    // A browser can hand over an error page instead of the image,
+                    // e.g. when a site refuses its re-download. Fall back to the
+                    // pixels on screen, then to the address as a link.
+                    try? FileManager.default.removeItem(at: url)
+                    if let png = await loadImageAsPNG(provider, excluding: type) {
+                        result.items.append(.file(url: png, originalFilename: name.map { "\(($0 as NSString).deletingPathExtension).png" }, resourceURL: webURL))
+                    } else if let webURL {
+                        links.append((webURL, name))
+                    } else {
+                        result.skipped.append(name ?? String(localized: "Image"))
+                    }
+                }
             } else if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier),
                       let url = await loadImageAsPNG(provider) {
                 // Formats such as TIFF from some browsers: stored losslessly as PNG.
@@ -63,6 +83,7 @@ nonisolated struct ItemProviderReader {
                     texts.append(text)
                 }
             } else {
+                Self.log.error("Skipped item offering: \(provider.registeredTypeIdentifiers, privacy: .public)")
                 result.skipped.append(provider.suggestedName ?? String(localized: "Unsupported item"))
             }
         }
@@ -84,6 +105,14 @@ nonisolated struct ItemProviderReader {
             result.items.append(.link(url: url, title: linkTitle ?? (links.count == 1 ? title : nil)))
         }
         return result
+    }
+
+    /// True when ImageIO can read an image from the file.
+    static func isReadableImage(_ url: URL) -> Bool {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              CGImageSourceGetType(source) != nil, CGImageSourceGetCount(source) > 0
+        else { return false }
+        return CGImageSourceCopyPropertiesAtIndex(source, 0, nil) != nil
     }
 
     /// A trimmed string that is exactly one http(s) link, if it is one.
@@ -163,16 +192,26 @@ nonisolated struct ItemProviderReader {
         }
     }
 
-    private func loadImageAsPNG(_ provider: NSItemProvider) async -> URL? {
-        let data: Data? = await withCheckedContinuation { continuation in
-            _ = provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
-                continuation.resume(returning: data)
+    /// The first image representation that decodes, saved losslessly as PNG.
+    /// `excluding` skips a type already found to be unreadable.
+    private func loadImageAsPNG(_ provider: NSItemProvider, excluding excluded: UTType? = nil) async -> URL? {
+        let types = provider.registeredTypeIdentifiers
+            .compactMap(UTType.init)
+            .filter { $0.conforms(to: .image) && $0 != excluded }
+        for type in types {
+            let data: Data? = await withCheckedContinuation { continuation in
+                _ = provider.loadDataRepresentation(forTypeIdentifier: type.identifier) { data, _ in
+                    continuation.resume(returning: data)
+                }
+            }
+            guard let data, let png = NSBitmapImageRep(data: data)?.representation(using: .png, properties: [:]) else {
+                continue
+            }
+            let destination = uniqueDestination(extension: "png")
+            if (try? png.write(to: destination)) != nil {
+                return destination
             }
         }
-        guard let data,
-              let png = NSBitmapImageRep(data: data)?.representation(using: .png, properties: [:])
-        else { return nil }
-        let destination = uniqueDestination(extension: "png")
-        return (try? png.write(to: destination)) != nil ? destination : nil
+        return nil
     }
 }

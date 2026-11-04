@@ -9,14 +9,22 @@ struct ProjectActions {
     var addFiles: (() -> Void)?
 }
 
+/// Writes a new note in the Project shown in the focused window.
+struct NoteAction {
+    var newNote: () -> Void
+}
+
 extension FocusedValues {
     @Entry var projectActions: ProjectActions?
     @Entry var workspaceSection: Binding<WorkspaceSection>?
+    /// Nil when no Project is shown or a note is already open.
+    @Entry var noteAction: NoteAction?
 }
 
 struct BenchBookCommands: Commands {
     @FocusedValue(\.projectActions) private var projectActions
     @FocusedValue(\.workspaceSection) private var workspaceSection
+    @FocusedValue(\.noteAction) private var noteAction
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -31,6 +39,12 @@ struct BenchBookCommands: Commands {
             }
             .keyboardShortcut("o")
             .disabled(projectActions?.addFiles == nil)
+
+            Button("New Note…") {
+                noteAction?.newNote()
+            }
+            .keyboardShortcut("n", modifiers: [.command, .shift])
+            .disabled(noteAction == nil)
         }
 
         CommandMenu("Project") {

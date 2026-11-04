@@ -49,7 +49,7 @@ Example: Tamiya F-16CJ 50th Anniversary; Tamiya; F-16CJ Block 50; 1:48.
 
 ## Reference
 
-One saved object in a Project. `ReferenceKind` has `image`, `pdf`, `markdown`, `webpage`, `videoLink`, and `textSnippet` cases. Video links do not imply local video storage. A text snippet is text the user highlighted and shared, kept with its source page URL when the browser provides one; a Markdown file is stored as a managed original like an image or PDF.
+One saved object in a Project. `ReferenceKind` has `image`, `pdf`, `markdown`, `webpage`, `videoLink`, `textSnippet`, and `note` cases. A note is text the user wrote in BenchBook, stored in `text` with an optional `title`; adding it needed no schema change because the kind is stored as a string. Video links do not imply local video storage. A text snippet is text the user highlighted and shared, kept with its source page URL when the browser provides one; a Markdown file is stored as a managed original like an image or PDF.
 
 | Property | Swift type | Meaning |
 |---|---|---|
@@ -65,6 +65,8 @@ One saved object in a Project. `ReferenceKind` has `image`, `pdf`, `markdown`, `
 | videoMoments | [VideoMoment] | Inverse: VideoMoment.reference; empty for other kinds |
 
 Source URLs preserve provenance; never use an external URL as the only copy of a saved image or PDF. Local file imports may have no source URL. Tiles show thumbnail/preview, title, clear object type, and associated tags. A video link can use a type placeholder; remote preview artwork is optional and does not become a video archive.
+
+Implemented (schema V5): video links also store optional `videoChannel`, `videoChannelURL`, `videoDurationSeconds`, `videoPublishedAt`, `videoDescription` (capped at 5,000 characters) and `videoInfoFetchedAt`, fetched from YouTube/Vimeo after saving. `videoInfoFetchedAt` stays nil after network failures so the fetch is retried at launch; a removed or private video records the attempt and isn't retried. The poster image is derived data at `Library/Posters/<reference-id>.jpg` and can always be refetched.
 
 ## ManagedAsset
 
@@ -134,6 +136,8 @@ Boxes are clamped inside the image and must be at least 8 image pixels on each s
 | ProjectPaint | `project: Project`, `colour: Colour`, `selectedPaint: Paint?`, `usedFor: String?`, `notes: String?` | Project intent, independent of ownership |
 
 Match types distinguish manufacturer claim, direct match, approximation, and mix. Recipe notes suffice for initial mixes; a normalized component model and numeric confidence scale are deferred.
+
+Implemented so far (schema V4): Paint (plus an optional display-only `swatchHex` and a normalized `identityKey` of brand, range and code that ignores case, spacing and code punctuation), OwnedPaint and ProjectPaint with `selectedPaint`, `usedFor` and `notes`. ProjectPaint has no `colour` yet; a later schema adds ColourStandard, Colour and PaintMatch, and makes the colour the requirement a selected paint satisfies. Schema V6 adds `standardCode`, free text naming the colour standard(s) the paint matches ("FS 36270", "RLM 76", "FS 36375 / BS 637"); it is a stand-in until ColourStandard/Colour/PaintMatch exist, and can be converted into matches then. Paint deletion is refused by PaintService while any ProjectPaint uses it, because SwiftData does not enforce a `.deny` rule. Paints can be imported from CSV with a header row (Brand and Code required; Range, Name, Colour as #RRGGBB, Owned, Notes optional); duplicates are skipped.
 
 FS 36270 is a Colour, not a Paint. A selected Paint need not be owned. Removing OwnedPaint never deletes Paint or Project selection. A selection normally has a relevant PaintMatch; any override needs an explicit rule.
 

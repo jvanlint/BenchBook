@@ -4,11 +4,11 @@ import SwiftData
 /// for each model change; never edit a schema that has shipped.
 enum BenchBookMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [BenchBookSchemaV1.self, BenchBookSchemaV2.self, BenchBookSchemaV3.self]
+        [BenchBookSchemaV1.self, BenchBookSchemaV2.self, BenchBookSchemaV3.self, BenchBookSchemaV4.self, BenchBookSchemaV5.self, BenchBookSchemaV6.self]
     }
 
     static var stages: [MigrationStage] {
-        [migrateV1toV2, migrateV2toV3]
+        [migrateV1toV2, migrateV2toV3, migrateV3toV4, migrateV4toV5, migrateV5toV6]
     }
 
     /// V2 only adds models and an empty relationship to Project.
@@ -22,10 +22,28 @@ enum BenchBookMigrationPlan: SchemaMigrationPlan {
         fromVersion: BenchBookSchemaV2.self,
         toVersion: BenchBookSchemaV3.self
     )
+
+    /// V4 only adds the paint models and an empty relationship to Project.
+    static let migrateV3toV4 = MigrationStage.lightweight(
+        fromVersion: BenchBookSchemaV3.self,
+        toVersion: BenchBookSchemaV4.self
+    )
+
+    /// V5 only adds optional video details to Reference.
+    static let migrateV4toV5 = MigrationStage.lightweight(
+        fromVersion: BenchBookSchemaV4.self,
+        toVersion: BenchBookSchemaV5.self
+    )
+
+    /// V6 only adds Paint.standardCode, empty for existing paints.
+    static let migrateV5toV6 = MigrationStage.lightweight(
+        fromVersion: BenchBookSchemaV5.self,
+        toVersion: BenchBookSchemaV6.self
+    )
 }
 
 /// The current version of each model. Update these when a new schema ships.
-typealias CurrentSchema = BenchBookSchemaV3
+typealias CurrentSchema = BenchBookSchemaV6
 typealias Project = CurrentSchema.Project
 typealias Reference = CurrentSchema.Reference
 typealias ManagedAsset = CurrentSchema.ManagedAsset
@@ -33,3 +51,6 @@ typealias Tag = CurrentSchema.Tag
 typealias ReferenceTag = CurrentSchema.ReferenceTag
 typealias VideoMoment = CurrentSchema.VideoMoment
 typealias ImageNote = CurrentSchema.ImageNote
+typealias Paint = CurrentSchema.Paint
+typealias OwnedPaint = CurrentSchema.OwnedPaint
+typealias ProjectPaint = CurrentSchema.ProjectPaint

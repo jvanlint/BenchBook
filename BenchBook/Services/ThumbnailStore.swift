@@ -10,6 +10,7 @@ final class ThumbnailStore {
 
     private let library: AssetLibrary
     private let cache = NSCache<NSUUID, NSImage>()
+    private let posterCache = NSCache<NSString, NSImage>()
 
     init(library: AssetLibrary) {
         self.library = library
@@ -48,6 +49,21 @@ final class ThumbnailStore {
             try? FileManager.default.createDirectory(at: library.thumbnailsURL, withIntermediateDirectories: true)
             try? png.write(to: thumbnailURL, options: .atomic)
         }.value
+        return image
+    }
+
+    /// A video link's poster, or nil if none has been fetched. `version`
+    /// changes when the poster is refetched, so the cache doesn't go stale.
+    func videoPoster(referenceID: UUID, version: Date?) async -> NSImage? {
+        let key = "\(referenceID.uuidString)-\(version?.timeIntervalSinceReferenceDate ?? 0)" as NSString
+        if let cached = posterCache.object(forKey: key) {
+            return cached
+        }
+        let url = library.videoPosterURL(referenceID: referenceID)
+        guard let data = await Task.detached(operation: { try? Data(contentsOf: url) }).value,
+              let image = NSImage(data: data)
+        else { return nil }
+        posterCache.setObject(image, forKey: key)
         return image
     }
 }

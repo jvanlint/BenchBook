@@ -4,6 +4,7 @@ import Foundation
 ///
 ///     <root>/Originals/<asset-id>.<ext>   durable user data
 ///     <root>/Thumbnails/<asset-id>.png    replaceable, regenerated on demand
+///     <root>/Posters/<reference-id>.jpg   video poster images, re-fetchable
 ///
 /// Records store paths relative to the root, never absolute paths.
 nonisolated struct AssetLibrary: Sendable {
@@ -11,6 +12,7 @@ nonisolated struct AssetLibrary: Sendable {
 
     var originalsURL: URL { rootURL.appending(path: "Originals", directoryHint: .isDirectory) }
     var thumbnailsURL: URL { rootURL.appending(path: "Thumbnails", directoryHint: .isDirectory) }
+    var postersURL: URL { rootURL.appending(path: "Posters", directoryHint: .isDirectory) }
 
     static func originalRelativePath(assetID: UUID, fileExtension: String) -> String {
         "Originals/\(assetID.uuidString).\(fileExtension)"
@@ -22,6 +24,20 @@ nonisolated struct AssetLibrary: Sendable {
 
     func thumbnailURL(assetID: UUID) -> URL {
         thumbnailsURL.appending(path: "\(assetID.uuidString).png", directoryHint: .notDirectory)
+    }
+
+    /// A video link's poster image, named by its Reference's id.
+    func videoPosterURL(referenceID: UUID) -> URL {
+        postersURL.appending(path: "\(referenceID.uuidString).jpg", directoryHint: .notDirectory)
+    }
+
+    /// Posters whose Reference no longer exists.
+    func orphanedPosters(knownReferenceIDs: Set<UUID>) -> [URL] {
+        let contents = (try? FileManager.default.contentsOfDirectory(at: postersURL, includingPropertiesForKeys: nil)) ?? []
+        return contents.filter { file in
+            guard let id = UUID(uuidString: file.deletingPathExtension().lastPathComponent) else { return true }
+            return !knownReferenceIDs.contains(id)
+        }
     }
 
     /// Copies the source byte-for-byte. The file appears at its final path

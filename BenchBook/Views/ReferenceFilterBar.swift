@@ -78,6 +78,7 @@ extension ReferenceKind {
         case .webpage: String(localized: "Webpages")
         case .videoLink: String(localized: "Videos")
         case .textSnippet: String(localized: "Text Snippets")
+        case .note: String(localized: "Notes")
         }
     }
 }

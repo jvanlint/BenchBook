@@ -36,8 +36,18 @@ struct ProjectWorkspaceView: View {
     /// Kept here so it survives switching sections; resets per Project.
     @State private var referenceFilter = ReferenceFilter()
     @State private var isDropTargeted = false
+    @State private var noteRequest: NoteEditorView.Request?
 
     var body: some View {
+        workspace
+            .focusedSceneValue(\.workspaceSection, $section)
+            .focusedSceneValue(\.noteAction, noteRequest == nil ? NoteAction(newNote: newNote) : nil)
+            .sheet(item: $noteRequest) { request in
+                NoteEditorView(request: request)
+            }
+    }
+
+    private var workspace: some View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay {
@@ -49,7 +59,7 @@ struct ProjectWorkspaceView: View {
                 }
             }
             .onDrop(of: CaptureDrop.types, isTargeted: $isDropTargeted) { providers in
-                capture(providers)
+                capture(CaptureDrop.providers(fallback: providers))
                 return true
             }
             // ⌘V pastes into the project shown in the front window.
@@ -75,24 +85,21 @@ struct ProjectWorkspaceView: View {
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button("Add Files", systemImage: "plus.rectangle.on.rectangle", action: addFiles)
                         .help("Add images, PDFs or Markdown files to this project")
+                    Button("New Note", systemImage: "square.and.pencil", action: newNote)
+                        .help("Write a note in this project's references")
                     Button("Edit Project", systemImage: "pencil", action: onEdit)
                         .help("Edit Project")
                 }
             }
-            .focusedSceneValue(\.workspaceSection, $section)
     }
 
     @ViewBuilder
     private var content: some View {
         switch section {
         case .references:
-            ReferencesView(project: project, filter: $referenceFilter, onAddFiles: addFiles)
+            ReferencesView(project: project, filter: $referenceFilter, onAddFiles: addFiles, onNewNote: newNote)
         case .paint:
-            ContentUnavailableView(
-                "No Paint",
-                systemImage: "paintpalette",
-                description: Text("The colours this build needs, and the paints you choose for them, will appear here.")
-            )
+            ProjectPaintView(project: project)
         case .aftermarket:
             ContentUnavailableView(
                 "No Aftermarket Parts",
@@ -100,6 +107,13 @@ struct ProjectWorkspaceView: View {
                 description: Text("Decals, resin, photo-etch and other parts you're using or considering for this build will appear here.")
             )
         }
+    }
+
+    /// Shows References with no filters, so the new note is visible.
+    private func newNote() {
+        section = .references
+        referenceFilter = ReferenceFilter()
+        noteRequest = .new(project)
     }
 
     private func addFiles() {

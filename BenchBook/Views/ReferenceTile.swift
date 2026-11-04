@@ -50,6 +50,9 @@ struct ReferenceTile: View {
                 return "\(kindName) · " + String(localized: "\(count) notes")
             }
         case .videoLink:
+            if let channel = reference.videoChannel {
+                return "\(kindName) · \(channel)"
+            }
             if let first = reference.sortedVideoMoments.first {
                 return "\(kindName) · \(VideoLink.format(seconds: first.offsetSeconds))"
             }
@@ -71,12 +74,24 @@ private struct ReferencePreview: View {
     @State private var thumbnail: NSImage?
 
     var body: some View {
+        content
+            .task(id: previewKey) { await loadThumbnail() }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         if let thumbnail {
             Image(nsImage: thumbnail)
                 .resizable()
                 .scaledToFill()
                 .accessibilityHidden(true)
-        } else if reference.kind == .textSnippet, let text = reference.text {
+                .overlay(alignment: .bottomTrailing) {
+                    if let duration = reference.videoDurationSeconds {
+                        DurationBadge(seconds: duration)
+                            .padding(6)
+                    }
+                }
+        } else if reference.kind == .textSnippet || reference.kind == .note, let text = reference.text {
             Text(text)
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -88,15 +103,38 @@ private struct ReferencePreview: View {
                 .font(.system(size: 36))
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
-                .task(id: reference.asset?.id) { await loadThumbnail() }
         }
     }
 
+    /// Changes when there's a new file or poster to show.
+    private var previewKey: String {
+        "\(reference.asset?.id.uuidString ?? "")|\(reference.videoInfoFetchedAt?.timeIntervalSinceReferenceDate ?? 0)"
+    }
+
     private func loadThumbnail() async {
-        guard let asset = reference.asset, let thumbnailStore else { return }
-        thumbnail = await thumbnailStore.thumbnail(
-            assetID: asset.id,
-            originalRelativePath: asset.originalRelativePath
-        )
+        guard let thumbnailStore else { return }
+        if let asset = reference.asset {
+            thumbnail = await thumbnailStore.thumbnail(
+                assetID: asset.id,
+                originalRelativePath: asset.originalRelativePath
+            )
+        } else if reference.kind == .videoLink {
+            thumbnail = await thumbnailStore.videoPoster(referenceID: reference.id, version: reference.videoInfoFetchedAt)
+        }
+    }
+}
+
+/// A video's length over its poster, e.g. "12:34".
+struct DurationBadge: View {
+    let seconds: Double
+
+    var body: some View {
+        Text(VideoLink.format(seconds: seconds))
+            .font(.caption.monospacedDigit().weight(.medium))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(.black.opacity(0.75), in: RoundedRectangle(cornerRadius: 4))
+            .accessibilityLabel("Length \(VideoLink.format(seconds: seconds))")
     }
 }

@@ -18,6 +18,8 @@ final class CaptureCoordinator {
     var report: CaptureReport?
     /// Increments after each import, so views can react (e.g. select References).
     private(set) var importCount = 0
+    /// Fetches details for newly saved video links.
+    @ObservationIgnored var videoInfo: VideoInfoService?
 
     private let context: ModelContext
     private let library: AssetLibrary
@@ -135,6 +137,9 @@ final class CaptureCoordinator {
 
     private func finish(_ outcomes: [CaptureOutcome], skipped: [String]) {
         importCount += 1
+        videoInfo?.fetch(outcomes.compactMap { outcome in
+            if case .added(let reference) = outcome { reference } else { nil }
+        })
 
         var duplicates: [String] = []
         var failures: [String] = skipped.map { String(localized: "“\($0)” isn't a type BenchBook can save.") }

@@ -3,6 +3,7 @@ import SwiftData
 
 /// Schema 3: adds ImageNote, a box drawn on an image Reference with a note.
 /// Everything else is unchanged from schema 2.
+/// Frozen; kept so existing libraries can migrate.
 ///
 /// Relationship rules (docs/data-model.md):
 /// - Deleting a Project deletes its References.

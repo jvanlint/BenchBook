@@ -122,3 +122,11 @@ Delivered ahead of the rest of Phase 5:
 - Images open in their own window (other files keep Quick Look), with previous/next through the Project's images.
 - Zoom and pan use AppKit's NSScrollView magnification: pinch, two-finger scroll, drag on empty space, zoom in/out, Zoom to Fit and Actual Size (one image pixel per screen pixel). The viewer shows the original, decoded upright; images over 16,384 pixels on a side are shown scaled to that GPU limit.
 - Draw Box marks a feature; boxes can be selected, moved, resized and deleted, and each has a numbered note edited in a side panel. Notes are stored as ImageNote records (schema V3), never in the image.
+
+## Paint, step 1 — catalogue and project paints
+
+Delivered first part of Phase 6:
+
+- Library-wide paint catalogue under Paints in the sidebar: sortable, searchable table, owned-only filter, add/edit/delete, ownership checkboxes, and CSV import.
+- Each Project's Paint tab lists its chosen paints, what each is used for, and how many still need buying; paints are added from a searchable picker that can also create new catalogue paints.
+- Next: ColourStandard, Colour and PaintMatch, so a Project can list the colours it needs (e.g. FS 36270) and pick matching paints.

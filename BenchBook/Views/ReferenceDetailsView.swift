@@ -41,6 +41,10 @@ struct ReferenceDetailsView: View {
                 }
             }
 
+            if reference.kind == .videoLink {
+                VideoDetailsSection(reference: reference)
+            }
+
             if reference.kind == .videoLink, let source = reference.sourcePageURL, !reference.videoMoments.isEmpty {
                 Section("Moments") {
                     ForEach(reference.sortedVideoMoments) { moment in
@@ -106,3 +110,74 @@ struct ReferenceDetailsView: View {
         }
     }
 }
+
+/// A video link's poster, channel, length, publish date and description.
+private struct VideoDetailsSection: View {
+    let reference: Reference
+
+    @Environment(\.thumbnailStore) private var thumbnailStore
+    @Environment(\.videoInfoService) private var videoInfoService
+    @State private var poster: NSImage?
+
+    private var isFetching: Bool {
+        videoInfoService?.inProgress.contains(reference.id) ?? false
+    }
+
+    var body: some View {
+        Section {
+            if let poster {
+                Image(nsImage: poster)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity, maxHeight: 220)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .accessibilityHidden(true)
+            }
+            if let channel = reference.videoChannel {
+                LabeledContent("Channel") {
+                    if let url = reference.videoChannelURL {
+                        Link(channel, destination: url)
+                    } else {
+                        Text(channel)
+                    }
+                }
+            }
+            if let duration = reference.videoDurationSeconds {
+                LabeledContent("Length", value: VideoLink.format(seconds: duration))
+            }
+            if let published = reference.videoPublishedAt {
+                LabeledContent("Published", value: published.formatted(date: .abbreviated, time: .omitted))
+            }
+            if let description = reference.videoDescription {
+                DisclosureGroup("Description") {
+                    Text(description)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            if reference.videoInfoFetchedAt == nil, !isFetching {
+                Text("Video details haven't been fetched yet. BenchBook tries again when it's online.")
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            HStack {
+                Text("Video")
+                Spacer()
+                if isFetching {
+                    ProgressView()
+                        .controlSize(.small)
+                } else if let videoInfoService {
+                    Button("Refresh") {
+                        Task { await videoInfoService.refresh(reference) }
+                    }
+                    .controlSize(.small)
+                    .help("Fetch the video's details and poster again")
+                }
+            }
+        }
+        .task(id: reference.videoInfoFetchedAt) {
+            poster = await thumbnailStore?.videoPoster(referenceID: reference.id, version: reference.videoInfoFetchedAt)
+        }
+    }
+}
+

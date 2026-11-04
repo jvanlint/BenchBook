@@ -7,12 +7,14 @@ struct ReferencesView: View {
     let project: Project
     @Binding var filter: ReferenceFilter
     let onAddFiles: () -> Void
+    let onNewNote: () -> Void
 
     @Query private var references: [Reference]
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.assetLibrary) private var assetLibrary
     @Environment(\.openURL) private var openURL
+    @Environment(\.videoInfoService) private var videoInfoService
     @Environment(\.openWindow) private var openWindow
 
     @FocusState private var focusedID: UUID?
@@ -21,10 +23,11 @@ struct ReferencesView: View {
     @State private var referencePendingDeletion: Reference?
     @State private var errorMessage: String?
 
-    init(project: Project, filter: Binding<ReferenceFilter>, onAddFiles: @escaping () -> Void) {
+    init(project: Project, filter: Binding<ReferenceFilter>, onAddFiles: @escaping () -> Void, onNewNote: @escaping () -> Void) {
         self.project = project
         _filter = filter
         self.onAddFiles = onAddFiles
+        self.onNewNote = onNewNote
         let projectID = project.id
         _references = Query(
             filter: #Predicate<Reference> { $0.project?.id == projectID },
@@ -38,9 +41,10 @@ struct ReferencesView: View {
                 ContentUnavailableView {
                     Label("No References", systemImage: "photo.on.rectangle.angled")
                 } description: {
-                    Text("Drag images, PDFs, Markdown files, links or text here, paste them, or use the Share menu in your browser and choose BenchBook.")
+                    Text("Drag images, PDFs, Markdown files, links or text here, paste them, or use the Share menu in your browser and choose BenchBook. You can also write your own notes.")
                 } actions: {
                     Button("Add Files…", action: onAddFiles)
+                    Button("New Note…", action: onNewNote)
                 }
             } else {
                 VStack(spacing: 0) {
@@ -74,7 +78,11 @@ struct ReferencesView: View {
         }
         .quickLookPreview($quickLookURL, in: previewableURLs)
         .sheet(item: $detailsReference) { reference in
-            ReferenceDetailsView(reference: reference)
+            if reference.kind == .note {
+                NoteEditorView(request: .edit(reference))
+            } else {
+                ReferenceDetailsView(reference: reference)
+            }
         }
         .confirmationDialog(
             "Delete “\(referencePendingDeletion?.displayTitle ?? "")”?",
@@ -144,6 +152,11 @@ struct ReferencesView: View {
         if let source = reference.sourcePageURL, reference.kind != .webpage {
             Button("Open Source Page") { openURL(source) }
         }
+        if reference.kind == .videoLink, let videoInfoService {
+            Button("Refresh Video Details") {
+                Task { await videoInfoService.refresh(reference) }
+            }
+        }
         if !reference.tags.isEmpty {
             Menu("Filter by Tag") {
                 ForEach(reference.tags) { tag in
@@ -155,7 +168,7 @@ struct ReferencesView: View {
             Button("Show Only \(kind.pluralName)") { filter.kind = kind }
         }
         Divider()
-        Button("Edit Details…") { detailsReference = reference }
+        Button(reference.kind == .note ? "Edit Note…" : "Edit Details…") { detailsReference = reference }
         Divider()
         Button("Delete…", role: .destructive) { referencePendingDeletion = reference }
     }
@@ -195,7 +208,7 @@ struct ReferencesView: View {
             } else {
                 openURL(url)
             }
-        case .textSnippet, nil:
+        case .textSnippet, .note, nil:
             detailsReference = reference
         }
     }

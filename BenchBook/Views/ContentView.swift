@@ -8,9 +8,11 @@ struct ContentView: View {
     @Environment(\.captureCoordinator) private var captureCoordinator
     @Environment(\.projectDirectory) private var projectDirectory
 
-    @State private var selectedProjectID: UUID?
+    @State private var selection: SidebarItem?
     @State private var editorRequest: ProjectEditorRequest?
     @State private var isAddingFiles = false
+
+    private var selectedProjectID: UUID? { selection?.projectID }
 
     private var selectedProject: Project? {
         projects.first { $0.id == selectedProjectID }
@@ -20,7 +22,7 @@ struct ContentView: View {
         NavigationSplitView {
             ProjectSidebar(
                 projects: projects,
-                selection: $selectedProjectID,
+                selection: $selection,
                 onAdd: { editorRequest = .new },
                 onEdit: { editorRequest = .edit($0) }
             )
@@ -31,7 +33,7 @@ struct ContentView: View {
         .frame(minWidth: 760, minHeight: 480)
         .sheet(item: $editorRequest) { request in
             ProjectEditorView(request: request) { project in
-                selectedProjectID = project.id
+                selection = .project(project.id)
             }
         }
         .fileImporter(
@@ -56,7 +58,7 @@ struct ContentView: View {
         }
         .focusedSceneValue(\.projectActions, editorRequest == nil ? projectActions : nil)
         .onAppear(perform: restoreSelection)
-        .onChange(of: selectedProjectID) { _, id in
+        .onChange(of: selection?.projectID) { _, id in
             if let id { projectDirectory?.activeProjectID = id }
         }
         .onChange(of: projects.map { Self.summary($0) }, initial: true) { _, summaries in
@@ -66,7 +68,9 @@ struct ContentView: View {
 
     @ViewBuilder
     private var detail: some View {
-        if let project = selectedProject {
+        if selection == .paints {
+            PaintCatalogueView()
+        } else if let project = selectedProject {
             ProjectWorkspaceView(
                 project: project,
                 onEdit: { editorRequest = .edit(project) },
@@ -102,10 +106,10 @@ struct ContentView: View {
 
     /// Reopens the project last used in the app or share sheet.
     private func restoreSelection() {
-        guard selectedProjectID == nil, let id = projectDirectory?.activeProjectID,
+        guard selection == nil, let id = projectDirectory?.activeProjectID,
               projects.contains(where: { $0.id == id })
         else { return }
-        selectedProjectID = id
+        selection = .project(id)
     }
 
     private static func summary(_ project: Project) -> ProjectSummary {
