@@ -3,6 +3,7 @@ import SwiftUI
 
 @main
 struct BenchBookApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     private let library = Result { try LibraryEnvironment() }
 
     var body: some Scene {

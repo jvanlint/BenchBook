@@ -7,9 +7,12 @@ struct ReferenceTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            ReferencePreview(reference: reference)
-                .frame(height: 140)
+            // The preview sits in an overlay so a wide image fills and is
+            // clipped to this box, instead of widening the tile.
+            Color.clear
                 .frame(maxWidth: .infinity)
+                .frame(height: 140)
+                .overlay { ReferencePreview(reference: reference) }
                 .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
 

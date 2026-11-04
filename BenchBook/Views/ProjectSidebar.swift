@@ -64,7 +64,7 @@ private struct ProjectRow: View {
     }
 }
 
-/// What the window accepts from drags and paste.
+/// What the window accepts from drags.
 enum CaptureDrop {
-    static let types: [UTType] = [.fileURL, .image, .pdf, .url, .plainText]
+    static let types = PasteRouter.supportedTypes
 }

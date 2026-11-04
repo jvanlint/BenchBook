@@ -4,13 +4,14 @@ import SwiftUI
 struct ReferenceFilterBar: View {
     @Binding var filter: ReferenceFilter
     /// Kinds present in the Project, with counts, in display order.
+    /// Tags are listed most-used first, without counts.
     let kinds: [(kind: ReferenceKind, count: Int)]
     let tags: [TagUsage]
     let totalCount: Int
     let matchingCount: Int
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
+        HStack(alignment: .center, spacing: 12) {
             Picker("Type", selection: $filter.kind) {
                 Text("All Types (\(totalCount))").tag(ReferenceKind?.none)
                 Divider()
@@ -29,14 +30,10 @@ struct ReferenceFilterBar: View {
                 ScrollView(.horizontal) {
                     HStack(spacing: 6) {
                         ForEach(tags) { tag in
-                            Toggle(isOn: binding(for: tag)) {
-                                Text("\(tag.name) \(Text("\(tag.count)").foregroundStyle(.secondary))")
-                            }
-                            .toggleStyle(.button)
-                            .buttonBorderShape(.capsule)
-                            .controlSize(.small)
-                            .accessibilityLabel("\(tag.name), \(tag.count) references")
-                            .help("Show only references tagged “\(tag.name)”")
+                            Toggle(tag.name, isOn: binding(for: tag))
+                                .toggleStyle(.button)
+                                .buttonBorderShape(.capsule)
+                                .help("Show only references tagged “\(tag.name)”")
                         }
                     }
                     .padding(.vertical, 2)
@@ -53,10 +50,11 @@ struct ReferenceFilterBar: View {
                     .monospacedDigit()
                     .fixedSize()
                 Button("Clear") { filter = ReferenceFilter() }
-                    .controlSize(.small)
                     .help("Show all references")
             }
         }
+        // One size for every control, so the menu and tag buttons line up.
+        .controlSize(.small)
         .padding(.horizontal, 20)
         .padding(.vertical, 8)
         .accessibilityElement(children: .contain)

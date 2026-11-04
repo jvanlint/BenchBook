@@ -30,6 +30,8 @@ struct ProjectWorkspaceView: View {
     let onAddFiles: () -> Void
 
     @Environment(\.captureCoordinator) private var captureCoordinator
+    @Environment(\.appearsActive) private var appearsActive
+    @State private var pasteOwner = UUID()
     @State private var section: WorkspaceSection = .references
     /// Kept here so it survives switching sections; resets per Project.
     @State private var referenceFilter = ReferenceFilter()
@@ -50,9 +52,13 @@ struct ProjectWorkspaceView: View {
                 capture(providers)
                 return true
             }
-            .onPasteCommand(of: CaptureDrop.types) { providers in
-                capture(providers)
+            // ⌘V pastes into the project shown in the front window.
+            .onChange(of: appearsActive, initial: true) { _, active in
+                if active {
+                    PasteRouter.shared.register(owner: pasteOwner) { providers in capture(providers) }
+                }
             }
+            .onDisappear { PasteRouter.shared.unregister(owner: pasteOwner) }
             .navigationTitle(project.name)
             .navigationSubtitle(project.summary)
             .toolbar {
