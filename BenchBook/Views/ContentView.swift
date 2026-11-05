@@ -18,6 +18,7 @@ struct ContentView: View {
     @FocusState private var isSearchFocused: Bool
     @State private var revealReferenceID: UUID?
     @State private var revealPaintID: UUID?
+    @State private var revealAftermarketID: UUID?
 
     private var searchQuery: SearchQuery {
         SearchQuery(text: searchText, tags: Set(searchTokens.map(\.normalizedName)))
@@ -127,7 +128,8 @@ struct ContentView: View {
                 project: project,
                 onEdit: { editorRequest = .edit(project) },
                 onAddFiles: { isAddingFiles = true },
-                revealReferenceID: $revealReferenceID
+                revealReferenceID: $revealReferenceID,
+                revealAftermarketID: $revealAftermarketID
             )
             // A fresh workspace per Project, so each one opens on References.
             .id(project.id)
@@ -167,6 +169,12 @@ struct ContentView: View {
                 endSearch()
                 selection = .paints
                 revealPaintID = paint.id
+            },
+            onShowAftermarketItem: { item in
+                guard let projectID = item.project?.id else { return }
+                endSearch()
+                selection = .project(projectID)
+                revealAftermarketID = item.id
             }
         )
     }

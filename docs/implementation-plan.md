@@ -130,3 +130,12 @@ Delivered first part of Phase 6:
 - Library-wide paint catalogue under Paints in the sidebar: sortable, searchable table, owned-only filter, add/edit/delete, ownership checkboxes, and CSV import.
 - Each Project's Paint tab lists its chosen paints, what each is used for, and how many still need buying; paints are added from a searchable picker that can also create new catalogue paints.
 - Next: ColourStandard, Colour and PaintMatch, so a Project can list the colours it needs (e.g. FS 36270) and pick matching paints.
+
+## Aftermarket — Phase 7
+
+Delivered Phase 7:
+
+- Each Project's Aftermarket tab lists its parts in a sortable table with picture, part, type, scale or fit, status (changed in place) and product link; the header counts parts being considered or on order.
+- Types: Decals, Resin, Photo-etch, 3D printed, Masks, Metal parts, Wheels, Figures, Other. Statuses: Considering, Ordered, In stash, Using, Used, Not using.
+- The editor takes a picture from a file, a drop, or the product page's link-preview image. Pictures are ManagedAssets, not References, and are removed with their part.
+- Parts are searchable. The acceptance examples are covered by `AftermarketServiceTests`.

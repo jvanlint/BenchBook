@@ -80,16 +80,16 @@ struct ReferenceService {
         try save()
         try? FileManager.default.removeItem(at: posterURL)
         if let asset {
-            try removeIfUnused(asset)
+            try removeAssetIfUnused(asset)
         }
     }
 
-    /// Removes leftovers from interrupted imports or deletes: assets with no
-    /// References, files in the library with no asset record, and posters
+    /// Removes leftovers from interrupted imports or deletes: assets nothing
+    /// uses, files in the library with no asset record, and posters
     /// of deleted video links (e.g. from deleting a whole Project).
     func reconcileLibrary() throws {
-        for asset in try context.fetch(FetchDescriptor<ManagedAsset>()) where asset.references.isEmpty {
-            try removeIfUnused(asset)
+        for asset in try context.fetch(FetchDescriptor<ManagedAsset>()) where asset.isUnused {
+            try removeAssetIfUnused(asset)
         }
         let knownIDs = Set(try context.fetch(FetchDescriptor<ManagedAsset>()).map(\.id))
         for file in library.orphanedFiles(knownAssetIDs: knownIDs) {
@@ -101,8 +101,9 @@ struct ReferenceService {
         }
     }
 
-    private func removeIfUnused(_ asset: ManagedAsset) throws {
-        guard asset.references.isEmpty else { return }
+    /// Deletes the asset and its files if no Reference or aftermarket item uses it.
+    func removeAssetIfUnused(_ asset: ManagedAsset) throws {
+        guard asset.isUnused else { return }
         let id = asset.id
         let path = asset.originalRelativePath
         context.delete(asset)
@@ -118,6 +119,11 @@ struct ReferenceService {
             throw error
         }
     }
+}
+
+extension ManagedAsset {
+    /// True when no Reference or aftermarket item uses this file.
+    var isUnused: Bool { references.isEmpty && aftermarketItems.isEmpty }
 }
 
 enum NoteError: LocalizedError, Equatable {

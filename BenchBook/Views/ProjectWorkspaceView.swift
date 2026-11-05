@@ -30,6 +30,8 @@ struct ProjectWorkspaceView: View {
     let onAddFiles: () -> Void
     /// A Reference to scroll to and select, e.g. from search. Cleared once shown.
     @Binding var revealReferenceID: UUID?
+    /// An aftermarket part to select, e.g. from search. Cleared once shown.
+    @Binding var revealAftermarketID: UUID?
 
     @Environment(\.captureCoordinator) private var captureCoordinator
     @Environment(\.appearsActive) private var appearsActive
@@ -45,6 +47,9 @@ struct ProjectWorkspaceView: View {
             .focusedSceneValue(\.workspaceSection, $section)
             .onChange(of: revealReferenceID, initial: true) { _, id in
                 if id != nil { section = .references }
+            }
+            .onChange(of: revealAftermarketID, initial: true) { _, id in
+                if id != nil { section = .aftermarket }
             }
             .focusedSceneValue(\.noteAction, noteRequest == nil ? NoteAction(newNote: newNote) : nil)
             .sheet(item: $noteRequest) { request in
@@ -107,11 +112,7 @@ struct ProjectWorkspaceView: View {
         case .paint:
             ProjectPaintView(project: project)
         case .aftermarket:
-            ContentUnavailableView(
-                "No Aftermarket Parts",
-                systemImage: "shippingbox",
-                description: Text("Decals, resin, photo-etch and other parts you're using or considering for this build will appear here.")
-            )
+            ProjectAftermarketView(project: project, revealID: $revealAftermarketID)
         }
     }
 

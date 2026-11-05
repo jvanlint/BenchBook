@@ -154,7 +154,9 @@ FS 36270 is a Colour, not a Paint. A selected Paint need not be owned. Removing 
 | productURL | URL? | External product page |
 | imageAsset | ManagedAsset? | Optional managed image; not automatically a Reference |
 
-Examples: Galaxy Models 50th Anniversary 2015 — Decals — 1:48 — Using; FOD cover — 3D printed — Considering. Exact enum values remain to be confirmed. No global stash entity is required.
+Examples: Galaxy Models 50th Anniversary 2015 — Decals — 1:48 — Using; FOD cover — 3D printed — Considering. No global stash entity is required.
+
+Implemented (schema V9): `AftermarketItem` with the fields above (`manufacturer` is a non-optional String, empty when unknown). `typeRaw` holds an `AftermarketType` (decals, resin, photoEtch, printed3D, masks, metal, wheels, figures, other) and `statusRaw` an `AftermarketStatus` (considering, ordered, inStash, using, used, notUsing); unknown stored values display as stored and sort last. Deleting a Project cascades to its items. `imageAsset` nullifies on delete, with the inverse `ManagedAsset.aftermarketItems`; `AftermarketService` removes the asset and its files once neither a Reference nor an item uses it, and `reconcileLibrary` uses the same rule.
 
 ## Deletion and integrity
 

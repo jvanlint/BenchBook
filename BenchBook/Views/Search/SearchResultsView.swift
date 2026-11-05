@@ -6,13 +6,15 @@ import SwiftUI
 enum SearchResultID: Hashable {
     case project(UUID)
     case paint(UUID)
+    case aftermarket(UUID)
     case reference(UUID)
     /// A box drawn on an image.
     case imageNote(reference: UUID, note: UUID)
     case moment(reference: UUID, seconds: Double)
 }
 
-/// Results for a search across every Project: projects, paints, then
+/// Results for a search across every Project: projects, paints, aftermarket
+/// parts, then
 /// references grouped by project. Matching image boxes and video moments
 /// get their own rows so they can be opened directly.
 struct SearchResultsView: View {
@@ -21,6 +23,7 @@ struct SearchResultsView: View {
     var onShowProject: (Project) -> Void
     var onShowReference: (Reference) -> Void
     var onShowPaint: (Paint) -> Void
+    var onShowAftermarketItem: (AftermarketItem) -> Void
 
     @Environment(\.searchIndex) private var searchIndex
     @Environment(\.assetLibrary) private var assetLibrary
@@ -31,6 +34,7 @@ struct SearchResultsView: View {
     @State private var quickLookURL: URL?
     @State private var detailsReference: Reference?
     @State private var paintEditor: PaintEditorRequest?
+    @State private var aftermarketEditor: AftermarketEditorView.Request?
     @State private var errorMessage: String?
 
     var body: some View {
@@ -64,6 +68,9 @@ struct SearchResultsView: View {
         .sheet(item: $paintEditor) { request in
             PaintEditorView(request: request)
         }
+        .sheet(item: $aftermarketEditor) { request in
+            NavigationStack { AftermarketEditorView(request: request) }
+        }
         .alert(
             "Something Went Wrong",
             isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
@@ -87,6 +94,13 @@ struct SearchResultsView: View {
                 Section("Paints") {
                     ForEach(results.paints) { paint in
                         paintRow(paint).tag(SearchResultID.paint(paint.id))
+                    }
+                }
+            }
+            if !results.aftermarketItems.isEmpty {
+                Section("Aftermarket") {
+                    ForEach(results.aftermarketItems) { item in
+                        aftermarketRow(item).tag(SearchResultID.aftermarket(item.id))
                     }
                 }
             }
@@ -146,6 +160,25 @@ struct SearchResultsView: View {
             }
             Spacer()
             Text(paint.isOwned ? "Owned" : "Not Owned")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func aftermarketRow(_ item: AftermarketItem) -> some View {
+        HStack(spacing: 10) {
+            AftermarketThumbnail(item: item, size: 32)
+                .frame(width: 64)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(SearchSnippet.highlighted(item.displayName, for: query))
+                let details = [item.typeName, item.scaleCompatibility ?? "", item.project?.name ?? ""].filter { !$0.isEmpty }
+                Text(SearchSnippet.highlighted(details.joined(separator: " · "), for: query))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            Label(item.statusName, systemImage: item.status?.systemImage ?? "questionmark.circle")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -235,6 +268,11 @@ struct SearchResultsView: View {
                 Button("Edit Paint…") { paintEditor = .edit(paint) }
                 Button("Show in Paints") { onShowPaint(paint) }
             }
+        case .aftermarket(let itemID):
+            if let item = results.aftermarketItems.first(where: { $0.id == itemID }) {
+                Button("Edit Part…") { aftermarketEditor = .edit(item) }
+                Button("Show in Project") { onShowAftermarketItem(item) }
+            }
         case .reference(let referenceID), .imageNote(let referenceID, _), .moment(let referenceID, _):
             if let reference = reference(referenceID, in: results) {
                 Button("Open") { activate(id, in: results) }
@@ -251,6 +289,8 @@ struct SearchResultsView: View {
             if let project = results.projects.first(where: { $0.id == projectID }) { onShowProject(project) }
         case .paint(let paintID):
             if let paint = results.paints.first(where: { $0.id == paintID }) { paintEditor = .edit(paint) }
+        case .aftermarket(let itemID):
+            if let item = results.aftermarketItems.first(where: { $0.id == itemID }) { onShowAftermarketItem(item) }
         case .reference(let referenceID):
             if let reference = reference(referenceID, in: results) { open(reference) }
         case .imageNote(let referenceID, let noteID):
@@ -301,6 +341,7 @@ struct SearchResultsView: View {
         var parts: [String] = []
         if !results.projects.isEmpty { parts.append(String(localized: "\(results.projects.count) projects")) }
         if !results.paints.isEmpty { parts.append(String(localized: "\(results.paints.count) paints")) }
+        if !results.aftermarketItems.isEmpty { parts.append(String(localized: "\(results.aftermarketItems.count) parts")) }
         if results.referenceCount > 0 { parts.append(String(localized: "\(results.referenceCount) references")) }
         return parts.joined(separator: " · ")
     }

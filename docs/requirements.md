@@ -152,7 +152,7 @@ Examples:
 - How should browser connection and deep links into the app work; does any optional service require sign-in?
 - How will the macOS app be signed, distributed, and updated?
 
-1. Which Project and Aftermarket status values are the minimum useful set?
+1. Which Project status values are the minimum useful set? (Aftermarket statuses are settled: Considering, Ordered, In stash, Using, Used, Not using.)
 2. What authoritative/curated source supplies Colour, Paint, and PaintMatch data, including disputed matches?
 3. Should initial paint data be seeded/imported, admin-managed, or user-created?
 4. Should PDFs preview inline or open/download through authorized access?

@@ -58,10 +58,11 @@ struct ProjectSearchGroup: Identifiable {
 struct SearchResults {
     var projects: [Project] = []
     var paints: [Paint] = []
+    var aftermarketItems: [AftermarketItem] = []
     var referenceGroups: [ProjectSearchGroup] = []
 
     var referenceCount: Int { referenceGroups.reduce(0) { $0 + $1.hits.count } }
-    var isEmpty: Bool { projects.isEmpty && paints.isEmpty && referenceGroups.isEmpty }
+    var isEmpty: Bool { projects.isEmpty && paints.isEmpty && aftermarketItems.isEmpty && referenceGroups.isEmpty }
 }
 
 /// Searches every Project, Paint and Reference, including the notes drawn
@@ -76,6 +77,7 @@ final class SearchIndex {
     @ObservationIgnored private var isStale = true
     @ObservationIgnored private var projectEntries: [(project: Project, fields: [SearchField])] = []
     @ObservationIgnored private var paintEntries: [(paint: Paint, fields: [SearchField])] = []
+    @ObservationIgnored private var aftermarketEntries: [(item: AftermarketItem, fields: [SearchField])] = []
     @ObservationIgnored private var referenceEntries: [ReferenceEntry] = []
     @ObservationIgnored private var saveObserver: NSObjectProtocol?
 
@@ -112,7 +114,7 @@ final class SearchIndex {
         rebuildIfNeeded()
         var results = SearchResults()
 
-        // Projects and paints have no tags, so a tag token leaves only References.
+        // Only References have tags, so a tag token leaves only References.
         if query.tags.isEmpty {
             results.projects = projectEntries
                 .filter { query.matchesEveryWord(in: $0.fields) }
@@ -120,6 +122,9 @@ final class SearchIndex {
             results.paints = paintEntries
                 .filter { query.matchesEveryWord(in: $0.fields) }
                 .map(\.paint)
+            results.aftermarketItems = aftermarketEntries
+                .filter { query.matchesEveryWord(in: $0.fields) }
+                .map(\.item)
         }
 
         var hitsByProject: [UUID: [ReferenceSearchHit]] = [:]
@@ -172,6 +177,15 @@ final class SearchIndex {
             .map { paint in
                 let texts = [paint.brand, paint.range, paint.code, paint.name, paint.standardCode, paint.notes ?? ""]
                 return (paint, texts.filter { !$0.isEmpty }.map(SearchField.init))
+            }
+
+        let items = (try? context.fetch(FetchDescriptor<AftermarketItem>())) ?? []
+        aftermarketEntries = items
+            .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+            .map { item in
+                let texts = [item.productName, item.manufacturer, item.productNumber ?? "", item.typeName,
+                             item.scaleCompatibility ?? "", item.notes ?? "", item.productURL?.host() ?? ""]
+                return (item, texts.filter { !$0.isEmpty }.map(SearchField.init))
             }
 
         let references = (try? context.fetch(FetchDescriptor<Reference>())) ?? []

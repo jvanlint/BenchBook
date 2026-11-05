@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 
 /// Schema 8: adds webpage preview details to Reference. Everything else is
-/// unchanged from schema 7.
+/// unchanged from schema 7. Frozen; kept so existing libraries can migrate.
 ///
 /// Relationship rules (docs/data-model.md):
 /// - Deleting a Project deletes its References.
