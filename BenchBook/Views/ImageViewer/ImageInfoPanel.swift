@@ -75,7 +75,7 @@ struct ImageInfoPanel: View {
 
             if !reference.tags.isEmpty {
                 Section("Tags") {
-                    TagChips(names: reference.tags.map(\.name), limit: 50)
+                    TagChips(tags: reference.tags, limit: 50)
                 }
             }
         }

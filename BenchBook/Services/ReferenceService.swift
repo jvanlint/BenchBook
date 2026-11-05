@@ -75,7 +75,7 @@ struct ReferenceService {
     /// Deletes the Reference, then its stored file if nothing else uses it.
     func delete(_ reference: Reference) throws {
         let asset = reference.asset
-        let posterURL = library.videoPosterURL(referenceID: reference.id)
+        let posterURL = library.posterURL(referenceID: reference.id)
         context.delete(reference)
         try save()
         try? FileManager.default.removeItem(at: posterURL)

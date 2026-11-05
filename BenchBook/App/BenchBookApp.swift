@@ -44,7 +44,7 @@ private extension View {
             .environment(\.assetLibrary, library.assetLibrary)
             .environment(\.thumbnailStore, library.thumbnails)
             .environment(\.captureCoordinator, library.capture)
-            .environment(\.videoInfoService, library.videoInfo)
+            .environment(\.linkInfoService, library.linkInfo)
             .environment(\.searchIndex, library.search)
             .environment(\.projectDirectory, library.projectDirectory)
     }

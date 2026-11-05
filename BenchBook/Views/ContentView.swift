@@ -97,27 +97,29 @@ struct ContentView: View {
         }
     }
 
+    /// The tag chosen in the sidebar, if any.
+    private var selectedTag: Tag? {
+        guard case .tag(let id) = selection else { return nil }
+        return tags.first { $0.id == id }
+    }
+
     @ViewBuilder
     private var detail: some View {
-        if !searchQuery.isEmpty {
-            SearchResultsView(
-                query: searchQuery,
-                onShowProject: { project in
-                    endSearch()
-                    selection = .project(project.id)
-                },
-                onShowReference: { reference in
-                    guard let projectID = reference.project?.id else { return }
-                    endSearch()
-                    selection = .project(projectID)
-                    revealReferenceID = reference.id
-                },
-                onShowPaint: { paint in
-                    endSearch()
-                    selection = .paints
-                    revealPaintID = paint.id
-                }
-            )
+        if case .tag = selection {
+            if let tag = selectedTag {
+                // Typing in the search field narrows the tag's references.
+                searchResults(
+                    SearchQuery(text: searchText, tags: Set(searchTokens.map(\.normalizedName) + [tag.normalizedName])),
+                    title: tag.name
+                )
+            } else {
+                ContentUnavailableView("Tag Not Found", systemImage: "tag.slash",
+                                       description: Text("This tag may have been deleted or merged."))
+            }
+        } else if !searchQuery.isEmpty {
+            searchResults(searchQuery, title: String(localized: "Search"))
+        } else if selection == .tags {
+            TagManagerView { tag in selection = .tag(tag.id) }
         } else if selection == .paints {
             PaintCatalogueView(revealID: $revealPaintID)
         } else if let project = selectedProject {
@@ -145,6 +147,28 @@ struct ContentView: View {
                 description: Text("Select a project in the sidebar.")
             )
         }
+    }
+
+    private func searchResults(_ query: SearchQuery, title: String) -> some View {
+        SearchResultsView(
+            query: query,
+            title: title,
+            onShowProject: { project in
+                endSearch()
+                selection = .project(project.id)
+            },
+            onShowReference: { reference in
+                guard let projectID = reference.project?.id else { return }
+                endSearch()
+                selection = .project(projectID)
+                revealReferenceID = reference.id
+            },
+            onShowPaint: { paint in
+                endSearch()
+                selection = .paints
+                revealPaintID = paint.id
+            }
+        )
     }
 
     /// The word being typed, used to suggest tags.

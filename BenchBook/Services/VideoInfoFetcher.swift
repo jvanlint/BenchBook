@@ -17,7 +17,7 @@ nonisolated struct VideoInfo: Equatable, Sendable {
     }
 }
 
-nonisolated enum VideoInfoError: Error, Equatable {
+nonisolated enum LinkInfoError: Error, Equatable {
     /// The site says the video doesn't exist or is private. Not retried.
     case notFound
     /// Offline, timed out or a server error. Tried again later.
@@ -67,7 +67,7 @@ nonisolated struct VideoInfoFetcher: Sendable {
         // still has their details, so a refusal isn't the end.
         let (oEmbedData, oEmbedStatus) = try await get(components.url!)
         var info = oEmbedStatus == 200 ? Self.parseOEmbed(oEmbedData) ?? VideoInfo() : VideoInfo()
-        if oEmbedStatus >= 500 { throw VideoInfoError.unavailable }
+        if oEmbedStatus >= 500 { throw LinkInfoError.unavailable }
 
         if let (pageData, pageStatus) = try? await get(watchURL), pageStatus == 200 {
             let page = Self.parseYouTubePage(String(decoding: pageData, as: UTF8.self))
@@ -78,7 +78,7 @@ nonisolated struct VideoInfoFetcher: Sendable {
             info.description = page.description
         }
         guard info.title != nil || info.durationSeconds != nil else {
-            throw VideoInfoError.notFound
+            throw LinkInfoError.notFound
         }
         // maxresdefault is 1280×720 but missing for some older videos;
         // hqdefault always exists (480×360, letterboxed).
@@ -98,10 +98,10 @@ nonisolated struct VideoInfoFetcher: Sendable {
         let (data, status) = try await get(components.url!)
         switch status {
         case 200: break
-        case 400..<500: throw VideoInfoError.notFound
-        default: throw VideoInfoError.unavailable
+        case 400..<500: throw LinkInfoError.notFound
+        default: throw LinkInfoError.unavailable
         }
-        guard let info = Self.parseOEmbed(data) else { throw VideoInfoError.notFound }
+        guard let info = Self.parseOEmbed(data) else { throw LinkInfoError.notFound }
         return info
     }
 
@@ -114,7 +114,7 @@ nonisolated struct VideoInfoFetcher: Sendable {
             let (data, response) = try await load(request)
             return (data, (response as? HTTPURLResponse)?.statusCode ?? 200)
         } catch {
-            throw VideoInfoError.unavailable
+            throw LinkInfoError.unavailable
         }
     }
 

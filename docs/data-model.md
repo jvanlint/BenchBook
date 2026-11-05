@@ -68,6 +68,8 @@ Source URLs preserve provenance; never use an external URL as the only copy of a
 
 Implemented (schema V5): video links also store optional `videoChannel`, `videoChannelURL`, `videoDurationSeconds`, `videoPublishedAt`, `videoDescription` (capped at 5,000 characters) and `videoInfoFetchedAt`, fetched from YouTube/Vimeo after saving. `videoInfoFetchedAt` stays nil after network failures so the fetch is retried at launch; a removed or private video records the attempt and isn't retried. The poster image is derived data at `Library/Posters/<reference-id>.jpg` and can always be refetched.
 
+Implemented (schema V8): webpages also store optional `linkSiteName`, `linkDescription` (capped at 2,000 characters) and `linkPreviewFetchedAt`, read from the page's Open Graph and Twitter card tags after saving. Retry rules match the video fields: network failures leave `linkPreviewFetchedAt` nil so the fetch is retried at launch, while a 4xx response records the attempt. The preview image (or the site's icon when the page names no image) is derived data in the same Posters folder, scaled to at most 960 pixels.
+
 ## ManagedAsset
 
 Metadata for one app-managed original file. Original bytes are not SwiftData Data properties.
@@ -189,3 +191,5 @@ CloudKit is undecided. Its optional-relationship and uniqueness restrictions wou
 - Supported video providers and their timestamp import/opening adapters.
 
 No Kit/Manufacturer/Subject/Scale taxonomy, mandatory Inbox, stash, build log, AI annotations, full webpage archive, or local video-file library is introduced.
+
+Implemented (schema V7): Tag has an optional `colorName`, a named system colour (red, orange, … gray) so it adapts to light and dark appearance. Renaming a tag to another tag's name merges them; merging moves every link to the kept tag without duplicating links, and the kept tag takes a colour if it had none. Deleting a tag removes its links, never the References.

@@ -1,18 +1,35 @@
 import SwiftUI
 
-/// Tags as tinted capsules that wrap onto new lines. Long lists show the
-/// first few and a "+N" chip; the full list is in Edit Details.
+/// Tags as capsules tinted with each tag's colour, wrapping onto new
+/// lines. Long lists show the first few and a "+N" chip.
 struct TagChips: View {
-    let names: [String]
+    struct Chip: Hashable {
+        let name: String
+        let color: Color
+    }
+
+    let chips: [Chip]
     var limit = 5
+
+    init(tags: [Tag], limit: Int = 5) {
+        chips = tags.map { Chip(name: $0.name, color: $0.displayColor) }
+        self.limit = limit
+    }
+
+    init(chips: [Chip], limit: Int = 5) {
+        self.chips = chips
+        self.limit = limit
+    }
+
+    private var names: [String] { chips.map(\.name) }
 
     var body: some View {
         FlowLayout(spacing: 4) {
-            ForEach(names.prefix(limit), id: \.self) { name in
-                chip(name)
+            ForEach(chips.prefix(limit), id: \.self) { chip in
+                Self.chip(chip.name, color: chip.color)
             }
-            if names.count > limit {
-                chip("+\(names.count - limit)")
+            if chips.count > limit {
+                Self.chip("+\(chips.count - limit)", color: .secondary)
                     .help(names.dropFirst(limit).joined(separator: ", "))
             }
         }
@@ -20,14 +37,55 @@ struct TagChips: View {
         .accessibilityLabel(Text("Tags: \(names.joined(separator: ", "))"))
     }
 
-    private func chip(_ text: String) -> some View {
+    static func chip(_ text: String, color: Color) -> some View {
         Text(text)
             .font(.caption.weight(.medium))
             .lineLimit(1)
             .padding(.horizontal, 8)
             .padding(.vertical, 3)
-            .foregroundStyle(.tint)
-            .background(.tint.opacity(0.15), in: Capsule())
+            .tagPillStyle(color: color)
+    }
+}
+
+extension View {
+    /// The look shared by every tag pill. See `TagPillStyle`.
+    func tagPillStyle(color: Color, isPartial: Bool = false, isSelected: Bool = false) -> some View {
+        modifier(TagPillStyle(color: color, isPartial: isPartial, isSelected: isSelected))
+    }
+}
+
+/// A tag pill: tinted fill, a border in the tag's colour, and text that
+/// stays readable for light colours such as yellow. In light mode the text
+/// is darkened toward black; in dark mode it gets a faint shadow.
+/// A partial pill (a tag on only some selected items) is paler and dashed;
+/// a selected one (an active filter) is fuller with a thicker border.
+struct TagPillStyle: ViewModifier {
+    let color: Color
+    var isPartial = false
+    var isSelected = false
+
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        let isDark = colorScheme == .dark
+        content
+            .foregroundStyle(isDark
+                ? color.mix(with: .white, by: isSelected ? 0.25 : 0.1)
+                : color.mix(with: .black, by: isSelected ? 0.5 : 0.4))
+            .shadow(color: .black.opacity(isDark ? 0.35 : 0.12), radius: 0.5, x: 0, y: 0.5)
+            .background(color.opacity(fillOpacity(isDark: isDark)), in: Capsule())
+            .overlay(
+                Capsule().strokeBorder(
+                    color.opacity(isDark ? 0.75 : 0.85),
+                    style: StrokeStyle(lineWidth: isSelected ? 2 : 1, dash: isPartial ? [3, 2] : [])
+                )
+            )
+    }
+
+    private func fillOpacity(isDark: Bool) -> Double {
+        if isPartial { return 0.05 }
+        if isSelected { return isDark ? 0.4 : 0.35 }
+        return isDark ? 0.15 : 0.18
     }
 }
 
@@ -89,7 +147,8 @@ struct FlowLayout: Layout {
 }
 
 #Preview {
-    TagChips(names: ["wheel well", "cockpit", "decals", "main gear", "FS 36270", "weathering", "ejection seat"])
+    TagChips(chips: ["wheel well", "cockpit", "decals", "main gear", "FS 36270", "weathering", "ejection seat"]
+        .map { TagChips.Chip(name: $0, color: .accentColor) })
         .frame(width: 220)
         .padding()
 }

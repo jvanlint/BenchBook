@@ -45,6 +45,10 @@ struct ReferenceDetailsView: View {
                 VideoDetailsSection(reference: reference)
             }
 
+            if reference.kind == .webpage {
+                PageDetailsSection(reference: reference)
+            }
+
             if reference.kind == .videoLink, let source = reference.sourcePageURL, !reference.videoMoments.isEmpty {
                 Section("Moments") {
                     ForEach(reference.sortedVideoMoments) { moment in
@@ -116,11 +120,11 @@ private struct VideoDetailsSection: View {
     let reference: Reference
 
     @Environment(\.thumbnailStore) private var thumbnailStore
-    @Environment(\.videoInfoService) private var videoInfoService
+    @Environment(\.linkInfoService) private var linkInfoService
     @State private var poster: NSImage?
 
     private var isFetching: Bool {
-        videoInfoService?.inProgress.contains(reference.id) ?? false
+        linkInfoService?.inProgress.contains(reference.id) ?? false
     }
 
     var body: some View {
@@ -166,9 +170,9 @@ private struct VideoDetailsSection: View {
                 if isFetching {
                     ProgressView()
                         .controlSize(.small)
-                } else if let videoInfoService {
+                } else if let linkInfoService {
                     Button("Refresh") {
-                        Task { await videoInfoService.refresh(reference) }
+                        Task { await linkInfoService.refresh(reference) }
                     }
                     .controlSize(.small)
                     .help("Fetch the video's details and poster again")
@@ -176,8 +180,69 @@ private struct VideoDetailsSection: View {
             }
         }
         .task(id: reference.videoInfoFetchedAt) {
-            poster = await thumbnailStore?.videoPoster(referenceID: reference.id, version: reference.videoInfoFetchedAt)
+            poster = await thumbnailStore?.poster(referenceID: reference.id, version: reference.videoInfoFetchedAt)
         }
     }
 }
 
+
+/// A webpage's preview image, site name and description.
+private struct PageDetailsSection: View {
+    let reference: Reference
+
+    @Environment(\.thumbnailStore) private var thumbnailStore
+    @Environment(\.linkInfoService) private var linkInfoService
+    @State private var preview: NSImage?
+
+    private var isFetching: Bool {
+        linkInfoService?.inProgress.contains(reference.id) ?? false
+    }
+
+    var body: some View {
+        Section {
+            if let preview {
+                Image(nsImage: preview)
+                    .resizable()
+                    .interpolation(.high)
+                    .scaledToFit()
+                    .frame(maxWidth: preview.looksLikeIcon ? 64 : .infinity, maxHeight: preview.looksLikeIcon ? 64 : 220)
+                    .clipShape(RoundedRectangle(cornerRadius: preview.looksLikeIcon ? 12 : 6))
+                    .frame(maxWidth: .infinity)
+                    .accessibilityHidden(true)
+            }
+            if let site = reference.linkSiteName {
+                LabeledContent("Site", value: site)
+            }
+            if let description = reference.linkDescription {
+                Text(description)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if reference.linkPreviewFetchedAt == nil, !isFetching {
+                Text("The page's preview hasn't been fetched yet. BenchBook tries again when it's online.")
+                    .foregroundStyle(.secondary)
+            } else if preview == nil, reference.linkSiteName == nil, reference.linkDescription == nil, !isFetching {
+                Text("This page doesn't offer a preview.")
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            HStack {
+                Text("Webpage")
+                Spacer()
+                if isFetching {
+                    ProgressView()
+                        .controlSize(.small)
+                } else if let linkInfoService {
+                    Button("Refresh") {
+                        Task { await linkInfoService.refresh(reference) }
+                    }
+                    .controlSize(.small)
+                    .help("Fetch the page's preview image and details again")
+                }
+            }
+        }
+        .task(id: reference.linkPreviewFetchedAt) {
+            preview = await thumbnailStore?.poster(referenceID: reference.id, version: reference.linkPreviewFetchedAt)
+        }
+    }
+}

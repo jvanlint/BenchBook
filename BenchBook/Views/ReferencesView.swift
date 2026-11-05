@@ -1,3 +1,4 @@
+import AppKit
 import QuickLook
 import SwiftData
 import SwiftUI
@@ -11,17 +12,27 @@ struct ReferencesView: View {
     let onNewNote: () -> Void
 
     @Query private var references: [Reference]
+    @Query(sort: [SortDescriptor(\Tag.name, comparator: .localizedStandard)])
+    private var allTags: [Tag]
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.assetLibrary) private var assetLibrary
     @Environment(\.openURL) private var openURL
-    @Environment(\.videoInfoService) private var videoInfoService
+    @Environment(\.linkInfoService) private var linkInfoService
     @Environment(\.openWindow) private var openWindow
 
+    /// The tile with keyboard focus.
     @FocusState private var focusedID: UUID?
+    /// Selected tiles. ⌘-click adds or removes one, ⇧-click selects a range.
+    @State private var selection = Set<UUID>()
+    /// Where a ⇧-click range starts.
+    @State private var anchorID: UUID?
+    /// The tile a dragged tag is over.
+    @State private var tagDropTargetID: UUID?
+    @State private var tagEditing: TagEditingTarget?
     @State private var quickLookURL: URL?
     @State private var detailsReference: Reference?
-    @State private var referencePendingDeletion: Reference?
+    @State private var pendingDeletion: [Reference] = []
     @State private var errorMessage: String?
     @State private var scrollTarget: UUID?
 
@@ -85,6 +96,8 @@ struct ReferencesView: View {
             guard let id, references.contains(where: { $0.id == id }) else { return }
             filter = ReferenceFilter()
             focusedID = id
+            selection = [id]
+            anchorID = id
             scrollTarget = id
             revealID = nil
         }
@@ -96,17 +109,26 @@ struct ReferencesView: View {
                 ReferenceDetailsView(reference: reference)
             }
         }
+        .sheet(item: $tagEditing) { target in
+            ReferenceTagsSheet(references: target.references)
+        }
+        .focusedSceneValue(\.tagAction, selectedReferences.isEmpty ? nil : TagAction {
+            tagEditing = TagEditingTarget(references: selectedReferences)
+        })
         .confirmationDialog(
-            "Delete “\(referencePendingDeletion?.displayTitle ?? "")”?",
+            pendingDeletion.count == 1
+                ? "Delete “\(pendingDeletion.first?.displayTitle ?? "")”?"
+                : "Delete \(pendingDeletion.count) References?",
             isPresented: Binding(
-                get: { referencePendingDeletion != nil },
-                set: { if !$0 { referencePendingDeletion = nil } }
-            ),
-            presenting: referencePendingDeletion
-        ) { reference in
-            Button("Delete", role: .destructive) { delete(reference) }
-        } message: { _ in
-            Text("This removes the reference and its saved copy from BenchBook. This can't be undone.")
+                get: { !pendingDeletion.isEmpty },
+                set: { if !$0 { pendingDeletion = [] } }
+            )
+        ) {
+            Button("Delete", role: .destructive) { delete(pendingDeletion) }
+        } message: {
+            Text(pendingDeletion.count == 1
+                 ? "This removes the reference and its saved copy from BenchBook. This can't be undone."
+                 : "This removes the references and their saved copies from BenchBook. This can't be undone.")
         }
         .alert(
             "Something Went Wrong",
@@ -123,27 +145,26 @@ struct ReferencesView: View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 180, maximum: 260), spacing: 16)], spacing: 16) {
                 ForEach(visibleReferences) { reference in
-                    ReferenceTile(reference: reference, isSelected: focusedID == reference.id)
-                        .id(reference.id)
-                        .focusable()
-                        .focused($focusedID, equals: reference.id)
-                        .onTapGesture(count: 2) { open(reference) }
-                        .onTapGesture { focusedID = reference.id }
-                        .onKeyPress(.return) {
-                            open(reference)
-                            return .handled
-                        }
-                        .onKeyPress(.space) {
-                            quickLook(reference)
-                            return .handled
-                        }
-                        .onDeleteCommand { referencePendingDeletion = reference }
-                        .contextMenu { menu(for: reference) }
-                        .accessibilityAction(named: "Open") { open(reference) }
-                        .accessibilityAction(named: "Edit Details") { detailsReference = reference }
+                    tile(reference)
                 }
             }
             .padding(20)
+            // Clicking between tiles clears the selection.
+            .background {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture { clearSelection() }
+            }
+        }
+        .onCommand(#selector(NSResponder.selectAll(_:))) {
+            selection = Set(visibleReferences.map(\.id))
+        }
+        .onExitCommand { clearSelection() }
+        .onChange(of: focusedID) { _, id in
+            // Moving focus with the keyboard selects that tile alone.
+            guard let id, NSApp.currentEvent?.type == .keyDown else { return }
+            selection = [id]
+            anchorID = id
         }
         .onChange(of: scrollTarget, initial: true) { _, id in
             guard let id else { return }
@@ -153,8 +174,152 @@ struct ReferencesView: View {
         }
     }
 
+    private func tile(_ reference: Reference) -> some View {
+        ReferenceTile(reference: reference, isSelected: selection.contains(reference.id))
+            .overlay {
+                if tagDropTargetID == reference.id {
+                    RoundedRectangle(cornerRadius: 10)
+                        .strokeBorder(Color.accentColor, lineWidth: 3)
+                }
+            }
+            .id(reference.id)
+            .focusable()
+            .focused($focusedID, equals: reference.id)
+            .onTapGesture(count: 2) { open(reference) }
+            .onTapGesture { click(reference) }
+            .onKeyPress(.return) {
+                open(reference)
+                return .handled
+            }
+            .onKeyPress(.space) {
+                quickLook(reference)
+                return .handled
+            }
+            .onDeleteCommand { pendingDeletion = targets(for: reference) }
+            .contextMenu { menu(for: targets(for: reference)) }
+            // Drag tiles onto a tag in the sidebar to tag them.
+            .draggable(ReferencesDragItem(referenceIDs: targets(for: reference).map(\.id))) {
+                dragPreview(for: reference)
+            }
+            // Drop a tag from the sidebar here to tag this tile, or the
+            // whole selection when this tile is part of it.
+            .dropDestination(for: TagDragItem.self) { items, _ in
+                applyDroppedTags(items, to: targets(for: reference))
+            } isTargeted: { targeted in
+                if targeted {
+                    tagDropTargetID = reference.id
+                } else if tagDropTargetID == reference.id {
+                    tagDropTargetID = nil
+                }
+            }
+            .accessibilityAction(named: "Open") { open(reference) }
+            .accessibilityAction(named: "Edit Tags") { tagEditing = TagEditingTarget(references: targets(for: reference)) }
+            .accessibilityAction(named: "Edit Details") { detailsReference = reference }
+    }
+
+    private func dragPreview(for reference: Reference) -> some View {
+        let count = targets(for: reference).count
+        return Label(
+            count == 1 ? reference.displayTitle : String(localized: "\(count) References"),
+            systemImage: count == 1 ? (reference.kind?.systemImage ?? "doc") : "square.stack"
+        )
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(.regularMaterial, in: Capsule())
+    }
+
+    // MARK: Selection
+
+    /// Selected References in grid order.
+    private var selectedReferences: [Reference] {
+        visibleReferences.filter { selection.contains($0.id) }
+    }
+
+    /// What an action on `reference` applies to: the whole selection when
+    /// the tile is part of it, otherwise just that tile.
+    private func targets(for reference: Reference) -> [Reference] {
+        selection.contains(reference.id) && selection.count > 1 ? selectedReferences : [reference]
+    }
+
+    private func click(_ reference: Reference) {
+        let modifiers = NSEvent.modifierFlags
+        focusedID = reference.id
+        if modifiers.contains(.command) {
+            if selection.contains(reference.id) {
+                selection.remove(reference.id)
+            } else {
+                selection.insert(reference.id)
+            }
+            anchorID = reference.id
+        } else if modifiers.contains(.shift), let anchorID,
+                  let start = visibleReferences.firstIndex(where: { $0.id == anchorID }),
+                  let end = visibleReferences.firstIndex(where: { $0.id == reference.id }) {
+            selection = Set(visibleReferences[min(start, end)...max(start, end)].map(\.id))
+        } else {
+            selection = [reference.id]
+            anchorID = reference.id
+        }
+    }
+
+    private func clearSelection() {
+        selection = []
+        anchorID = nil
+    }
+
+    // MARK: Tags
+
+    private func applyDroppedTags(_ items: [TagDragItem], to references: [Reference]) -> Bool {
+        let ids = Set(items.map(\.tagID))
+        let dropped = allTags.filter { ids.contains($0.id) }
+        guard !dropped.isEmpty else { return false }
+        do {
+            let service = TagService(context: modelContext)
+            for tag in dropped { try service.add(tag, to: references) }
+            return true
+        } catch {
+            errorMessage = error.localizedDescription
+            return false
+        }
+    }
+
+    /// Tags with checkmarks. Choosing one adds it to every target, or
+    /// removes it when they all have it already.
     @ViewBuilder
-    private func menu(for reference: Reference) -> some View {
+    private func tagsMenu(for targets: [Reference]) -> some View {
+        Menu("Tags") {
+            let service = TagService(context: modelContext)
+            ForEach(allTags) { tag in
+                let state = service.state(of: tag, on: targets)
+                let onCount = targets.filter { reference in reference.tagLinks.contains { $0.tag?.id == tag.id } }.count
+                Toggle(isOn: Binding(
+                    get: { state == .all },
+                    set: { _ in
+                        do { try service.toggle(tag, on: targets) } catch { errorMessage = error.localizedDescription }
+                    }
+                )) {
+                    Text(state == .some ? "\(tag.name) (\(onCount) of \(targets.count))" : tag.name)
+                }
+            }
+            if !allTags.isEmpty { Divider() }
+            Button("Edit Tags…") { tagEditing = TagEditingTarget(references: targets) }
+        }
+    }
+
+    @ViewBuilder
+    private func menu(for targets: [Reference]) -> some View {
+        if targets.count == 1, let reference = targets.first {
+            singleMenu(for: reference)
+        } else {
+            tagsMenu(for: targets)
+            Button("Edit Tags…") { tagEditing = TagEditingTarget(references: targets) }
+                .keyboardShortcut("t", modifiers: [.command, .control])
+            Divider()
+            Button("Delete \(targets.count) References…", role: .destructive) { pendingDeletion = targets }
+        }
+    }
+
+    @ViewBuilder
+    private func singleMenu(for reference: Reference) -> some View {
         Button("Open") { open(reference) }
         if reference.asset != nil {
             Button("Quick Look") { quickLook(reference) }
@@ -172,11 +337,13 @@ struct ReferencesView: View {
         if let source = reference.sourcePageURL, reference.kind != .webpage {
             Button("Open Source Page") { openURL(source) }
         }
-        if reference.kind == .videoLink, let videoInfoService {
-            Button("Refresh Video Details") {
-                Task { await videoInfoService.refresh(reference) }
+        if reference.hasFetchedPreview, let linkInfoService {
+            Button(reference.kind == .webpage ? "Refresh Page Preview" : "Refresh Video Details") {
+                Task { await linkInfoService.refresh(reference) }
             }
         }
+        Divider()
+        tagsMenu(for: [reference])
         if !reference.tags.isEmpty {
             Menu("Filter by Tag") {
                 ForEach(reference.tags) { tag in
@@ -190,7 +357,7 @@ struct ReferencesView: View {
         Divider()
         Button(reference.kind == .note ? "Edit Note…" : "Edit Details…") { detailsReference = reference }
         Divider()
-        Button("Delete…", role: .destructive) { referencePendingDeletion = reference }
+        Button("Delete…", role: .destructive) { pendingDeletion = [reference] }
     }
 
     private var visibleReferences: [Reference] {
@@ -214,6 +381,10 @@ struct ReferencesView: View {
 
     private func open(_ reference: Reference) {
         focusedID = reference.id
+        if !selection.contains(reference.id) {
+            selection = [reference.id]
+            anchorID = reference.id
+        }
         switch reference.kind {
         case .image:
             openWindow(id: ImageViewerWindow.id, value: reference.id)
@@ -260,11 +431,16 @@ struct ReferencesView: View {
         return url
     }
 
-    private func delete(_ reference: Reference) {
-        do {
-            try ReferenceService(context: modelContext, library: assetLibrary).delete(reference)
-        } catch {
-            errorMessage = error.localizedDescription
+    private func delete(_ chosen: [Reference]) {
+        let service = ReferenceService(context: modelContext, library: assetLibrary)
+        for reference in chosen {
+            do {
+                try service.delete(reference)
+            } catch {
+                errorMessage = error.localizedDescription
+                break
+            }
         }
+        selection.subtract(chosen.map(\.id))
     }
 }

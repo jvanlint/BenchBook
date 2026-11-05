@@ -25,7 +25,7 @@ struct ReferenceTile: View {
                 .lineLimit(1)
 
             if !reference.tags.isEmpty {
-                TagChips(names: reference.tags.map(\.name))
+                TagChips(tags: reference.tags)
                     .padding(.top, 2)
             }
         }
@@ -57,6 +57,9 @@ struct ReferenceTile: View {
                 return "\(kindName) · \(VideoLink.format(seconds: first.offsetSeconds))"
             }
         case .webpage, .textSnippet:
+            if let site = reference.kind == .webpage ? reference.linkSiteName : nil {
+                return "\(kindName) · \(site)"
+            }
             if let host = reference.sourcePageURL?.host() {
                 return "\(kindName) · \(host)"
             }
@@ -71,6 +74,8 @@ struct ReferenceTile: View {
 struct ReferencePreview: View {
     let reference: Reference
     var showsDuration = true
+    /// Small previews show a site icon without the site's name.
+    var isCompact = false
 
     @Environment(\.thumbnailStore) private var thumbnailStore
     @State private var thumbnail: NSImage?
@@ -82,7 +87,9 @@ struct ReferencePreview: View {
 
     @ViewBuilder
     private var content: some View {
-        if let thumbnail {
+        if let thumbnail, reference.kind == .webpage, thumbnail.looksLikeIcon {
+            siteIcon(thumbnail)
+        } else if let thumbnail {
             Image(nsImage: thumbnail)
                 .resizable()
                 .scaledToFill()
@@ -108,9 +115,29 @@ struct ReferencePreview: View {
         }
     }
 
+    /// A site's icon at its own size, with the site's name.
+    private func siteIcon(_ icon: NSImage) -> some View {
+        VStack(spacing: 8) {
+            Image(nsImage: icon)
+                .resizable()
+                .interpolation(.high)
+                .scaledToFit()
+                .frame(width: isCompact ? 28 : 56, height: isCompact ? 28 : 56)
+                .clipShape(RoundedRectangle(cornerRadius: isCompact ? 6 : 12))
+                .accessibilityHidden(true)
+            if !isCompact, let site = reference.linkSiteName ?? reference.sourcePageURL?.host() {
+                Text(site)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .padding(.horizontal, 8)
+            }
+        }
+    }
+
     /// Changes when there's a new file or poster to show.
     private var previewKey: String {
-        "\(reference.asset?.id.uuidString ?? "")|\(reference.videoInfoFetchedAt?.timeIntervalSinceReferenceDate ?? 0)"
+        "\(reference.asset?.id.uuidString ?? "")|\(reference.previewFetchedAt?.timeIntervalSinceReferenceDate ?? 0)"
     }
 
     private func loadThumbnail() async {
@@ -120,8 +147,8 @@ struct ReferencePreview: View {
                 assetID: asset.id,
                 originalRelativePath: asset.originalRelativePath
             )
-        } else if reference.kind == .videoLink {
-            thumbnail = await thumbnailStore.videoPoster(referenceID: reference.id, version: reference.videoInfoFetchedAt)
+        } else if reference.hasFetchedPreview {
+            thumbnail = await thumbnailStore.poster(referenceID: reference.id, version: reference.previewFetchedAt)
         }
     }
 }

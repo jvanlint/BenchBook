@@ -14,6 +14,11 @@ struct SearchAction {
     var focus: () -> Void
 }
 
+/// Edits the tags of the References selected in the focused window.
+struct TagAction {
+    var editTags: () -> Void
+}
+
 /// Writes a new note in the Project shown in the focused window.
 struct NoteAction {
     var newNote: () -> Void
@@ -25,6 +30,8 @@ extension FocusedValues {
     /// Nil when no Project is shown or a note is already open.
     @Entry var noteAction: NoteAction?
     @Entry var searchAction: SearchAction?
+    /// Nil when no References are selected.
+    @Entry var tagAction: TagAction?
 }
 
 struct BenchBookCommands: Commands {
@@ -32,6 +39,7 @@ struct BenchBookCommands: Commands {
     @FocusedValue(\.workspaceSection) private var workspaceSection
     @FocusedValue(\.noteAction) private var noteAction
     @FocusedValue(\.searchAction) private var searchAction
+    @FocusedValue(\.tagAction) private var tagAction
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -69,6 +77,12 @@ struct BenchBookCommands: Commands {
             }
             .keyboardShortcut("i")
             .disabled(projectActions?.editProject == nil)
+
+            Button("Edit Tags…") {
+                tagAction?.editTags()
+            }
+            .keyboardShortcut("t", modifiers: [.command, .control])
+            .disabled(tagAction == nil)
         }
 
         CommandGroup(before: .sidebar) {

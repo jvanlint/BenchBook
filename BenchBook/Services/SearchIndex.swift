@@ -4,7 +4,7 @@ import SwiftData
 
 /// Where in a Reference a search matched.
 enum SearchMatchKind: Equatable {
-    case title, fileName, type, tag, link, text, note, channel, videoDescription
+    case title, fileName, type, tag, link, text, note, channel, site, description
     /// The text of a box drawn on an image.
     case imageNote(id: UUID, number: Int)
     /// A named point in a video.
@@ -21,7 +21,8 @@ enum SearchMatchKind: Equatable {
         case .text: String(localized: "Text")
         case .note: String(localized: "Note")
         case .channel: String(localized: "Channel")
-        case .videoDescription: String(localized: "Description")
+        case .site: String(localized: "Site")
+        case .description: String(localized: "Description")
         case .imageNote(_, let number): String(localized: "Box \(number)")
         case .moment(let seconds): VideoLink.format(seconds: seconds)
         }
@@ -199,7 +200,8 @@ final class SearchIndex {
         add(.text, reference.text.flatMap { $0 == reference.displayTitle ? nil : $0 })
         add(.note, reference.note)
         add(.channel, reference.videoChannel)
-        add(.videoDescription, reference.videoDescription)
+        add(.site, reference.linkSiteName)
+        add(.description, reference.videoDescription ?? reference.linkDescription)
         for (index, note) in reference.sortedImageNotes.enumerated() {
             add(.imageNote(id: note.id, number: index + 1), note.text)
         }

@@ -4,7 +4,7 @@ import Foundation
 ///
 ///     <root>/Originals/<asset-id>.<ext>   durable user data
 ///     <root>/Thumbnails/<asset-id>.png    replaceable, regenerated on demand
-///     <root>/Posters/<reference-id>.jpg   video poster images, re-fetchable
+///     <root>/Posters/<reference-id>.jpg   video posters and webpage previews, re-fetchable
 ///
 /// Records store paths relative to the root, never absolute paths.
 nonisolated struct AssetLibrary: Sendable {
@@ -26,8 +26,8 @@ nonisolated struct AssetLibrary: Sendable {
         thumbnailsURL.appending(path: "\(assetID.uuidString).png", directoryHint: .notDirectory)
     }
 
-    /// A video link's poster image, named by its Reference's id.
-    func videoPosterURL(referenceID: UUID) -> URL {
+    /// A video poster or webpage preview, named by its Reference's id.
+    func posterURL(referenceID: UUID) -> URL {
         postersURL.appending(path: "\(referenceID.uuidString).jpg", directoryHint: .notDirectory)
     }
 

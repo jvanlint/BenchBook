@@ -3,6 +3,7 @@ import SwiftData
 
 /// Schema 6: adds a colour standard reference to Paint ("FS 36270",
 /// "RLM 76"), as free text. Everything else is unchanged from schema 5.
+/// Frozen; kept so existing libraries can migrate.
 ///
 /// Relationship rules (docs/data-model.md):
 /// - Deleting a Project deletes its References.

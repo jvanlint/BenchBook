@@ -45,6 +45,7 @@ struct TagUsage: Identifiable, Equatable {
     var normalizedName: String
     var name: String
     var count: Int
+    var colorName: String? = nil
 
     var id: String { normalizedName }
 
@@ -53,7 +54,9 @@ struct TagUsage: Identifiable, Equatable {
         var usage: [String: TagUsage] = [:]
         for reference in references {
             for tag in reference.tags {
-                usage[tag.normalizedName, default: TagUsage(normalizedName: tag.normalizedName, name: tag.name, count: 0)].count += 1
+                usage[tag.normalizedName, default: TagUsage(
+                    normalizedName: tag.normalizedName, name: tag.name, count: 0, colorName: tag.colorName
+                )].count += 1
             }
         }
         return usage.values.sorted {

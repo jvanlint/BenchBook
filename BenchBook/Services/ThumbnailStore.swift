@@ -52,14 +52,15 @@ final class ThumbnailStore {
         return image
     }
 
-    /// A video link's poster, or nil if none has been fetched. `version`
-    /// changes when the poster is refetched, so the cache doesn't go stale.
-    func videoPoster(referenceID: UUID, version: Date?) async -> NSImage? {
+    /// A video's poster or a webpage's preview, or nil if none has been
+    /// fetched. `version` changes when it's refetched, so the cache doesn't
+    /// go stale.
+    func poster(referenceID: UUID, version: Date?) async -> NSImage? {
         let key = "\(referenceID.uuidString)-\(version?.timeIntervalSinceReferenceDate ?? 0)" as NSString
         if let cached = posterCache.object(forKey: key) {
             return cached
         }
-        let url = library.videoPosterURL(referenceID: referenceID)
+        let url = library.posterURL(referenceID: referenceID)
         guard let data = await Task.detached(operation: { try? Data(contentsOf: url) }).value,
               let image = NSImage(data: data)
         else { return nil }

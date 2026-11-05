@@ -50,18 +50,18 @@ struct VideoInfoParsingTests {
     }
 
     @Test func keepsTypedTitlesOnly() {
-        #expect(VideoInfoService.shouldReplaceTitle(nil))
-        #expect(VideoInfoService.shouldReplaceTitle("  "))
-        #expect(VideoInfoService.shouldReplaceTitle("F-16 Viper build part 1 - YouTube"))
-        #expect(VideoInfoService.shouldReplaceTitle("https://youtu.be/dQw4w9WgXcQ"))
-        #expect(!VideoInfoService.shouldReplaceTitle("Weathering the intakes"))
+        #expect(LinkInfoService.shouldReplaceTitle(nil))
+        #expect(LinkInfoService.shouldReplaceTitle("  "))
+        #expect(LinkInfoService.shouldReplaceTitle("F-16 Viper build part 1 - YouTube"))
+        #expect(LinkInfoService.shouldReplaceTitle("https://youtu.be/dQw4w9WgXcQ"))
+        #expect(!LinkInfoService.shouldReplaceTitle("Weathering the intakes"))
     }
 }
 
 /// Fake network: answers by URL prefix and records requests.
-private nonisolated final class StubWeb: @unchecked Sendable {
+nonisolated final class StubWeb: @unchecked Sendable {
     private let lock = NSLock()
-    private var responses: [(prefix: String, status: Int, body: Data)] = []
+    private var responses: [(prefix: String, status: Int, contentType: String?, body: Data)] = []
     private var isOffline = false
     private var log: [URL] = []
 
@@ -72,12 +72,17 @@ private nonisolated final class StubWeb: @unchecked Sendable {
 
     var requested: [URL] { lock.withLock { log } }
 
-    func add(_ prefix: String, status: Int = 200, _ body: Data) {
-        lock.withLock { responses.append((prefix, status, body)) }
+    /// Earlier prefixes win, so add specific ones first.
+    func add(_ prefix: String, status: Int = 200, contentType: String? = nil, _ body: Data) {
+        lock.withLock { responses.append((prefix, status, contentType, body)) }
     }
 
     var fetcher: VideoInfoFetcher {
         VideoInfoFetcher { [self] request in try respond(to: request.url!) }
+    }
+
+    var pageFetcher: PageInfoFetcher {
+        PageInfoFetcher { [self] request in try respond(to: request.url!) }
     }
 
     private func respond(to url: URL) throws -> (Data, URLResponse) {
@@ -85,7 +90,8 @@ private nonisolated final class StubWeb: @unchecked Sendable {
             log.append(url)
             if isOffline { throw URLError(.notConnectedToInternet) }
             let match = responses.first { url.absoluteString.hasPrefix($0.prefix) }
-            let response = HTTPURLResponse(url: url, statusCode: match?.status ?? 404, httpVersion: nil, headerFields: nil)!
+            let headers = match?.contentType.map { ["Content-Type": $0] }
+            let response = HTTPURLResponse(url: url, statusCode: match?.status ?? 404, httpVersion: nil, headerFields: headers)!
             return (match?.body ?? Data(), response)
         }
     }
@@ -123,7 +129,7 @@ struct VideoInfoServiceTests {
     @Test func fillsInDetailsAndPoster() async throws {
         let web = try youTubeWeb()
         let reference = try videoLink("https://youtu.be/abc123DEF45?t=90", title: "Masking a canopy - YouTube")
-        let service = VideoInfoService(context: context, library: library, fetcher: web.fetcher)
+        let service = LinkInfoService(context: context, library: library, fetcher: web.fetcher)
 
         await service.refresh(reference)
 
@@ -134,13 +140,13 @@ struct VideoInfoServiceTests {
         #expect(reference.videoPublishedAt != nil)
         #expect(reference.videoInfoFetchedAt != nil)
         #expect(!context.hasChanges)
-        #expect(FileManager.default.fileExists(atPath: library.videoPosterURL(referenceID: reference.id).path))
+        #expect(FileManager.default.fileExists(atPath: library.posterURL(referenceID: reference.id).path))
         #expect(web.requested.contains(URL(string: "https://i.ytimg.com/vi/abc123DEF45/maxresdefault.jpg")!))
     }
 
     @Test func keepsTheUsersTitle() async throws {
         let reference = try videoLink("https://www.youtube.com/watch?v=abc123DEF45", title: "Canopy masking tips")
-        await VideoInfoService(context: context, library: library, fetcher: try youTubeWeb().fetcher).refresh(reference)
+        await LinkInfoService(context: context, library: library, fetcher: try youTubeWeb().fetcher).refresh(reference)
         #expect(reference.title == "Canopy masking tips")
         #expect(reference.videoChannel == "Plasmo")
     }
@@ -149,7 +155,7 @@ struct VideoInfoServiceTests {
         let web = try youTubeWeb()
         web.offline = true
         let reference = try videoLink("https://youtu.be/abc123DEF45")
-        let service = VideoInfoService(context: context, library: library, fetcher: web.fetcher)
+        let service = LinkInfoService(context: context, library: library, fetcher: web.fetcher)
 
         await service.refresh(reference)
         #expect(reference.videoInfoFetchedAt == nil)
@@ -163,7 +169,7 @@ struct VideoInfoServiceTests {
     @Test func removedVideoIsNotRetried() async throws {
         let web = StubWeb()  // every request is a 404
         let reference = try videoLink("https://vimeo.com/76979871")
-        await VideoInfoService(context: context, library: library, fetcher: web.fetcher).refresh(reference)
+        await LinkInfoService(context: context, library: library, fetcher: web.fetcher).refresh(reference)
 
         #expect(reference.videoInfoFetchedAt != nil)
         #expect(reference.videoChannel == nil)
@@ -172,8 +178,8 @@ struct VideoInfoServiceTests {
 
     @Test func deletingRemovesThePoster() async throws {
         let reference = try videoLink("https://youtu.be/abc123DEF45")
-        await VideoInfoService(context: context, library: library, fetcher: try youTubeWeb().fetcher).refresh(reference)
-        let poster = library.videoPosterURL(referenceID: reference.id)
+        await LinkInfoService(context: context, library: library, fetcher: try youTubeWeb().fetcher).refresh(reference)
+        let poster = library.posterURL(referenceID: reference.id)
         #expect(FileManager.default.fileExists(atPath: poster.path))
 
         try ReferenceService(context: context, library: library).delete(reference)
@@ -182,8 +188,8 @@ struct VideoInfoServiceTests {
 
     @Test func reconcileRemovesPostersOfDeletedProjects() async throws {
         let reference = try videoLink("https://youtu.be/abc123DEF45")
-        await VideoInfoService(context: context, library: library, fetcher: try youTubeWeb().fetcher).refresh(reference)
-        let poster = library.videoPosterURL(referenceID: reference.id)
+        await LinkInfoService(context: context, library: library, fetcher: try youTubeWeb().fetcher).refresh(reference)
+        let poster = library.posterURL(referenceID: reference.id)
 
         context.delete(try #require(reference.project))
         try context.save()

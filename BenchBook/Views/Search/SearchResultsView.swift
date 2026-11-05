@@ -17,6 +17,7 @@ enum SearchResultID: Hashable {
 /// get their own rows so they can be opened directly.
 struct SearchResultsView: View {
     let query: SearchQuery
+    var title: String = String(localized: "Search")
     var onShowProject: (Project) -> Void
     var onShowReference: (Reference) -> Void
     var onShowPaint: (Paint) -> Void
@@ -38,13 +39,19 @@ struct SearchResultsView: View {
         let results = searchIndex?.search(query) ?? SearchResults()
 
         Group {
-            if results.isEmpty {
+            if results.isEmpty, query.words.isEmpty {
+                ContentUnavailableView(
+                    "No References",
+                    systemImage: "tag",
+                    description: Text("Nothing has this tag yet. Drag references onto it in the sidebar.")
+                )
+            } else if results.isEmpty {
                 ContentUnavailableView.search(text: query.words.map(\.text).joined(separator: " "))
             } else {
                 list(results)
             }
         }
-        .navigationTitle("Search")
+        .navigationTitle(title)
         .navigationSubtitle(summary(results))
         .quickLookPreview($quickLookURL)
         .sheet(item: $detailsReference) { reference in
@@ -156,7 +163,7 @@ struct SearchResultsView: View {
         return HStack(alignment: .top, spacing: 10) {
             Color.clear
                 .frame(width: 64, height: 48)
-                .overlay { ReferencePreview(reference: reference, showsDuration: false) }
+                .overlay { ReferencePreview(reference: reference, showsDuration: false, isCompact: true) }
                 .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 4))
                 .clipShape(RoundedRectangle(cornerRadius: 4))
             VStack(alignment: .leading, spacing: 2) {

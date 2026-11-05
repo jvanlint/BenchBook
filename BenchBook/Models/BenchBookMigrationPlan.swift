@@ -4,11 +4,11 @@ import SwiftData
 /// for each model change; never edit a schema that has shipped.
 enum BenchBookMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [BenchBookSchemaV1.self, BenchBookSchemaV2.self, BenchBookSchemaV3.self, BenchBookSchemaV4.self, BenchBookSchemaV5.self, BenchBookSchemaV6.self]
+        [BenchBookSchemaV1.self, BenchBookSchemaV2.self, BenchBookSchemaV3.self, BenchBookSchemaV4.self, BenchBookSchemaV5.self, BenchBookSchemaV6.self, BenchBookSchemaV7.self, BenchBookSchemaV8.self]
     }
 
     static var stages: [MigrationStage] {
-        [migrateV1toV2, migrateV2toV3, migrateV3toV4, migrateV4toV5, migrateV5toV6]
+        [migrateV1toV2, migrateV2toV3, migrateV3toV4, migrateV4toV5, migrateV5toV6, migrateV6toV7, migrateV7toV8]
     }
 
     /// V2 only adds models and an empty relationship to Project.
@@ -40,10 +40,22 @@ enum BenchBookMigrationPlan: SchemaMigrationPlan {
         fromVersion: BenchBookSchemaV5.self,
         toVersion: BenchBookSchemaV6.self
     )
+
+    /// V7 only adds Tag.colorName, nil for existing tags.
+    static let migrateV6toV7 = MigrationStage.lightweight(
+        fromVersion: BenchBookSchemaV6.self,
+        toVersion: BenchBookSchemaV7.self
+    )
+
+    /// V8 only adds optional webpage preview details to Reference.
+    static let migrateV7toV8 = MigrationStage.lightweight(
+        fromVersion: BenchBookSchemaV7.self,
+        toVersion: BenchBookSchemaV8.self
+    )
 }
 
 /// The current version of each model. Update these when a new schema ships.
-typealias CurrentSchema = BenchBookSchemaV6
+typealias CurrentSchema = BenchBookSchemaV8
 typealias Project = CurrentSchema.Project
 typealias Reference = CurrentSchema.Reference
 typealias ManagedAsset = CurrentSchema.ManagedAsset
