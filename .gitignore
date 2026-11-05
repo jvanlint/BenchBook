@@ -3,6 +3,20 @@ xcuserdata/
 *.xcuserstate
 DerivedData/
 build/
+*.hmap
+*.ipa
+*.dSYM
+*.dSYM.zip
+timeline.xctimeline
+playground.xcworkspace
+
+# Swift Package Manager, Carthage and fastlane
+.build/
+Carthage/Build/
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
 
 # macOS
 .DS_Store
