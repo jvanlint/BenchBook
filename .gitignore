@@ -20,3 +20,7 @@ fastlane/test_output
 
 # macOS
 .DS_Store
+
+# Local only: design docs and release scripts
+/docs/
+/scripts/
