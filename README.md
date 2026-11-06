@@ -1,10 +1,10 @@
 # BenchBook
 
-A native macOS app for gathering and using scale-modelling research, organised by build Project. The product references are in [`docs/`](docs/): requirements, data model, macOS architecture and implementation plan.
+A native macOS app for gathering and using scale-modelling research, organised by build Project.
 
 ## Current scope
 
-Phases 0–1 of [`docs/implementation-plan.md`](docs/implementation-plan.md), plus the interim capture work described at the end of that file:
+What BenchBook does so far:
 
 - Project sidebar, a create/edit sheet (name required), and a References / Paint / Aftermarket workspace.
 - References: images (JPEG, PNG, WebP, HEIC), PDFs, Markdown files, webpage links (with the page's preview image, site name and description), video links (YouTube timestamps become moments; YouTube and Vimeo links get their poster, title, channel, length, publish date and description), highlighted text snippets, and notes you write yourself (New Note, ⇧⌘N).
@@ -25,7 +25,7 @@ Deferred: Project status, cover and deletion; paint colour standards and matches
 | Built with | Xcode 27, Swift 5 language mode, default MainActor isolation |
 | Dependencies | None |
 
-Why macOS 15: everything used now (SwiftData, `VersionedSchema`, `ContentUnavailableView`, `NavigationSplitView`, `@Entry`) also runs on macOS 14. macOS 15 adds SwiftData's `#Index` and `#Unique` macros, which the data-model guide expects to evaluate for reference queries and identity rules, and includes SwiftData fixes released after its first version. Lowering the target to 14.0 later is possible, as long as those macros aren't adopted.
+Why macOS 15: everything used now (SwiftData, `VersionedSchema`, `ContentUnavailableView`, `NavigationSplitView`, `@Entry`) also runs on macOS 14. macOS 15 adds SwiftData's `#Index` and `#Unique` macros, which may be useful for reference queries and identity rules, and includes SwiftData fixes released after its first version. Lowering the target to 14.0 later is possible, as long as those macros aren't adopted.
 
 ## Layout
 
