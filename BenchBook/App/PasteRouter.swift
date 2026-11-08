@@ -50,14 +50,21 @@ final class PasteRouter {
         pasteboard.canReadItem(withDataConformingToTypes: supportedTypes.map(\.identifier))
     }
 
-    /// One provider per pasteboard item, offering every type the item has.
+    /// One provider per pasteboard item, offering the item's supported types.
     /// The data is copied now, so later clipboard changes don't affect it.
+    ///
+    /// Only supported types are read. Reading others can block: Safari's
+    /// file-promise types wait for a file it only writes once the promise is
+    /// received, which happens after this, so the drop would never finish.
     static func providers(from pasteboard: NSPasteboard) -> [NSItemProvider] {
         (pasteboard.pasteboardItems ?? []).compactMap { item in
             let provider = NSItemProvider()
             var registered = false
             for type in item.types {
-                guard UTType(type.rawValue) != nil, let data = item.data(forType: type) else { continue }
+                guard let utType = UTType(type.rawValue),
+                      supportedTypes.contains(where: { utType.conforms(to: $0) }),
+                      let data = item.data(forType: type)
+                else { continue }
                 provider.registerDataRepresentation(forTypeIdentifier: type.rawValue, visibility: .all) { completion in
                     completion(data, nil)
                     return nil

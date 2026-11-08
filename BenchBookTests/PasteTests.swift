@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import Testing
+import UniformTypeIdentifiers
 @testable import BenchBook
 
 @MainActor
@@ -76,5 +77,35 @@ struct PasteTests {
         pasteboard.clearContents()
         pasteboard.setData(Data([1, 2, 3]), forType: NSPasteboard.PasteboardType("com.example.private"))
         #expect(!PasteRouter.hasSupportedContent(pasteboard))
+    }
+
+    /// A Safari image drag also offers file-promise and web-archive types that
+    /// it supplies only on request. Reading them can hang, so they're skipped.
+    @Test func readsOnlySupportedTypes() throws {
+        let pasteboard = NSPasteboard(name: NSPasteboard.Name("BenchBookTests-\(UUID().uuidString)"))
+        defer { pasteboard.releaseGlobally() }
+        let lazy = LazyData()
+        let item = NSPasteboardItem()
+        item.setString("https://example.com/f16.jpg", forType: .URL)
+        item.setDataProvider(lazy, forTypes: [
+            NSPasteboard.PasteboardType("com.apple.pasteboard.promised-file-url"),
+            NSPasteboard.PasteboardType("com.apple.webarchive"),
+        ])
+        pasteboard.clearContents()
+        pasteboard.writeObjects([item])
+
+        let provider = try #require(PasteRouter.providers(from: pasteboard).first)
+        #expect(provider.registeredTypeIdentifiers == [UTType.url.identifier])
+        #expect(lazy.requestedTypes.isEmpty)
+    }
+}
+
+/// Records which types are asked for, like a browser supplying data lazily.
+private final class LazyData: NSObject, NSPasteboardItemDataProvider {
+    var requestedTypes: [NSPasteboard.PasteboardType] = []
+
+    func pasteboard(_ pasteboard: NSPasteboard?, item: NSPasteboardItem, provideDataForType type: NSPasteboard.PasteboardType) {
+        requestedTypes.append(type)
+        item.setData(Data([0]), forType: type)
     }
 }

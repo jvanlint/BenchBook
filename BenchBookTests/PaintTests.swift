@@ -269,3 +269,37 @@ struct MigrationV5Tests {
     }
 }
 
+
+/// Removing a paint from a project frees it for deletion in a saved library too.
+@MainActor
+struct OnDiskPaintRemovalTests {
+    @Test func removedPaintCanBeDeletedAfterRelaunch() throws {
+        let folder = try TemporaryFolder()
+        let url = folder.file("Library.store")
+        func open() throws -> ModelContainer {
+            try PersistenceController.makeContainer(
+                configuration: ModelConfiguration(schema: PersistenceController.schema, url: url)
+            )
+        }
+        do {
+            let container = try open()
+            let service = PaintService(context: container.mainContext)
+            let project = Fixtures.makeProject("F-16", in: container.mainContext)
+            var draft = PaintDraft()
+            draft.brand = "Tamiya"
+            draft.code = "XF-1"
+            try service.add([try service.createPaint(from: draft)], to: project)
+        }
+
+        let container = try open()
+        let service = PaintService(context: container.mainContext)
+        let paint = try #require(try container.mainContext.fetch(FetchDescriptor<Paint>()).first)
+        let project = try #require(try container.mainContext.fetch(FetchDescriptor<Project>()).first)
+        #expect(paint.projectNames == ["F-16"])
+
+        try service.remove(try #require(project.paintRequirements.first))
+        #expect(paint.projectNames.isEmpty)
+        try service.delete(paint)
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<Paint>()) == 0)
+    }
+}
