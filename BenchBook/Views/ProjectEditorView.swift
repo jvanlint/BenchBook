@@ -52,6 +52,11 @@ struct ProjectEditorView: View {
                 TextField("Scale", text: $draft.scale, prompt: Text("e.g. 1:48"))
                 TextField("Kit Number", text: $draft.kitNumber, prompt: Text("Optional"))
                 TextField("Markings Scheme", text: $draft.markingsScheme, prompt: Text("Optional"))
+                Picker("Status", selection: $draft.status) {
+                    ForEach(ProjectStatus.allCases) { status in
+                        Label(status.displayName, systemImage: status.systemImage).tag(status)
+                    }
+                }
             } header: {
                 Text(isNew ? "New Project" : "Edit Project")
                     .font(.headline)

@@ -25,6 +25,7 @@ struct ProjectSidebar: View {
 
     @Query private var tags: [Tag]
     @AppStorage("sidebar.showsAllTags") private var showsAllTags = false
+    @AppStorage("sidebar.projectStatusFilter") private var statusFilterValue = ProjectStatusFilter.all.storageValue
     @State private var nameSheet: TagNameSheet.Mode?
     @State private var tagPendingDeletion: Tag?
 
@@ -37,16 +38,38 @@ struct ProjectSidebar: View {
         showsAllTags ? sortedTags : Array(sortedTags.prefix(Self.collapsedTagCount))
     }
 
+    private var statusFilter: ProjectStatusFilter {
+        get { ProjectStatusFilter(storageValue: statusFilterValue) }
+        nonmutating set { statusFilterValue = newValue.storageValue }
+    }
+
+    private var visibleProjects: [Project] {
+        projects.filter { statusFilter.includes($0.status) }
+    }
+
     var body: some View {
         List(selection: $selection) {
-            Section("Projects") {
-                ForEach(projects) { project in
+            Section {
+                ForEach(visibleProjects) { project in
                     ProjectRow(project: project)
                         .tag(SidebarItem.project(project.id))
                         .contextMenu {
                             Button("Edit Project…") { onEdit(project) }
+                            statusMenu(for: project)
                         }
                 }
+                if visibleProjects.isEmpty, case .status(let status) = statusFilter, !projects.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("No \(status.displayName) Projects")
+                            .foregroundStyle(.secondary)
+                        Button("Show All Projects") { statusFilter = .all }
+                            .buttonStyle(.link)
+                    }
+                    .font(.callout)
+                    .selectionDisabled()
+                }
+            } header: {
+                projectsHeader
             }
             Section("Library") {
                 Label("Paints", systemImage: "paintpalette")
@@ -103,6 +126,54 @@ struct ProjectSidebar: View {
     }
 
     @Environment(\.modelContext) private var modelContext
+
+    // MARK: Status
+
+    private var projectsHeader: some View {
+        HStack {
+            if case .status(let status) = statusFilter {
+                Text("Projects · \(status.displayName)")
+            } else {
+                Text("Projects")
+            }
+            Spacer()
+            Menu {
+                Picker("Show", selection: Binding(get: { statusFilter }, set: { statusFilter = $0 })) {
+                    Text("All Projects (\(projects.count))").tag(ProjectStatusFilter.all)
+                    Divider()
+                    ForEach(ProjectStatus.allCases) { status in
+                        Label("\(status.displayName) (\(count(of: status)))", systemImage: status.systemImage)
+                            .tag(ProjectStatusFilter.status(status))
+                    }
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Image(systemName: statusFilter == .all
+                      ? "line.3.horizontal.decrease.circle"
+                      : "line.3.horizontal.decrease.circle.fill")
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help("Show projects by status")
+            .accessibilityLabel("Filter Projects by Status")
+        }
+    }
+
+    private func count(of status: ProjectStatus) -> Int {
+        projects.filter { $0.status == status }.count
+    }
+
+    private func statusMenu(for project: Project) -> some View {
+        Picker("Status", selection: Binding(
+            get: { project.status },
+            set: { status in try? ProjectService(context: modelContext).setStatus(status, for: project) }
+        )) {
+            ForEach(ProjectStatus.allCases) { status in
+                Label(status.displayName, systemImage: status.systemImage).tag(status)
+            }
+        }
+    }
 
     private func delete(_ tag: Tag) {
         if selection == .tag(tag.id) { selection = .tags }
@@ -171,8 +242,16 @@ private struct ProjectRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(project.name)
-                .lineLimit(1)
+            HStack(spacing: 4) {
+                Text(project.name)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                Image(systemName: project.status.systemImage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .help(project.status.displayName)
+                    .accessibilityLabel(project.status.displayName)
+            }
             if !project.summary.isEmpty {
                 Text(project.summary)
                     .font(.subheadline)

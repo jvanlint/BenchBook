@@ -11,6 +11,7 @@ struct ProjectDraft: Equatable {
     var kitNumber = ""
     var markingsScheme = ""
     var notes = ""
+    var status = ProjectStatus.researching
 
     init() {}
 
@@ -22,6 +23,7 @@ struct ProjectDraft: Equatable {
         kitNumber = project.kitNumber ?? ""
         markingsScheme = project.markingsScheme ?? ""
         notes = project.notes ?? ""
+        status = project.status
     }
 
     var hasValidName: Bool {
@@ -64,6 +66,13 @@ struct ProjectService {
         try save()
     }
 
+    func setStatus(_ status: ProjectStatus, for project: Project) throws {
+        guard project.statusRaw != status.rawValue else { return }
+        project.statusRaw = status.rawValue
+        project.updatedAt = .now
+        try save()
+    }
+
     private func apply(_ draft: ProjectDraft, to project: Project) {
         project.name = draft.name.trimmed
         project.manufacturer = draft.manufacturer.trimmed
@@ -72,6 +81,7 @@ struct ProjectService {
         project.kitNumber = draft.kitNumber.trimmedOrNil
         project.markingsScheme = draft.markingsScheme.trimmedOrNil
         project.notes = draft.notes.trimmedOrNil
+        project.statusRaw = draft.status.rawValue
     }
 
     /// Saves explicitly at the end of each workflow. On failure, unsaved

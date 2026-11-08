@@ -2,7 +2,8 @@ import Foundation
 import SwiftData
 
 /// Schema 9: adds AftermarketItem, a Project's decals, resin, photo-etch and
-/// other parts. Everything else is unchanged from schema 8.
+/// other parts. Everything else is unchanged from schema 8. Frozen; kept so
+/// existing libraries can migrate.
 ///
 /// Relationship rules (docs/data-model.md):
 /// - Deleting a Project deletes its References.

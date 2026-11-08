@@ -7,6 +7,7 @@ A native macOS app for gathering and using scale-modelling research, organised b
 What BenchBook does so far:
 
 - Project sidebar, a create/edit sheet (name required), and a References / Paint / Aftermarket workspace.
+- Project status (Researching, In Progress, Paused, Completed), with a sidebar filter for one status or all projects.
 - References: images (JPEG, PNG, WebP, HEIC), PDFs, Markdown files, webpage links (with the page's preview image, site name and description), video links (YouTube timestamps become moments; YouTube and Vimeo links get their poster, title, channel, length, publish date and description), highlighted text snippets, and notes you write yourself (New Note, ⇧⌘N).
 - Capture by dragging onto the window or a sidebar project, pasting (⌘V), Add Files (⌘O), or the macOS Share menu (**BenchBook**), with optional tags and a note.
 - A gallery of tiles (preview, title, type, tags) with type and tag filters. Images open in a viewer window; other files open in Quick Look (Space previews anything); links open in the browser.
@@ -15,7 +16,7 @@ What BenchBook does so far:
 - Image notes: zoom and pan a photo, draw boxes around features, and attach a numbered note to each. The original image is never changed.
 - Local SwiftData persistence, with originals copied byte-for-byte into an app-managed file library.
 
-Deferred: Project status, cover and deletion; paint colour standards and matches; Safari/Chromium extensions; and sync.
+Deferred: Project deletion; paint colour standards and matches; Safari/Chromium extensions; and sync.
 
 ## Requirements
 
@@ -32,7 +33,7 @@ Why macOS 15: everything used now (SwiftData, `VersionedSchema`, `ContentUnavail
 ```text
 BenchBook/
   App/        App entry point, menu commands, LibraryEnvironment (shared services)
-  Models/     Versioned SwiftData schemas (V1–V9), migration plan, display helpers
+  Models/     Versioned SwiftData schemas (V1–V10), migration plan, display helpers
   Services/   Store setup, Project/Reference services, import, file checks,
               asset library, thumbnails, Share inbox
   Views/      Sidebar, workspace, references gallery, editors,
@@ -47,7 +48,7 @@ Rules:
 - Views edit a `ProjectDraft` and hand it to `ProjectService`. The service validates the draft, normalises blank optional text to `nil`, updates `updatedAt` and saves explicitly.
 - Every capture path goes through `ReferenceImporter`. It checks file contents (not names), copies the original byte-for-byte into the asset library, then saves the Reference. Within a Project, an identical file is reported as already saved instead of being added twice.
 - The Share extension never writes to the library. It leaves an envelope (files plus JSON) in the App Group inbox, and `CaptureCoordinator` imports it when BenchBook is running. The extension starts BenchBook in the background after sending. The App Group also holds the Project list and the active Project shown in the share sheet.
-- Schemas are versioned (`BenchBookSchemaV1` to `BenchBookSchemaV9`, `BenchBookMigrationPlan`). Add a new schema and stage for each model change; never edit one that has shipped.
+- Schemas are versioned (`BenchBookSchemaV1` to `BenchBookSchemaV10`, `BenchBookMigrationPlan`). Add a new schema and stage for each model change; never edit one that has shipped.
 - If the store fails to open, the app shows an error and leaves the store alone. It never deletes or resets it.
 
 Storage, inside `~/Library/Containers/com.jasonvanlint.BenchBook/Data/Library/Application Support/`:
@@ -113,6 +114,14 @@ To try the app without touching your real library, launch a Debug build with a s
 ```sh
 open BenchBook.app --args -BenchBookStoreName BenchBookScratch
 ```
+
+## Project status
+
+Each project is Researching, In Progress, Paused or Completed. New projects, and projects from before statuses existed, start as Researching.
+
+- Set it in the project editor, or right-click a project in the sidebar › Status.
+- Each sidebar row shows its status as a small symbol.
+- The filter button in the Projects header shows one status or All Projects, with a count for each. The choice is remembered.
 
 ## Tags
 
