@@ -73,6 +73,25 @@ struct ProjectService {
         try save()
     }
 
+    /// Deletes the project with its references, image notes, paint list and
+    /// aftermarket parts, then any stored files nothing else uses. Catalogue
+    /// paints, ownership and tags are kept.
+    func delete(_ project: Project, library: AssetLibrary) throws {
+        let assets = project.references.compactMap(\.asset) + project.aftermarketItems.compactMap(\.imageAsset)
+        let posters = project.references.map { library.posterURL(referenceID: $0.id) }
+        context.delete(project)
+        try save()
+
+        for poster in posters {
+            try? FileManager.default.removeItem(at: poster)
+        }
+        let references = ReferenceService(context: context, library: library)
+        let unique = Dictionary(assets.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
+        for asset in unique.values {
+            try references.removeAssetIfUnused(asset)
+        }
+    }
+
     private func apply(_ draft: ProjectDraft, to project: Project) {
         project.name = draft.name.trimmed
         project.manufacturer = draft.manufacturer.trimmed

@@ -7,6 +7,8 @@ struct ProjectActions {
     var editProject: (() -> Void)?
     /// Nil when no Project is selected.
     var addFiles: (() -> Void)?
+    /// Asks before deleting the selected Project. Nil when none is selected.
+    var deleteProject: (() -> Void)?
 }
 
 /// Puts the cursor in the focused window's search field.
@@ -83,6 +85,12 @@ struct BenchBookCommands: Commands {
             }
             .keyboardShortcut("t", modifiers: [.command, .control])
             .disabled(tagAction == nil)
+
+            Divider()
+            Button("Delete Project…") {
+                projectActions?.deleteProject?()
+            }
+            .disabled(projectActions?.deleteProject == nil)
         }
 
         CommandGroup(before: .sidebar) {

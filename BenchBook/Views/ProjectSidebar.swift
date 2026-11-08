@@ -22,6 +22,7 @@ struct ProjectSidebar: View {
     @Binding var selection: SidebarItem?
     let onAdd: () -> Void
     let onEdit: (Project) -> Void
+    let onDelete: (Project) -> Void
 
     @Query private var tags: [Tag]
     @AppStorage("sidebar.showsAllTags") private var showsAllTags = false
@@ -56,6 +57,8 @@ struct ProjectSidebar: View {
                         .contextMenu {
                             Button("Edit Project…") { onEdit(project) }
                             statusMenu(for: project)
+                            Divider()
+                            Button("Delete Project…", role: .destructive) { onDelete(project) }
                         }
                 }
                 if visibleProjects.isEmpty, case .status(let status) = statusFilter, !projects.isEmpty {

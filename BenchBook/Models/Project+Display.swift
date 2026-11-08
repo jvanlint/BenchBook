@@ -54,6 +54,26 @@ nonisolated enum ProjectStatusFilter: Hashable, Sendable {
 }
 
 extension Project {
+    /// What deleting this project removes, for the confirmation, e.g.
+    /// "12 references, 3 image notes, 8 paints from its paint list and
+    /// 2 aftermarket parts". Empty when the project holds nothing.
+    var deletionSummary: String {
+        let noteCount = references.reduce(0) { $0 + $1.imageNotes.count }
+        let parts = [
+            references.isEmpty ? nil : Self.counted(AttributedString(localized: "^[\(references.count) reference](inflect: true)")),
+            noteCount == 0 ? nil : Self.counted(AttributedString(localized: "^[\(noteCount) image note](inflect: true)")),
+            paintRequirements.isEmpty ? nil : Self.counted(AttributedString(
+                localized: "^[\(paintRequirements.count) paint](inflect: true) from its paint list")),
+            aftermarketItems.isEmpty ? nil : Self.counted(AttributedString(
+                localized: "^[\(aftermarketItems.count) aftermarket part](inflect: true)")),
+        ].compactMap { $0 }
+        return parts.formatted(.list(type: .and))
+    }
+
+    private static func counted(_ text: AttributedString) -> String {
+        String(text.inflected().characters)
+    }
+
     /// A short line such as "Tamiya · 1:48 · F-16CJ Block 50", skipping blank fields.
     var summary: String {
         [manufacturer, scale, subject]

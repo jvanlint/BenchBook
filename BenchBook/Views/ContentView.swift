@@ -9,6 +9,9 @@ struct ContentView: View {
 
     @Environment(\.captureCoordinator) private var captureCoordinator
     @Environment(\.projectDirectory) private var projectDirectory
+    @Environment(\.assetLibrary) private var assetLibrary
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismissWindow) private var dismissWindow
 
     @State private var selection: SidebarItem?
     @State private var editorRequest: ProjectEditorRequest?
@@ -19,6 +22,8 @@ struct ContentView: View {
     @State private var revealReferenceID: UUID?
     @State private var revealPaintID: UUID?
     @State private var revealAftermarketID: UUID?
+    @State private var projectPendingDeletion: Project?
+    @State private var deletionError: String?
 
     private var searchQuery: SearchQuery {
         SearchQuery(text: searchText, tags: Set(searchTokens.map(\.normalizedName)))
@@ -36,7 +41,8 @@ struct ContentView: View {
                 projects: projects,
                 selection: $selection,
                 onAdd: { editorRequest = .new },
-                onEdit: { editorRequest = .edit($0) }
+                onEdit: { editorRequest = .edit($0) },
+                onDelete: { projectPendingDeletion = $0 }
             )
             .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 360)
         } detail: {
@@ -85,6 +91,23 @@ struct ContentView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(captureCoordinator?.report?.message ?? "")
+        }
+        .confirmationDialog(
+            "Delete “\(projectPendingDeletion?.name ?? "")”?",
+            isPresented: Binding(get: { projectPendingDeletion != nil }, set: { if !$0 { projectPendingDeletion = nil } }),
+            presenting: projectPendingDeletion
+        ) { project in
+            Button("Delete Project", role: .destructive) { delete(project) }
+        } message: { project in
+            Text(deletionMessage(for: project))
+        }
+        .alert(
+            "Couldn't Delete Project",
+            isPresented: Binding(get: { deletionError != nil }, set: { if !$0 { deletionError = nil } })
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(deletionError ?? "")
         }
         .focusedSceneValue(\.projectActions, editorRequest == nil ? projectActions : nil)
         .onAppear(perform: restoreSelection)
@@ -204,8 +227,30 @@ struct ContentView: View {
         ProjectActions(
             newProject: { editorRequest = .new },
             editProject: selectedProject.map { project in { editorRequest = .edit(project) } },
-            addFiles: selectedProject.map { _ in { isAddingFiles = true } }
+            addFiles: selectedProject.map { _ in { isAddingFiles = true } },
+            deleteProject: selectedProject.map { project in { projectPendingDeletion = project } }
         )
+    }
+
+    private func deletionMessage(for project: Project) -> String {
+        let contents = project.deletionSummary
+        let kept = String(localized: "Paints in your catalogue and your tags are kept. This can't be undone.")
+        return contents.isEmpty
+            ? String(localized: "The project is empty. \(kept)")
+            : String(localized: "Its \(contents) will be deleted. \(kept)")
+    }
+
+    private func delete(_ project: Project) {
+        // Leave the project and close its image windows before its records go.
+        if selectedProjectID == project.id { selection = nil }
+        for reference in project.references where reference.kind == .image {
+            dismissWindow(id: ImageViewerWindow.id, value: reference.id)
+        }
+        do {
+            try ProjectService(context: modelContext).delete(project, library: assetLibrary)
+        } catch {
+            deletionError = error.localizedDescription
+        }
     }
 
     /// Reopens the project last used in the app or share sheet.
