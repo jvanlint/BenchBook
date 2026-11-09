@@ -173,6 +173,11 @@ struct ContentView: View {
             TagManagerView { tag in selection = .tag(tag.id) }
         } else if selection == .paints {
             PaintCatalogueView(revealID: $revealPaintID)
+        } else if selection == .shoppingList {
+            ShoppingListView { paintID in
+                selection = .paints
+                revealPaintID = paintID
+            }
         } else if let project = selectedProject {
             ProjectWorkspaceView(
                 project: project,

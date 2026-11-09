@@ -13,7 +13,7 @@ What BenchBook does so far:
 - Capture by dragging onto the window or a sidebar project, pasting (⌘V), Add Files (⌘O), or the macOS Share menu (**BenchBook**), with optional tags and a note.
 - A gallery of tiles (preview, title, type, tags) with type and tag filters. Images open in a viewer window; other files open in Quick Look (Space previews anything); links open in the browser.
 - Move or copy references to another project: right-click › Move to Project or Copy to Project, or drag tiles onto a project in the sidebar (hold Option to copy). Copies keep their tags, image notes and video moments, and share the stored file instead of duplicating it.
-- Paints: a library-wide catalogue (add, edit, owned, CSV import, filter by brand, range and ownership) and a per-project paint list with what each paint is used for and what still needs buying.
+- Paints: a library-wide catalogue (add, edit, owned, CSV import, filter by brand, range and ownership), a shopping list of paints to buy that exports as text, and a per-project paint list with what each paint is used for and what still needs buying.
 - Aftermarket: each project's decals, resin, photo-etch and other parts, with type, status, scale or fit, product page, picture and notes.
 - Image notes: zoom and pan a photo, draw boxes around features, and attach a numbered note to each. The original image is never changed.
 - Local SwiftData persistence, with originals copied byte-for-byte into an app-managed file library.
@@ -100,6 +100,7 @@ Library › Paints is one catalogue shared by every project. Each paint has a br
 
 - **Filtering:** the Brand and Range menus in the toolbar show one brand or range, with a count for each. Range lists only the chosen brand's ranges. They combine with Owned Only, and the subtitle shows how many paints match. Brands and ranges that differ only in case or spacing count as one.
 - **Owned:** tick the Owned box in the table, or select several paints and right-click › Mark as Owned or Mark as Not Owned.
+- **Shopping List:** Library › Shopping List shows the paints you don't own that a project needs, grouped by brand, with the projects (and what for) under each. Completed projects aren't included. The sidebar shows how many there are. Tick a paint to mark it owned and take it off the list, or right-click › Show in Paints. Export Shopping List… saves it as a plain-text checklist.
 - **Editing:** Add Paint adds one paint; double-click a paint to edit it. Delete (or right-click) removes paints, except those still used in a project.
 - **Project paint lists:** a project's Paint tab (⌘2) lists the catalogue paints the build needs, with what each one is used for. The header counts paints still to buy (ones you don't own). Removing a paint from a project keeps it in the catalogue.
 

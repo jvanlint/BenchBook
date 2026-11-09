@@ -6,6 +6,8 @@ import UniformTypeIdentifiers
 /// What the sidebar can show in the main area.
 enum SidebarItem: Hashable {
     case paints
+    /// Paints to buy for projects that aren't Completed.
+    case shoppingList
     /// The page for managing every tag.
     case tags
     /// Everything with one tag, across all projects.
@@ -25,6 +27,7 @@ struct ProjectSidebar: View {
     let onDelete: (Project) -> Void
 
     @Query private var tags: [Tag]
+    @Query private var paintSelections: [ProjectPaint]
     @AppStorage("sidebar.showsAllTags") private var showsAllTags = false
     @AppStorage("sidebar.projectStatusFilter") private var statusFilterValue = ProjectStatusFilter.all.storageValue
     @State private var nameSheet: TagNameSheet.Mode?
@@ -42,6 +45,11 @@ struct ProjectSidebar: View {
     private var statusFilter: ProjectStatusFilter {
         get { ProjectStatusFilter(storageValue: statusFilterValue) }
         nonmutating set { statusFilterValue = newValue.storageValue }
+    }
+
+    /// How many paints are on the shopping list.
+    private var paintsToBuy: Int {
+        Set(paintSelections.compactMap(\.selectedPaint).filter(\.isToBuy).map(\.id)).count
     }
 
     private var visibleProjects: [Project] {
@@ -77,6 +85,9 @@ struct ProjectSidebar: View {
             Section("Library") {
                 Label("Paints", systemImage: "paintpalette")
                     .tag(SidebarItem.paints)
+                Label("Shopping List", systemImage: "cart")
+                    .badge(paintsToBuy)
+                    .tag(SidebarItem.shoppingList)
                 Label("Tags", systemImage: "tag")
                     .tag(SidebarItem.tags)
             }

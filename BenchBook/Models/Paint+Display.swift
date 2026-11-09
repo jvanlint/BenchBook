@@ -107,6 +107,14 @@ extension Paint {
         [range, standardCode].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
+    /// Uses of this paint in projects that aren't Completed.
+    var unfinishedProjectSelections: [ProjectPaint] {
+        projectSelections.filter { $0.project.map { $0.status != .completed } ?? false }
+    }
+
+    /// Not owned, and needed by a project that isn't Completed.
+    var isToBuy: Bool { !isOwned && !unfinishedProjectSelections.isEmpty }
+
     /// Names of Projects using this paint, sorted.
     var projectNames: [String] {
         projectSelections.compactMap { $0.project?.name }
