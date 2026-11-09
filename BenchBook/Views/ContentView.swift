@@ -24,6 +24,8 @@ struct ContentView: View {
     @State private var revealAftermarketID: UUID?
     @State private var projectPendingDeletion: Project?
     @State private var deletionError: String?
+    @State private var transferNotice: ReferenceTransferNotice?
+    @State private var transferError: String?
 
     private var searchQuery: SearchQuery {
         SearchQuery(text: searchText, tags: Set(searchTokens.map(\.normalizedName)))
@@ -47,7 +49,24 @@ struct ContentView: View {
             .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 360)
         } detail: {
             detail
+                .overlay(alignment: .bottom) {
+                    if let notice = transferNotice {
+                        ReferenceTransferBanner(notice: notice) {
+                            transferNotice = nil
+                            selection = .project(notice.projectID)
+                        } onClose: {
+                            transferNotice = nil
+                        }
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .task(id: notice.id) {
+                            try? await Task.sleep(for: .seconds(6))
+                            if transferNotice?.id == notice.id { transferNotice = nil }
+                        }
+                    }
+                }
+                .animation(.default, value: transferNotice)
         }
+        .environment(\.transferReferences, ReferenceTransferAction(perform: transfer))
         .frame(minWidth: 760, minHeight: 480)
         .searchable(text: $searchText, tokens: $searchTokens, placement: .toolbar, prompt: "Search All Projects") { token in
             Label(token.name, systemImage: "tag")
@@ -108,6 +127,14 @@ struct ContentView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(deletionError ?? "")
+        }
+        .alert(
+            "Couldn't Move or Copy",
+            isPresented: Binding(get: { transferError != nil }, set: { if !$0 { transferError = nil } })
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(transferError ?? "")
         }
         .focusedSceneValue(\.projectActions, editorRequest == nil ? projectActions : nil)
         .onAppear(perform: restoreSelection)
@@ -238,6 +265,19 @@ struct ContentView: View {
         return contents.isEmpty
             ? String(localized: "The project is empty. \(kept)")
             : String(localized: "Its \(contents) will be deleted. \(kept)")
+    }
+
+    private func transfer(_ references: [Reference], to project: Project, mode: ReferenceTransfer.Mode) {
+        do {
+            let result = try ReferenceTransfer(context: modelContext, library: assetLibrary)
+                .transfer(references, to: project, mode: mode)
+            guard !result.transferred.isEmpty || !result.duplicates.isEmpty else { return }
+            let notice = ReferenceTransferNotice(result: result, mode: mode, project: project)
+            transferNotice = notice
+            AccessibilityNotification.Announcement(notice.message).post()
+        } catch {
+            transferError = error.localizedDescription
+        }
     }
 
     private func delete(_ project: Project) {

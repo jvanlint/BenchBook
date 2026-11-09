@@ -14,12 +14,15 @@ struct ReferencesView: View {
     @Query private var references: [Reference]
     @Query(sort: [SortDescriptor(\Tag.name, comparator: .localizedStandard)])
     private var allTags: [Tag]
+    @Query(sort: [SortDescriptor(\Project.name, comparator: .localizedStandard)])
+    private var allProjects: [Project]
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.assetLibrary) private var assetLibrary
     @Environment(\.openURL) private var openURL
     @Environment(\.linkInfoService) private var linkInfoService
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.transferReferences) private var transferReferences
 
     /// The tile with keyboard focus.
     @FocusState private var focusedID: UUID?
@@ -313,6 +316,7 @@ struct ReferencesView: View {
             tagsMenu(for: targets)
             Button("Edit Tags…") { tagEditing = TagEditingTarget(references: targets) }
                 .keyboardShortcut("t", modifiers: [.command, .control])
+            transferMenus(for: targets)
             Divider()
             Button("Delete \(targets.count) References…", role: .destructive) { pendingDeletion = targets }
         }
@@ -356,8 +360,31 @@ struct ReferencesView: View {
         }
         Divider()
         Button(reference.kind == .note ? "Edit Note…" : "Edit Details…") { detailsReference = reference }
+        transferMenus(for: [reference])
         Divider()
         Button("Delete…", role: .destructive) { pendingDeletion = [reference] }
+    }
+
+    /// Move to Project and Copy to Project, listing the other projects.
+    @ViewBuilder
+    private func transferMenus(for targets: [Reference]) -> some View {
+        let others = allProjects.filter { $0.id != project.id }
+        if let transferReferences, !others.isEmpty {
+            Divider()
+            Menu("Move to Project") {
+                ForEach(others) { other in
+                    Button(other.name) {
+                        selection.subtract(targets.map(\.id))
+                        transferReferences(targets, to: other, mode: .move)
+                    }
+                }
+            }
+            Menu("Copy to Project") {
+                ForEach(others) { other in
+                    Button(other.name) { transferReferences(targets, to: other, mode: .copy) }
+                }
+            }
+        }
     }
 
     private var visibleReferences: [Reference] {

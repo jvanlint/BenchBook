@@ -241,6 +241,8 @@ private struct ProjectRow: View {
     let project: Project
 
     @Environment(\.captureCoordinator) private var captureCoordinator
+    @Environment(\.transferReferences) private var transferReferences
+    @Environment(\.modelContext) private var modelContext
     @State private var isDropTargeted = false
 
     var body: some View {
@@ -274,9 +276,36 @@ private struct ProjectRow: View {
         }
         .accessibilityElement(children: .combine)
         // Dropping onto a row adds to that project without selecting it.
-        .onDrop(of: CaptureDrop.types, isTargeted: $isDropTargeted) { providers in
-            captureCoordinator?.capture(CaptureDrop.providers(fallback: providers), into: project)
+        // References dragged from the grid move here (copy with Option).
+        .onDrop(of: CaptureDrop.types + [.benchBookReferences], isTargeted: $isDropTargeted) { providers in
+            let type = UTType.benchBookReferences.identifier
+            if let provider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(type) }) {
+                // Read Option now; the data arrives after the drop.
+                let mode: ReferenceTransfer.Mode = NSEvent.modifierFlags.contains(.option) ? .copy : .move
+                Task { await transferDraggedReferences(from: provider, mode: mode) }
+            } else {
+                captureCoordinator?.capture(CaptureDrop.providers(fallback: providers), into: project)
+            }
             return true
         }
+    }
+
+    /// Moves or copies References dragged from BenchBook's own grid. The
+    /// data is loaded asynchronously: the grid's drag supplies it lazily.
+    private func transferDraggedReferences(from provider: NSItemProvider, mode: ReferenceTransfer.Mode) async {
+        let data: Data? = await withCheckedContinuation { continuation in
+            _ = provider.loadDataRepresentation(forTypeIdentifier: UTType.benchBookReferences.identifier) { data, _ in
+                continuation.resume(returning: data)
+            }
+        }
+        guard let data, let item = try? JSONDecoder().decode(ReferencesDragItem.self, from: data) else {
+            Logger.capture.error("Couldn't read the dragged references")
+            return
+        }
+        let ids = item.referenceIDs
+        guard let references = try? modelContext.fetch(FetchDescriptor<Reference>(predicate: #Predicate { ids.contains($0.id) })),
+              !references.isEmpty
+        else { return }
+        transferReferences?(references, to: project, mode: mode)
     }
 }
