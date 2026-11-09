@@ -1,9 +1,9 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// A UTF-8 plain-text file for Save dialogs.
+/// A UTF-8 text file (plain text or CSV) for Save dialogs.
 struct TextFileDocument: FileDocument {
-    static let readableContentTypes: [UTType] = [.plainText]
+    static let readableContentTypes: [UTType] = [.plainText, .commaSeparatedText]
 
     var text: String
 

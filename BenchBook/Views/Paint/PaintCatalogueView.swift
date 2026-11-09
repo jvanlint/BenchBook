@@ -19,6 +19,10 @@ struct PaintCatalogueView: View {
     @State private var filter = PaintFilter()
     @State private var editorRequest: PaintEditorRequest?
     @State private var isImporting = false
+    @State private var isChoosingExport = false
+    @State private var exportDocument: TextFileDocument?
+    /// Set by the export sheet; the Save dialog opens once the sheet closes.
+    @State private var pendingExport: TextFileDocument?
     @State private var pendingDeletion: [Paint] = []
     @State private var alert: (title: String, message: String)?
 
@@ -68,12 +72,40 @@ struct PaintCatalogueView: View {
                     Button("Import CSV…", systemImage: "square.and.arrow.down") { isImporting = true }
                         .help("Import paints from a CSV file")
 
+                    Button("Export CSV…", systemImage: "square.and.arrow.up") { isChoosingExport = true }
+                        .disabled(paints.isEmpty)
+                        .help("Save the catalogue as a CSV file that another BenchBook can import")
+
                     Button("Add Paint", systemImage: "plus") { editorRequest = .new }
                         .help("Add a paint to the catalogue")
                 }
             }
             .sheet(item: $editorRequest) { request in
                 PaintEditorView(request: request) { paint in selection = [paint.id] }
+            }
+            .sheet(isPresented: $isChoosingExport, onDismiss: {
+                exportDocument = pendingExport
+                pendingExport = nil
+            }) {
+                NavigationStack {
+                    PaintExportSheet(paintCount: paints.count) { options in
+                        let csv = PaintCSVExporter.csv(PaintCSVExporter.rows(for: paints), options: options)
+                        pendingExport = TextFileDocument(text: csv)
+                    }
+                }
+            }
+            // On its own view: two file dialogs on one view can conflict.
+            .background {
+                Color.clear.fileExporter(
+                    isPresented: Binding(get: { exportDocument != nil }, set: { if !$0 { exportDocument = nil } }),
+                    document: exportDocument,
+                    contentType: .commaSeparatedText,
+                    defaultFilename: PaintCSVExporter.filename()
+                ) { result in
+                    if case .failure(let error) = result {
+                        alert = (String(localized: "Couldn't Export Paints"), error.localizedDescription)
+                    }
+                }
             }
             .fileImporter(isPresented: $isImporting, allowedContentTypes: [.commaSeparatedText, .plainText]) { result in
                 if case .success(let url) = result { importCSV(from: url) }
@@ -290,6 +322,41 @@ struct PaintCatalogueView: View {
             try action()
         } catch {
             alert = (String(localized: "Something Went Wrong"), error.localizedDescription)
+        }
+    }
+}
+
+/// Chooses what a paint CSV export includes, before the Save dialog.
+private struct PaintExportSheet: View {
+    let paintCount: Int
+    let onExport: (PaintCSVExporter.Options) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var options = PaintCSVExporter.Options()
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Include whether you own each paint", isOn: $options.includesOwnership)
+                Toggle("Include notes", isOn: $options.includesNotes)
+            } footer: {
+                Text("All \(paintCount) paints are saved with their brand, range, code, name, FS / RLM and colour, in a CSV file another BenchBook can import. Leave ownership and notes out when sharing.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .frame(width: 420)
+        .navigationTitle("Export Paints")
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Export…") {
+                    onExport(options)
+                    dismiss()
+                }
+            }
         }
     }
 }
