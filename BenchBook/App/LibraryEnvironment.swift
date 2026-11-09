@@ -25,7 +25,7 @@ final class LibraryEnvironment {
         capture.linkInfo = linkInfo
         search = SearchIndex(context: container.mainContext)
 
-        try? ReferenceService(context: container.mainContext, library: assetLibrary).reconcileLibrary()
+        _ = try? ReferenceService(context: container.mainContext, library: assetLibrary).reconcileLibrary()
         // Links saved while offline, or before their details were fetched.
         linkInfo.fetchMissing()
     }

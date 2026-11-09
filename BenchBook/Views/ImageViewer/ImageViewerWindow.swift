@@ -64,7 +64,8 @@ struct ImageViewer: View {
     @State private var selection: UUID?
     @State private var showsNotes = true
     /// Remembered across windows and launches.
-    @AppStorage("imageViewer.showsBoxes") private var showsBoxes = true
+    /// Starts as set in Settings; ⌘B changes it for this image only.
+    @State private var showsBoxes = AppSettings.showsNoteBoxes()
     @State private var noteToFocus: UUID?
     @State private var notePendingDeletion: ImageNote?
     @State private var errorMessage: String?

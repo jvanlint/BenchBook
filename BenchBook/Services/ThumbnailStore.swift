@@ -52,6 +52,13 @@ final class ThumbnailStore {
         return image
     }
 
+    /// Deletes every stored thumbnail. Each is made again from its original
+    /// the next time it's shown.
+    func clearThumbnails() {
+        cache.removeAllObjects()
+        try? FileManager.default.removeItem(at: library.thumbnailsURL)
+    }
+
     /// A video's poster or a webpage's preview, or nil if none has been
     /// fetched. `version` changes when it's refetched, so the cache doesn't
     /// go stale.

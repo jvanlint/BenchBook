@@ -62,6 +62,14 @@ Storage, inside `~/Library/Containers/com.jasonvanlint.BenchBook/Data/Library/Ap
 
 The App Group (`952LYY5FW2.com.jasonvanlint.BenchBook`) holds the share inbox and the shared Project list.
 
+## Settings
+
+BenchBook › Settings… (⌘,):
+
+- **General:** turn off automatic fetching of webpage previews and video details, the only network access BenchBook makes on its own. Refresh on a link still fetches when asked; turning it back on catches up on links saved meanwhile.
+- **Image viewer and projects** (also on General): open images at Fit to Window or Actual Size; whether note boxes show when an image opens (⌘B still toggles them for that image); and the status new projects start with.
+- **Library:** where the library is stored (Show in Finder), how much space saved files, thumbnails and previews use, Clean Up Now (removes files nothing uses, as at launch) and Clear Thumbnails (they're made again when shown).
+
 ## Using the Share menu
 
 1. Run BenchBook once from Xcode so macOS registers the extension.
@@ -131,7 +139,7 @@ open BenchBook.app --args -BenchBookStoreName BenchBookScratch
 
 ## Project status
 
-Each project is Researching, In Progress, Paused or Completed. New projects, and projects from before statuses existed, start as Researching.
+Each project is Researching, In Progress, Paused or Completed. New projects start as Researching unless Settings › General chooses another status; projects from before statuses existed are Researching.
 
 - Set it in the project editor, or right-click a project in the sidebar › Status.
 - Each sidebar row shows its status as a small symbol.
@@ -169,4 +177,4 @@ After a webpage link is saved, BenchBook reads the page's header for the details
 
 ## Video details
 
-After a YouTube or Vimeo link is saved, BenchBook fetches its poster image, title, channel, length, publish date and description from the sites' public pages (oEmbed, plus the YouTube watch page). No account or API key is needed, and the video itself is never downloaded. Saving never waits for this: links saved while offline get their details the next time BenchBook launches, and right-clicking a video offers Refresh Video Details. A title the user typed is kept; a browser page title such as "… - YouTube" is replaced. Video details and webpage previews are the only network access the app makes (`com.apple.security.network.client`).
+After a YouTube or Vimeo link is saved, BenchBook fetches its poster image, title, channel, length, publish date and description from the sites' public pages (oEmbed, plus the YouTube watch page). No account or API key is needed, and the video itself is never downloaded. Saving never waits for this: links saved while offline get their details the next time BenchBook launches, and right-clicking a video offers Refresh Video Details. A title the user typed is kept; a browser page title such as "… - YouTube" is replaced. Video details and webpage previews are the only network access the app makes on its own (`com.apple.security.network.client`), and Settings can turn them off.

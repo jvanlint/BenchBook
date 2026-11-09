@@ -87,18 +87,23 @@ struct ReferenceService {
     /// Removes leftovers from interrupted imports or deletes: assets nothing
     /// uses, files in the library with no asset record, and posters
     /// of deleted video links (e.g. from deleting a whole Project).
-    func reconcileLibrary() throws {
+    /// Returns how many unused records and files were removed.
+    @discardableResult
+    func reconcileLibrary() throws -> Int {
+        var removed = 0
         for asset in try context.fetch(FetchDescriptor<ManagedAsset>()) where asset.isUnused {
             try removeAssetIfUnused(asset)
+            removed += 1
         }
         let knownIDs = Set(try context.fetch(FetchDescriptor<ManagedAsset>()).map(\.id))
-        for file in library.orphanedFiles(knownAssetIDs: knownIDs) {
-            try? FileManager.default.removeItem(at: file)
+        for file in library.orphanedFiles(knownAssetIDs: knownIDs) where (try? FileManager.default.removeItem(at: file)) != nil {
+            removed += 1
         }
         let referenceIDs = Set(try context.fetch(FetchDescriptor<Reference>()).map(\.id))
-        for file in library.orphanedPosters(knownReferenceIDs: referenceIDs) {
-            try? FileManager.default.removeItem(at: file)
+        for file in library.orphanedPosters(knownReferenceIDs: referenceIDs) where (try? FileManager.default.removeItem(at: file)) != nil {
+            removed += 1
         }
+        return removed
     }
 
     /// Deletes the asset and its files if no Reference or aftermarket item uses it.

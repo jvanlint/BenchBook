@@ -16,6 +16,11 @@ final class ImageCanvasController {
     var isDrawing = false
     /// While true, the image refits whenever the window resizes.
     private(set) var isFitting = true
+    /// Set when an image should open at actual size; applied at the next
+    /// layout, once the scroll view has its size.
+    @ObservationIgnored fileprivate var opensAtActualSizePending = false
+    /// Whether images open at actual size; from Settings, replaceable in tests.
+    @ObservationIgnored var opensAtActualSize: () -> Bool = { AppSettings.opensImagesAtActualSize() }
 
     @ObservationIgnored fileprivate weak var scrollView: NSScrollView?
 
@@ -30,10 +35,18 @@ final class ImageCanvasController {
         fit()
     }
 
-    func actualSize() {
+    /// One image pixel per screen pixel. `centered` shows the middle of the
+    /// image, as when one opens; otherwise the view zooms about its centre.
+    func actualSize(centered: Bool = false) {
         guard let scrollView else { return }
         isFitting = false
-        setMagnification(1 / backingScale(of: scrollView), in: scrollView)
+        let scale = 1 / backingScale(of: scrollView)
+        if centered, let document = scrollView.documentView {
+            scrollView.setMagnification(clamp(scale), centeredAt: CGPoint(x: document.bounds.midX, y: document.bounds.midY))
+            updateZoomPercent()
+        } else {
+            setMagnification(scale, in: scrollView)
+        }
     }
 
     /// Zooms so the box (image pixels) fills most of the view, centred.
@@ -47,6 +60,21 @@ final class ImageCanvasController {
             setMagnification(Self.maximumMagnification, in: scrollView)
         }
         updateZoomPercent()
+    }
+
+    /// How a newly shown image starts: fitted, or at actual size (Settings).
+    fileprivate func showNewImage() {
+        if opensAtActualSize() {
+            isFitting = false
+            if let size = scrollView?.contentSize, size.width > 0, size.height > 0 {
+                actualSize(centered: true)
+            } else {
+                opensAtActualSizePending = true
+            }
+        } else {
+            opensAtActualSizePending = false
+            zoomToFit()
+        }
     }
 
     fileprivate func fit() {
@@ -139,6 +167,7 @@ struct ImageCanvas: NSViewRepresentable {
         let document = CanvasDocumentView(image: image)
         scrollView.documentView = document
         controller.scrollView = scrollView
+        controller.showNewImage()
 
         context.coordinator.magnifyObserver = NotificationCenter.default.addObserver(
             forName: NSScrollView.didEndLiveMagnifyNotification, object: scrollView, queue: .main
@@ -153,7 +182,7 @@ struct ImageCanvas: NSViewRepresentable {
         guard let document = scrollView.documentView as? CanvasDocumentView else { return }
         if document.image !== image {
             document.setImage(image)
-            controller.zoomToFit()
+            controller.showNewImage()
         }
         update(document.overlay)
     }
@@ -215,7 +244,10 @@ private final class FittingScrollView: NSScrollView {
         super.layout()
         if contentSize != lastSize {
             lastSize = contentSize
-            if controller?.isFitting == true {
+            if controller?.opensAtActualSizePending == true, contentSize.width > 0, contentSize.height > 0 {
+                controller?.opensAtActualSizePending = false
+                controller?.actualSize(centered: true)
+            } else if controller?.isFitting == true {
                 controller?.fit()
             }
         }

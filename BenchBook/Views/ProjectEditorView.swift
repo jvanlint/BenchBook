@@ -36,7 +36,9 @@ struct ProjectEditorView: View {
         if let project = request.project {
             _draft = State(initialValue: ProjectDraft(project: project))
         } else {
-            _draft = State(initialValue: ProjectDraft())
+            var draft = ProjectDraft()
+            draft.status = AppSettings.newProjectStatus()
+            _draft = State(initialValue: draft)
         }
     }
 

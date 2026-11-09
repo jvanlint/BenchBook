@@ -15,6 +15,9 @@ final class LinkInfoService {
     @ObservationIgnored private let library: AssetLibrary
     @ObservationIgnored private let videoFetcher: VideoInfoFetcher
     @ObservationIgnored private let pageFetcher: PageInfoFetcher
+    /// When false (turned off in Settings), nothing is fetched automatically;
+    /// `refresh` still fetches when asked.
+    @ObservationIgnored var fetchesAutomatically: () -> Bool = { AppSettings.fetchesLinkDetails() }
 
     init(
         context: ModelContext,
@@ -41,10 +44,10 @@ final class LinkInfoService {
         fetch(((try? context.fetch(videos)) ?? []) + ((try? context.fetch(pages)) ?? []))
     }
 
-    /// Starts fetching in the background.
+    /// Starts fetching in the background, unless turned off in Settings.
     func fetch(_ references: [Reference]) {
         let links = references.filter { $0.kind == .videoLink || $0.kind == .webpage }
-        guard !links.isEmpty else { return }
+        guard !links.isEmpty, fetchesAutomatically() else { return }
         Task {
             for reference in links {
                 await refresh(reference)
