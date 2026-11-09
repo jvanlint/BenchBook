@@ -93,6 +93,15 @@ In the image viewer:
 | ⌘[ / ⌘] | Previous / next image |
 | ⌥⌘I | Show or hide the Notes and Info panel |
 
+## Paints
+
+Library › Paints is one catalogue shared by every project. Each paint has a brand, range, code, name, FS / RLM standard, swatch colour, notes and whether you own it.
+
+- **Filtering:** the Brand and Range menus in the toolbar show one brand or range, with a count for each. Range lists only the chosen brand's ranges. They combine with Owned Only, and the subtitle shows how many paints match. Brands and ranges that differ only in case or spacing count as one.
+- **Owned:** tick the Owned box in the table, or select several paints and right-click › Mark as Owned or Mark as Not Owned.
+- **Editing:** Add Paint adds one paint; double-click a paint to edit it. Delete (or right-click) removes paints, except those still used in a project.
+- **Project paint lists:** a project's Paint tab (⌘2) lists the catalogue paints the build needs, with what each one is used for. The header counts paints still to buy (ones you don't own). Removing a paint from a project keeps it in the catalogue.
+
 ## Importing paints
 
 Paints → Import CSV… reads a CSV file whose first row names the columns. Brand and Code are required; Range, Name, FS/RLM, Colour (`#RRGGBB`), Owned (`yes`, `x`, `1`…) and Notes are optional. Colour standards can be one `FS/RLM` column, or separate `FS`, `RLM`, `BS`, `RAL` or `ANA` columns; a bare number there gets its prefix (`36270` in an `FS` column becomes `FS 36270`). Paints already in the catalogue are skipped.
