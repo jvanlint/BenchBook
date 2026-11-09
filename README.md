@@ -12,7 +12,7 @@ What BenchBook does so far:
 - References: images (JPEG, PNG, WebP, HEIC), PDFs, Markdown files, webpage links (with the page's preview image, site name and description), video links (YouTube timestamps become moments; YouTube and Vimeo links get their poster, title, channel, length, publish date and description), highlighted text snippets, and notes you write yourself (New Note, ⇧⌘N).
 - Capture by dragging onto the window or a sidebar project, pasting (⌘V), Add Files (⌘O), or the macOS Share menu (**BenchBook**), with optional tags and a note.
 - A gallery of tiles (preview, title, type, tags) with type and tag filters. Images open in a viewer window; other files open in Quick Look (Space previews anything); links open in the browser.
-- Paints: a library-wide catalogue (add, edit, owned, CSV import) and a per-project paint list with what each paint is used for and what still needs buying.
+- Paints: a library-wide catalogue (add, edit, owned, CSV import, filter by brand, range and ownership) and a per-project paint list with what each paint is used for and what still needs buying.
 - Aftermarket: each project's decals, resin, photo-etch and other parts, with type, status, scale or fit, product page, picture and notes.
 - Image notes: zoom and pan a photo, draw boxes around features, and attach a numbered note to each. The original image is never changed.
 - Local SwiftData persistence, with originals copied byte-for-byte into an app-managed file library.

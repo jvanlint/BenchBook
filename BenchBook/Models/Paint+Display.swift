@@ -8,12 +8,57 @@ nonisolated enum PaintIdentity {
         [words(brand), words(range), compactCode(code)].joined(separator: "|")
     }
 
-    private static func words(_ text: String) -> String {
+    /// Folds case and spacing: " Tamiya  Acrylic" → "tamiya acrylic".
+    static func words(_ text: String) -> String {
         text.split(whereSeparator: \.isWhitespace).joined(separator: " ").lowercased()
     }
 
     private static func compactCode(_ code: String) -> String {
         code.lowercased().filter { !$0.isWhitespace && !"-_./".contains($0) }
+    }
+}
+
+/// A brand or range to filter the catalogue by, with how many paints have it.
+nonisolated struct PaintFilterOption: Identifiable, Hashable {
+    /// Folded with `PaintIdentity.words`, so "Tamiya" and "tamiya " match.
+    let key: String
+    /// The spelling most paints use.
+    let name: String
+    let count: Int
+
+    var id: String { key }
+
+    /// One option per distinct value, ignoring blanks, sorted by name.
+    static func options(for values: [String]) -> [PaintFilterOption] {
+        var spellings: [String: [String: Int]] = [:]
+        for value in values {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            let key = PaintIdentity.words(trimmed)
+            guard !key.isEmpty else { continue }
+            spellings[key, default: [:]][trimmed, default: 0] += 1
+        }
+        return spellings.map { key, counts in
+            let name = counts.max { a, b in a.value < b.value || (a.value == b.value && a.key > b.key) }!.key
+            return PaintFilterOption(key: key, name: name, count: counts.values.reduce(0, +))
+        }
+        .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+}
+
+/// Which paints the catalogue shows.
+nonisolated struct PaintFilter: Equatable {
+    /// A `PaintFilterOption.key`; nil shows every brand.
+    var brand: String?
+    /// A `PaintFilterOption.key`; nil shows every range.
+    var range: String?
+    var ownedOnly = false
+
+    var isActive: Bool { brand != nil || range != nil || ownedOnly }
+
+    func includes(brand paintBrand: String, range paintRange: String, isOwned: Bool) -> Bool {
+        (brand == nil || PaintIdentity.words(paintBrand) == brand)
+            && (range == nil || PaintIdentity.words(paintRange) == range)
+            && (!ownedOnly || isOwned)
     }
 }
 

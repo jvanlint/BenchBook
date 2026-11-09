@@ -16,7 +16,7 @@ struct PaintCatalogueView: View {
         KeyPathComparator(\Paint.brand, comparator: .localizedStandard),
         KeyPathComparator(\Paint.code, comparator: .localizedStandard),
     ]
-    @State private var showsOwnedOnly = false
+    @State private var filter = PaintFilter()
     @State private var editorRequest: PaintEditorRequest?
     @State private var isImporting = false
     @State private var pendingDeletion: [Paint] = []
@@ -26,8 +26,20 @@ struct PaintCatalogueView: View {
 
     private var visiblePaints: [Paint] {
         paints
-            .filter { !showsOwnedOnly || $0.isOwned }
+            .filter { filter.includes(brand: $0.brand, range: $0.range, isOwned: $0.isOwned) }
             .sorted(using: sortOrder)
+    }
+
+    private var brandOptions: [PaintFilterOption] {
+        PaintFilterOption.options(for: paints.map(\.brand))
+    }
+
+    /// Ranges of the chosen brand, or of every brand.
+    private var rangeOptions: [PaintFilterOption] {
+        let brandFilter = PaintFilter(brand: filter.brand)
+        return PaintFilterOption.options(for: paints
+            .filter { brandFilter.includes(brand: $0.brand, range: $0.range, isOwned: $0.isOwned) }
+            .map(\.range))
     }
 
     private var selectedPaints: [Paint] {
@@ -40,7 +52,15 @@ struct PaintCatalogueView: View {
             .navigationSubtitle(subtitle)
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
-                    Toggle(isOn: $showsOwnedOnly) {
+                    if !paints.isEmpty {
+                        filterMenu("Brand", allTitle: "All Brands", options: brandOptions, selection: $filter.brand)
+                            .help("Show one brand's paints")
+                        filterMenu("Range", allTitle: "All Ranges", options: rangeOptions, selection: $filter.range)
+                            .disabled(rangeOptions.isEmpty)
+                            .help("Show one range's paints")
+                    }
+
+                    Toggle(isOn: $filter.ownedOnly) {
                         Label("Owned Only", systemImage: "checkmark.circle")
                     }
                     .help("Show only paints you own")
@@ -68,6 +88,9 @@ struct PaintCatalogueView: View {
             } message: {
                 Text("Paints used in a project can't be deleted until they're removed from it.")
             }
+            // Choosing another brand, or editing or deleting paints, can
+            // leave a brand or range nothing has, which would hide everything.
+            .onChange(of: brandOptions.map(\.key) + ["|"] + rangeOptions.map(\.key)) { clearMissingFilters() }
             .alert(
                 alert?.title ?? "",
                 isPresented: Binding(get: { alert != nil }, set: { if !$0 { alert = nil } })
@@ -90,13 +113,21 @@ struct PaintCatalogueView: View {
                     .buttonStyle(.borderedProminent)
                 Button("Import CSV…") { isImporting = true }
             }
-        } else if visiblePaints.isEmpty {
+        } else if visiblePaints.isEmpty, filter == PaintFilter(ownedOnly: true) {
             ContentUnavailableView {
                 Label("No Owned Paints", systemImage: "checkmark.circle")
             } description: {
                 Text("Mark the paints you have as owned, in the table or when editing a paint.")
             } actions: {
-                Button("Show All Paints") { showsOwnedOnly = false }
+                Button("Show All Paints") { filter = PaintFilter() }
+            }
+        } else if visiblePaints.isEmpty {
+            ContentUnavailableView {
+                Label("No Matching Paints", systemImage: "line.3.horizontal.decrease.circle")
+            } description: {
+                Text("No paints match the chosen brand, range and ownership.")
+            } actions: {
+                Button("Show All Paints") { filter = PaintFilter() }
             }
         } else {
             table
@@ -160,7 +191,9 @@ struct PaintCatalogueView: View {
         }
         .onChange(of: revealID, initial: true) { _, id in
             guard let id, let paint = paints.first(where: { $0.id == id }) else { return }
-            if showsOwnedOnly, !paint.isOwned { showsOwnedOnly = false }
+            if !filter.includes(brand: paint.brand, range: paint.range, isOwned: paint.isOwned) {
+                filter = PaintFilter()
+            }
             selection = [id]
             proxy.scrollTo(id, anchor: .center)
             revealID = nil
@@ -170,7 +203,40 @@ struct PaintCatalogueView: View {
 
     private var subtitle: String {
         let owned = paints.filter(\.isOwned).count
-        return String(localized: "\(paints.count) paints · \(owned) owned")
+        guard filter.isActive else { return String(localized: "\(paints.count) paints · \(owned) owned") }
+        return String(localized: "\(visiblePaints.count) of \(paints.count) paints · \(owned) owned")
+    }
+
+    // MARK: Filters
+
+    /// A toolbar menu naming the chosen brand or range, with paint counts.
+    private func filterMenu(
+        _ title: LocalizedStringKey, allTitle: LocalizedStringKey,
+        options: [PaintFilterOption], selection: Binding<String?>
+    ) -> some View {
+        Menu {
+            Picker(title, selection: selection) {
+                Text(allTitle).tag(String?.none)
+                Divider()
+                ForEach(options) { option in
+                    Text("\(option.name) (\(option.count))").tag(Optional(option.key))
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            if let key = selection.wrappedValue, let option = options.first(where: { $0.key == key }) {
+                Text(option.name)
+            } else {
+                Text(allTitle)
+            }
+        }
+        .accessibilityLabel(Text(title))
+    }
+
+    /// Drops a brand or range no paint has any more.
+    private func clearMissingFilters() {
+        if let brand = filter.brand, !brandOptions.contains(where: { $0.key == brand }) { filter.brand = nil }
+        if let range = filter.range, !rangeOptions.contains(where: { $0.key == range }) { filter.range = nil }
     }
 
     // MARK: Actions
