@@ -8,6 +8,7 @@ final class LibraryEnvironment {
     let thumbnails: ThumbnailStore
     let capture: CaptureCoordinator
     let linkInfo: LinkInfoService
+    let imageSuggestions: ImageSuggestionService
     let search: SearchIndex
     /// Nil for tests and debug stores, which don't take part in sharing.
     let projectDirectory: ProjectDirectory?
@@ -23,6 +24,8 @@ final class LibraryEnvironment {
         capture = CaptureCoordinator(context: container.mainContext, library: assetLibrary, inbox: inbox)
         linkInfo = LinkInfoService(context: container.mainContext, library: assetLibrary)
         capture.linkInfo = linkInfo
+        imageSuggestions = ImageSuggestionService(context: container.mainContext, library: assetLibrary)
+        capture.imageSuggestions = imageSuggestions
         search = SearchIndex(context: container.mainContext)
 
         _ = try? ReferenceService(context: container.mainContext, library: assetLibrary).reconcileLibrary()
@@ -36,6 +39,7 @@ extension EnvironmentValues {
     @Entry var thumbnailStore: ThumbnailStore?
     @Entry var captureCoordinator: CaptureCoordinator?
     @Entry var linkInfoService: LinkInfoService?
+    @Entry var imageSuggestionService: ImageSuggestionService?
     @Entry var searchIndex: SearchIndex?
     @Entry var projectDirectory: ProjectDirectory?
 }

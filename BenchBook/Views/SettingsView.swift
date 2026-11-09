@@ -10,7 +10,7 @@ struct SettingsView: View {
             // asks for the height its content needs.
             Tab("General", systemImage: "gearshape") {
                 GeneralSettings()
-                    .frame(height: 420)
+                    .frame(height: 560)
             }
             Tab("Library", systemImage: "externaldrive") {
                 LibrarySettings()
@@ -26,7 +26,9 @@ private struct GeneralSettings: View {
     @AppStorage(AppSettings.opensImagesAtActualSizeKey) private var opensImagesAtActualSize = false
     @AppStorage(AppSettings.showsNoteBoxesKey) private var showsNoteBoxes = true
     @AppStorage(AppSettings.newProjectStatusKey) private var newProjectStatus = ProjectStatus.researching
+    @AppStorage(AppSettings.suggestsImageDetailsKey) private var suggestsImageDetails = false
     @Environment(\.linkInfoService) private var linkInfoService
+    @Environment(\.imageSuggestionService) private var imageSuggestions
 
     var body: some View {
         Form {
@@ -37,6 +39,19 @@ private struct GeneralSettings: View {
             } footer: {
                 Text("After you save a webpage or a YouTube or Vimeo link, BenchBook reads the page for its preview image, title and description, or the video's poster, channel and length. This is the only time BenchBook goes online on its own. When it's off, use Refresh on a link to fetch its details.")
                     .foregroundStyle(.secondary)
+            }
+
+            if let imageSuggestions, imageSuggestions.availability().isOffered {
+                let reason = imageSuggestions.availability().reason
+                Section {
+                    Toggle("Suggest titles and notes for new images", isOn: $suggestsImageDetails)
+                        .disabled(reason != nil)
+                } header: {
+                    Text("Apple Intelligence")
+                } footer: {
+                    Text(reason ?? "Describes each new image on this Mac and fills in a title or note you haven't written. Images never leave your Mac. Suggestions can be wrong, so check details such as the variant or serial. In an image's details, Suggest Title and Note works whether this is on or off.")
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Section("Image Viewer") {

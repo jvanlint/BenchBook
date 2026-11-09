@@ -20,6 +20,7 @@ final class CaptureCoordinator {
     private(set) var importCount = 0
     /// Fetches details for newly saved video links.
     @ObservationIgnored var linkInfo: LinkInfoService?
+    @ObservationIgnored var imageSuggestions: ImageSuggestionService?
 
     private let context: ModelContext
     private let library: AssetLibrary
@@ -137,9 +138,11 @@ final class CaptureCoordinator {
 
     private func finish(_ outcomes: [CaptureOutcome], skipped: [String]) {
         importCount += 1
-        linkInfo?.fetch(outcomes.compactMap { outcome in
+        let added = outcomes.compactMap { outcome in
             if case .added(let reference) = outcome { reference } else { nil }
-        })
+        }
+        linkInfo?.fetch(added)
+        imageSuggestions?.suggestForNewImages(added)
 
         var duplicates: [String] = []
         var failures: [String] = skipped.map { String(localized: "“\($0)” isn't a type BenchBook can save.") }

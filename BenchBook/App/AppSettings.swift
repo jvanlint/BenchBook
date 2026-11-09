@@ -25,6 +25,14 @@ nonisolated enum AppSettings {
         defaults.object(forKey: showsNoteBoxesKey) as? Bool ?? true
     }
 
+    /// Whether Apple Intelligence suggests titles and notes for new images.
+    static let suggestsImageDetailsKey = "suggestsImageDetails"
+
+    /// Off unless turned on in Settings.
+    static func suggestsImageDetails(in defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: suggestsImageDetailsKey)
+    }
+
     /// The status new projects start with, as a `ProjectStatus` raw value.
     static let newProjectStatusKey = "newProjectStatus"
 

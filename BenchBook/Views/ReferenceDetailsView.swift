@@ -8,11 +8,17 @@ struct ReferenceDetailsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.assetLibrary) private var assetLibrary
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.imageSuggestionService) private var suggestions
 
     @State private var title: String
     @State private var tagsText: String
     @State private var note: String
     @State private var errorMessage: String?
+    /// Existing tags Apple Intelligence thinks apply, for the user to add.
+    @State private var suggestedTags: [String] = []
+    /// The title and note before a suggestion filled them, for Undo.
+    @State private var beforeSuggestion: (title: String, note: String)?
+    @State private var suggestionError: String?
 
     init(reference: Reference) {
         self.reference = reference
@@ -28,9 +34,26 @@ struct ReferenceDetailsView: View {
                 TextField("Tags", text: $tagsText, prompt: Text("Separate tags with commas"))
                 TextField("Note", text: $note, prompt: Text("Optional"), axis: .vertical)
                     .lineLimit(3...8)
+                if !suggestedTags.isEmpty {
+                    LabeledContent("Suggested Tags") {
+                        HStack {
+                            ForEach(suggestedTags, id: \.self) { tag in
+                                Button(tag, systemImage: "plus") { addTag(tag) }
+                                    .help("Add the tag “\(tag)”")
+                            }
+                        }
+                        .controlSize(.small)
+                    }
+                }
             } header: {
-                Text("Reference Details")
-                    .font(.headline)
+                HStack {
+                    Text("Reference Details")
+                        .font(.headline)
+                    Spacer()
+                    suggestButton
+                }
+            } footer: {
+                suggestionFooter
             }
 
             if let text = reference.text {
@@ -102,6 +125,79 @@ struct ReferenceDetailsView: View {
         } message: {
             Text(errorMessage ?? "")
         }
+    }
+
+    // MARK: Apple Intelligence
+
+    private var offersSuggestions: Bool {
+        reference.kind == .image && suggestions != nil && (suggestions?.availability().isOffered ?? false)
+    }
+
+    private var isSuggesting: Bool {
+        suggestions?.inProgress.contains(reference.id) ?? false
+    }
+
+    @ViewBuilder
+    private var suggestButton: some View {
+        if offersSuggestions, let suggestions {
+            if isSuggesting {
+                ProgressView()
+                    .controlSize(.small)
+            } else {
+                let reason = suggestions.availability().reason
+                Button("Suggest Title and Note", systemImage: "sparkles", action: suggest)
+                    .controlSize(.small)
+                    .disabled(reason != nil)
+                    .help(reason ?? "Describe this image with Apple Intelligence, on this Mac")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var suggestionFooter: some View {
+        if let suggestionError {
+            Text(suggestionError)
+                .foregroundStyle(.red)
+        } else if beforeSuggestion != nil {
+            HStack(alignment: .firstTextBaseline) {
+                Text("Suggested by Apple Intelligence on this Mac. Check details such as the variant or serial before saving.")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button("Undo Suggestion", action: undoSuggestion)
+                    .controlSize(.small)
+            }
+        }
+    }
+
+    private func suggest() {
+        guard let suggestions else { return }
+        suggestionError = nil
+        Task {
+            do {
+                let suggestion = try await suggestions.suggestion(for: reference)
+                if beforeSuggestion == nil { beforeSuggestion = (title, note) }
+                if !suggestion.title.isEmpty { title = suggestion.title }
+                if !suggestion.note.isEmpty { note = suggestion.note }
+                let typed = Set(TagNames.parse(tagsText).map(TagNames.normalize))
+                suggestedTags = suggestion.tags.filter { !typed.contains(TagNames.normalize($0)) }
+            } catch {
+                suggestionError = error.localizedDescription
+            }
+        }
+    }
+
+    private func undoSuggestion() {
+        guard let before = beforeSuggestion else { return }
+        title = before.title
+        note = before.note
+        suggestedTags = []
+        beforeSuggestion = nil
+    }
+
+    private func addTag(_ tag: String) {
+        let current = tagsText.trimmingCharacters(in: .whitespaces)
+        tagsText = current.isEmpty ? tag : (current.hasSuffix(",") ? "\(current) \(tag)" : "\(current), \(tag)")
+        suggestedTags.removeAll { $0 == tag }
     }
 
     private func save() {

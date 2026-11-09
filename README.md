@@ -145,6 +145,14 @@ Each project is Researching, In Progress, Paused or Completed. New projects star
 - Each sidebar row shows its status as a small symbol.
 - The filter button in the Projects header shows one status or All Projects, with a count for each. The choice is remembered.
 
+## Apple Intelligence suggestions
+
+On macOS 27 with Apple Intelligence turned on, an image's details sheet has **Suggest Title and Note**. The on-device model looks at the image, plus any text Vision reads in it (serials, codes, box art), and fills in the title and note for you to review; it can also suggest tags from your existing tags, which you add with a click. Nothing is saved until Save, and Undo Suggestion puts back what was there.
+
+Settings › General › Apple Intelligence can also suggest titles and notes for new images automatically (off by default). That only fills a title or note that's empty, never text you wrote, and doesn't add tags.
+
+Everything runs on the Mac (`SystemLanguageModel`); images aren't sent anywhere. Suggestions describe what's visible and can get specifics such as the variant, unit or serial wrong, so check them. On earlier macOS versions the feature isn't shown; `FoundationModels` is weak-linked, so the app still runs on macOS 15.
+
 ## Tags
 
 Tags are shared by every project.

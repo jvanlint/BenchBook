@@ -52,6 +52,7 @@ private extension View {
             .environment(\.thumbnailStore, library.thumbnails)
             .environment(\.captureCoordinator, library.capture)
             .environment(\.linkInfoService, library.linkInfo)
+            .environment(\.imageSuggestionService, library.imageSuggestions)
             .environment(\.searchIndex, library.search)
             .environment(\.projectDirectory, library.projectDirectory)
     }
