@@ -341,7 +341,8 @@ struct ReferencesView: View {
 
     // MARK: Gallery activity
 
-    /// Notes whether each click in this window lands in the gallery.
+    /// Notes whether each click in this window lands in the gallery, and
+    /// handles Delete while it does.
     private func watchClicks() {
         marquee.stopWatchingClicks()
         marquee.clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
@@ -354,6 +355,30 @@ struct ReferencesView: View {
             }
             return event
         }
+        // Tiles only get Delete while one has keyboard focus, which a click
+        // or a selection rectangle often doesn't give them.
+        marquee.deleteMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            MainActor.assumeIsolated { handleDelete(event) } ? nil : event
+        }
+    }
+
+    /// Delete, Forward Delete or ⌘Delete asks to delete the selected
+    /// references. Returns whether it handled the key.
+    private func handleDelete(_ event: NSEvent) -> Bool {
+        let deleteKeys: Set<UInt16> = [51, 117]  // Delete, Forward Delete
+        let modifiers = event.modifierFlags.intersection([.command, .option, .control, .shift])
+        guard deleteKeys.contains(event.keyCode), modifiers.isEmpty || modifiers == .command,
+              let gallery = marquee.galleryView, let window = gallery.window,
+              event.window === window, window.isKeyWindow,
+              galleryIsActive, selectionRect == nil, pendingDeletion.isEmpty,
+              !(window.firstResponder is NSText)  // typing in a field
+        else { return false }
+        let targets = selectedReferences.isEmpty
+            ? visibleReferences.filter { $0.id == focusedID }
+            : selectedReferences
+        guard !targets.isEmpty else { return false }
+        pendingDeletion = targets
+        return true
     }
 
     // MARK: Selection rectangle
@@ -707,10 +732,12 @@ private final class GalleryMarquee {
     /// The AppKit view behind the gallery, for telling where clicks land.
     weak var galleryView: NSView?
     var clickMonitor: Any?
+    var deleteMonitor: Any?
 
     func stopWatchingClicks() {
-        if let clickMonitor { NSEvent.removeMonitor(clickMonitor) }
+        for monitor in [clickMonitor, deleteMonitor].compactMap(\.self) { NSEvent.removeMonitor(monitor) }
         clickMonitor = nil
+        deleteMonitor = nil
     }
 
     func forgetOffscreenFrames() {

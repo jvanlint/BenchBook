@@ -117,6 +117,17 @@ struct ProjectSidebar: View {
                 }
             }
         }
+        // Asks first, as the right-click menu does.
+        .onDeleteCommand {
+            switch selection {
+            case .project(let id):
+                if let project = projects.first(where: { $0.id == id }) { onDelete(project) }
+            case .tag(let id):
+                tagPendingDeletion = tags.first { $0.id == id }
+            default:
+                break
+            }
+        }
         .toolbar {
             ToolbarItem {
                 Button("Add Project", systemImage: "plus", action: onAdd)
