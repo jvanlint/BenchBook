@@ -4,11 +4,11 @@ import SwiftData
 /// for each model change; never edit a schema that has shipped.
 enum BenchBookMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [BenchBookSchemaV1.self, BenchBookSchemaV2.self, BenchBookSchemaV3.self, BenchBookSchemaV4.self, BenchBookSchemaV5.self, BenchBookSchemaV6.self, BenchBookSchemaV7.self, BenchBookSchemaV8.self, BenchBookSchemaV9.self, BenchBookSchemaV10.self]
+        [BenchBookSchemaV1.self, BenchBookSchemaV2.self, BenchBookSchemaV3.self, BenchBookSchemaV4.self, BenchBookSchemaV5.self, BenchBookSchemaV6.self, BenchBookSchemaV7.self, BenchBookSchemaV8.self, BenchBookSchemaV9.self, BenchBookSchemaV10.self, BenchBookSchemaV11.self]
     }
 
     static var stages: [MigrationStage] {
-        [migrateV1toV2, migrateV2toV3, migrateV3toV4, migrateV4toV5, migrateV5toV6, migrateV6toV7, migrateV7toV8, migrateV8toV9, migrateV9toV10]
+        [migrateV1toV2, migrateV2toV3, migrateV3toV4, migrateV4toV5, migrateV5toV6, migrateV6toV7, migrateV7toV8, migrateV8toV9, migrateV9toV10, migrateV10toV11]
     }
 
     /// V2 only adds models and an empty relationship to Project.
@@ -65,10 +65,16 @@ enum BenchBookMigrationPlan: SchemaMigrationPlan {
         fromVersion: BenchBookSchemaV9.self,
         toVersion: BenchBookSchemaV10.self
     )
+
+    /// V11 only adds ProjectPaint.standard, nil for existing rows.
+    static let migrateV10toV11 = MigrationStage.lightweight(
+        fromVersion: BenchBookSchemaV10.self,
+        toVersion: BenchBookSchemaV11.self
+    )
 }
 
 /// The current version of each model. Update these when a new schema ships.
-typealias CurrentSchema = BenchBookSchemaV10
+typealias CurrentSchema = BenchBookSchemaV11
 typealias Project = CurrentSchema.Project
 typealias Reference = CurrentSchema.Reference
 typealias ManagedAsset = CurrentSchema.ManagedAsset

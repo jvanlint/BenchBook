@@ -16,6 +16,24 @@ nonisolated enum PaintIdentity {
     private static func compactCode(_ code: String) -> String {
         code.lowercased().filter { !$0.isWhitespace && !"-_./".contains($0) }
     }
+
+    /// Whether a paint matches a search, by brand, range, code, name or
+    /// colour standard. Standards ignore spacing and punctuation, so
+    /// "FS 36270" finds a paint noted as "FS36270" or "FS-36270 / BS 637".
+    static func matches(_ query: String, brand: String, range: String, code: String, name: String,
+                        standard: String) -> Bool {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return true }
+        if [brand, range, code, name, standard].contains(where: { $0.localizedCaseInsensitiveContains(query) }) {
+            return true
+        }
+        let folded = lettersAndDigits(query)
+        return !folded.isEmpty && lettersAndDigits(standard).contains(folded)
+    }
+
+    private static func lettersAndDigits(_ text: String) -> String {
+        String(text.lowercased().filter { $0.isLetter || $0.isNumber })
+    }
 }
 
 /// A brand or range to filter the catalogue by, with how many paints have it.
@@ -114,6 +132,10 @@ extension Paint {
 
     /// Not owned, and needed by a project that isn't Completed.
     var isToBuy: Bool { !isOwned && !unfinishedProjectSelections.isEmpty }
+
+    func matches(_ query: String) -> Bool {
+        PaintIdentity.matches(query, brand: brand, range: range, code: code, name: name, standard: standardCode)
+    }
 
     /// Names of Projects using this paint, sorted.
     var projectNames: [String] {

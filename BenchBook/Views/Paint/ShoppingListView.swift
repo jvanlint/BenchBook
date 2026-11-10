@@ -23,7 +23,7 @@ struct ShoppingListView: View {
                 ContentUnavailableView {
                     Label("Nothing to Buy", systemImage: "cart")
                 } description: {
-                    Text("Paints you don't own that a project needs appear here. Completed projects aren't included.")
+                    Text("Paints you don't own that a project needs appear here, with colours that have no paint chosen yet. Completed projects aren't included.")
                 }
             } else {
                 List {
@@ -31,6 +31,13 @@ struct ShoppingListView: View {
                         Section(group.name) {
                             ForEach(group.items) { item in
                                 row(for: item)
+                            }
+                        }
+                    }
+                    if !list.unchosen.isEmpty {
+                        Section(PaintShoppingList.unchosenHeading) {
+                            ForEach(list.unchosen) { colour in
+                                row(for: colour)
                             }
                         }
                     }
@@ -93,6 +100,22 @@ struct ShoppingListView: View {
             Button("Mark as Owned") { markOwned(item) }
             Button("Show in Paints") { onShowInPaints(item.id) }
         }
+    }
+
+    /// Choose a paint for these on the project's Paint tab.
+    private func row(for colour: PaintShoppingList.Colour) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            PaintSwatch(hex: nil)
+                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
+            Text(colour.standard)
+            Spacer(minLength: 12)
+            Text(colour.useLine)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.trailing)
+        }
+        .padding(.vertical, 2)
+        .padding(.leading, 26)
+        .help("Choose a paint for this colour on the project's Paint tab")
     }
 
     private func markOwned(_ item: PaintShoppingList.Item) {

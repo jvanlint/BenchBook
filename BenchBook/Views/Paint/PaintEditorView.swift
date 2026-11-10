@@ -31,10 +31,12 @@ struct PaintEditorView: View {
     @State private var errorMessage: String?
     @FocusState private var brandFocused: Bool
 
-    init(request: PaintEditorRequest, onSaved: @escaping (Paint) -> Void = { _ in }) {
+    /// `standardCode` fills in a new paint's colour standard.
+    init(request: PaintEditorRequest, standardCode: String = "", onSaved: @escaping (Paint) -> Void = { _ in }) {
         self.request = request
         self.onSaved = onSaved
-        let draft = request.paint.map { PaintDraft(paint: $0) } ?? PaintDraft()
+        var draft = request.paint.map { PaintDraft(paint: $0) } ?? PaintDraft()
+        if request.paint == nil { draft.standardCode = standardCode }
         _draft = State(initialValue: draft)
         _swatch = State(initialValue: SwatchColor.color(draft.swatchHex) ?? .gray)
     }

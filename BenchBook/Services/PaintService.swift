@@ -112,6 +112,31 @@ struct PaintService {
         return new.count
     }
 
+    /// Adds a colour the Project needs, before a paint is chosen for it.
+    @discardableResult
+    func addColour(standard: String, usedFor: String = "", to project: Project) throws -> ProjectPaint {
+        let row = ProjectPaint(project: project, standard: standard.trimmedOrNil, usedFor: usedFor.trimmedOrNil)
+        context.insert(row)
+        try save()
+        return row
+    }
+
+    /// Chooses the paint for a row, replacing any earlier choice.
+    func choose(_ paint: Paint, for projectPaint: ProjectPaint) throws {
+        guard projectPaint.selectedPaint?.id != paint.id else { return }
+        projectPaint.selectedPaint = paint
+        projectPaint.updatedAt = .now
+        try save()
+    }
+
+    /// Updates the colour standard without saving; call `commit()` when editing ends.
+    func setStandard(_ text: String, on projectPaint: ProjectPaint) {
+        let value = text.isEmpty ? nil : text
+        guard projectPaint.standard != value else { return }
+        projectPaint.standard = value
+        projectPaint.updatedAt = .now
+    }
+
     func remove(_ projectPaint: ProjectPaint) throws {
         context.delete(projectPaint)
         try save()
@@ -172,13 +197,25 @@ struct PaintService {
 }
 
 extension Project {
-    /// The Project's paints, by brand then code.
+    /// The Project's paints: colours with no paint chosen first, by
+    /// standard, then paints by brand and code.
     var sortedPaintRequirements: [ProjectPaint] {
-        paintRequirements.sorted {
-            let a = $0.selectedPaint, b = $1.selectedPaint
-            let brand = (a?.brand ?? "").localizedStandardCompare(b?.brand ?? "")
-            if brand != .orderedSame { return brand == .orderedAscending }
-            return (a?.code ?? "").localizedStandardCompare(b?.code ?? "") == .orderedAscending
+        paintRequirements.sorted { first, second in
+            switch (first.selectedPaint, second.selectedPaint) {
+            case (nil, .some): return true
+            case (.some, nil): return false
+            case (nil, nil):
+                return (first.standard ?? "").localizedStandardCompare(second.standard ?? "") == .orderedAscending
+            case let (a?, b?):
+                let brand = a.brand.localizedStandardCompare(b.brand)
+                if brand != .orderedSame { return brand == .orderedAscending }
+                return a.code.localizedStandardCompare(b.code) == .orderedAscending
+            }
         }
+    }
+
+    /// Rows still waiting for a paint.
+    var unchosenColours: [ProjectPaint] {
+        paintRequirements.filter { $0.selectedPaint == nil }
     }
 }

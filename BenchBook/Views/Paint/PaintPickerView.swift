@@ -1,10 +1,13 @@
 import SwiftData
 import SwiftUI
 
-/// Sheet for choosing catalogue paints to add to a Project. New paints can
-/// be created here without leaving the project.
+/// Sheet for choosing catalogue paints to add to a Project, or the paint
+/// for one of its colours. New paints can be created here without leaving
+/// the project.
 struct PaintPickerView: View {
     let project: Project
+    /// The colour row to choose a paint for. Nil adds paints as new rows.
+    var row: ProjectPaint?
 
     @Query(sort: [
         SortDescriptor(\Paint.brand, comparator: .localizedStandard),
@@ -20,20 +23,31 @@ struct PaintPickerView: View {
     @State private var isCreating = false
     @State private var errorMessage: String?
 
-    /// Paints not already in the project, matching the search.
+    /// Paints not already in the project, matching the search. When
+    /// choosing for a colour, paints you own come first.
     private var candidates: [Paint] {
         let inProject = Set(project.paintRequirements.compactMap { $0.selectedPaint?.id })
-        return paints
-            .filter { !inProject.contains($0.id) }
-            .filter { paint in
-                searchText.isEmpty || [paint.brand, paint.range, paint.code, paint.name, paint.standardCode]
-                    .contains { $0.localizedCaseInsensitiveContains(searchText) }
-            }
+        let matching = paints.filter { !inProject.contains($0.id) && $0.matches(searchText) }
+        guard row != nil else { return matching }
+        return matching.filter(\.isOwned) + matching.filter { !$0.isOwned }
+    }
+
+    private var title: String {
+        guard let row else { return String(localized: "Add Paint to \(project.name)") }
+        if let standard = row.standard {
+            return String(localized: "Choose Paint for \(standard)")
+        }
+        return String(localized: "Choose Paint")
+    }
+
+    private var addTitle: String {
+        if row != nil { return String(localized: "Choose Paint") }
+        return chosen.count > 1 ? String(localized: "Add \(chosen.count) Paints") : String(localized: "Add Paint")
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            Text("Add Paint to \(project.name)")
+            Text(title)
                 .font(.headline)
                 .padding(.top, 16)
             TextField("Search", text: $searchText, prompt: Text("Search brand, code, name or FS/RLM"))
@@ -46,7 +60,9 @@ struct PaintPickerView: View {
                 } description: {
                     Text(paints.isEmpty
                          ? "Create a paint here, or add many at once from Paints in the sidebar."
-                         : "Every matching paint is already in this project.")
+                         : searchText.isEmpty
+                         ? "Every paint is already in this project."
+                         : "No paint in your catalogue matches “\(searchText)”, or every match is already in this project.")
                 } actions: {
                     Button("New Paint…") { isCreating = true }
                 }
@@ -55,7 +71,7 @@ struct PaintPickerView: View {
                 List(candidates) { paint in
                     Toggle(isOn: Binding(
                         get: { chosen.contains(paint.id) },
-                        set: { if $0 { chosen.insert(paint.id) } else { chosen.remove(paint.id) } }
+                        set: { toggle(paint.id, on: $0) }
                     )) {
                         HStack(spacing: 8) {
                             PaintSwatch(hex: paint.swatchHex)
@@ -85,7 +101,7 @@ struct PaintPickerView: View {
                 Spacer()
                 Button("Cancel", role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button(chosen.count > 1 ? "Add \(chosen.count) Paints" : "Add Paint", action: add)
+                Button(addTitle, action: add)
                     .keyboardShortcut(.defaultAction)
                     .disabled(chosen.isEmpty)
             }
@@ -93,7 +109,10 @@ struct PaintPickerView: View {
         }
         .frame(width: 460, height: 520)
         .sheet(isPresented: $isCreating) {
-            PaintEditorView(request: .new) { paint in chosen.insert(paint.id) }
+            PaintEditorView(request: .new, standardCode: row?.standard ?? "") { paint in toggle(paint.id, on: true) }
+        }
+        .onAppear {
+            if let standard = row?.standard { searchText = standard }
         }
         .alert(
             "Couldn't Add Paint",
@@ -105,9 +124,26 @@ struct PaintPickerView: View {
         }
     }
 
+    /// Choosing for a colour picks one paint; adding picks any number.
+    private func toggle(_ id: UUID, on: Bool) {
+        if !on {
+            chosen.remove(id)
+        } else if row != nil {
+            chosen = [id]
+        } else {
+            chosen.insert(id)
+        }
+    }
+
     private func add() {
+        let service = PaintService(context: modelContext)
         do {
-            try PaintService(context: modelContext).add(paints.filter { chosen.contains($0.id) }, to: project)
+            if let row {
+                guard let paint = paints.first(where: { chosen.contains($0.id) }) else { return }
+                try service.choose(paint, for: row)
+            } else {
+                try service.add(paints.filter { chosen.contains($0.id) }, to: project)
+            }
             dismiss()
         } catch {
             errorMessage = error.localizedDescription
