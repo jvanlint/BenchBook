@@ -198,8 +198,13 @@ struct ReferencesView: View {
         .onAppear(perform: watchClicks)
         .onDisappear { marquee.stopWatchingClicks() }
         .onChange(of: focusedID) { old, new in
-            // Focus moving from a tile to somewhere else, e.g. ⌘F to search.
-            if old != nil, new == nil { galleryWasClicked = false }
+            // Focus moving from a tile to somewhere else with the keyboard,
+            // e.g. ⌘F to search. Clicks are handled by watchClicks: a click
+            // can also drop tile focus, as macOS won't always let a click
+            // focus a tile, and that mustn't turn the highlight grey.
+            if old != nil, new == nil, NSApp.currentEvent?.type == .keyDown {
+                galleryWasClicked = false
+            }
         }
         .scrollPosition($scrollPosition)
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
