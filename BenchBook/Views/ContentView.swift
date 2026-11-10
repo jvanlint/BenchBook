@@ -288,6 +288,7 @@ struct ContentView: View {
     private func delete(_ project: Project) {
         // Leave the project and close its image windows before its records go.
         if selectedProjectID == project.id { selection = nil }
+        ImageViewerRequests.shared.willDelete(project.references.map(\.id))
         for reference in project.references where reference.kind == .image {
             dismissWindow(id: ImageViewerWindow.id, value: reference.id)
         }

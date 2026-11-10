@@ -35,6 +35,15 @@ struct BenchBookApp: App {
         }
         .defaultSize(width: 1100, height: 760)
 
+        // Two to four images side by side; the same images bring the same window forward.
+        WindowGroup("Compare Images", id: ImageComparisonWindow.id, for: [UUID].self) { $referenceIDs in
+            if case .success(let library) = library {
+                ImageComparisonWindow(referenceIDs: $referenceIDs)
+                    .libraryEnvironment(library)
+            }
+        }
+        .defaultSize(width: 1500, height: 840)
+
         Settings {
             if case .success(let library) = library {
                 SettingsView()

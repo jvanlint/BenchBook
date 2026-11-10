@@ -16,6 +16,7 @@ What BenchBook does so far:
 - Paints: a library-wide catalogue (add, edit, owned, CSV import and export, filter by brand, range and ownership), a shopping list of paints to buy that exports as text, and a per-project paint list with what each paint is used for and what still needs buying.
 - Aftermarket: each project's decals, resin, photo-etch and other parts, with type, status, scale or fit, product page, picture and notes.
 - Image notes: zoom and pan a photo, draw boxes around features, and attach a numbered note to each. The original image is never changed.
+- Compare images side by side: select two to four images and choose Open Side by Side (or press Return). Each image zooms on its own; the Notes and Info panel follows the image you last clicked. Switch between a row and a grid, double-click an image to fill the window, and drag images in from any project's gallery to add or replace one.
 - Local SwiftData persistence, with originals copied byte-for-byte into an app-managed file library.
 
 Deferred: Paint colour standards and matches; Safari/Chromium extensions; and sync.
@@ -39,7 +40,7 @@ BenchBook/
   Services/   Store setup, Project/Reference services, import, file checks,
               asset library, thumbnails, Share inbox
   Views/      Sidebar, workspace, references gallery, editors,
-              ImageViewer/ (viewer window, zoomable canvas, notes panel)
+              ImageViewer/ (viewer and comparison windows, zoomable canvas, notes panel)
 Shared/       Code compiled into both the app and the Share extension
 BenchBookShare/  The Share extension (share sheet UI)
 BenchBookTests/  Swift Testing unit tests
@@ -83,7 +84,7 @@ BenchBook › Settings… (⌘,):
 | ⌘N | New Project |
 | ⌘O | Add files to the selected Project |
 | ⌘V | Paste images, files, links or text into the selected Project |
-| Return | Open the selected reference |
+| Return | Open the selected reference (several selected images open side by side) |
 | Space | Quick Look the selected reference |
 | ⌫ | Delete the selected reference (asks first) |
 | ⌘I | Edit selected Project |
@@ -99,8 +100,10 @@ In the image viewer:
 | ⌫ | Delete the selected box (asks first) |
 | ⌘= / ⌘− | Zoom in / out (or pinch, a mouse scroll wheel, or ⌘-scroll) |
 | ⌘9 / ⌘0 | Zoom to Fit (or middle-click) / Actual Size |
-| ⌘[ / ⌘] | Previous / next image |
+| ⌘[ / ⌘] | Previous / next image (when comparing, in the selected image's place) |
 | ⌥⌘I | Show or hide the Notes and Info panel |
+
+When comparing images, the toolbar's zoom, Draw Box and ⌘[ / ⌘] act on the selected image, outlined in the accent colour; click another image to select it.
 
 ## Paints
 

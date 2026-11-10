@@ -138,6 +138,10 @@ struct ImageCanvas: NSViewRepresentable {
     var onCreate: (CGRect) -> Void
     var onMove: (UUID, CGRect) -> Void
     var onDelete: (UUID) -> Void
+    /// Any click in the image, e.g. to make its pane the active one.
+    var onClick: () -> Void = {}
+    /// A double-click on the image away from any box.
+    var onDoubleClick: (() -> Void)?
 
     final class Coordinator {
         var magnifyObserver: NSObjectProtocol?
@@ -197,6 +201,8 @@ struct ImageCanvas: NSViewRepresentable {
         overlay.onMove = onMove
         overlay.onDelete = onDelete
         overlay.onFinishDrawing = { controller.isDrawing = false }
+        overlay.onClick = onClick
+        overlay.onDoubleClick = onDoubleClick
     }
 }
 
@@ -369,6 +375,8 @@ final class NoteOverlayView: NSView {
     var onMove: (UUID, CGRect) -> Void = { _, _ in }
     var onDelete: (UUID) -> Void = { _ in }
     var onFinishDrawing: () -> Void = {}
+    var onClick: () -> Void = {}
+    var onDoubleClick: (() -> Void)?
 
     private enum Drag {
         case creating(start: CGPoint, current: CGPoint)
@@ -459,6 +467,7 @@ final class NoteOverlayView: NSView {
 
     override func mouseDown(with event: NSEvent) {
         window?.makeFirstResponder(self)
+        onClick()
         let point = convert(event.locationInWindow, from: nil)
 
         if isDrawing {
@@ -474,6 +483,10 @@ final class NoteOverlayView: NSView {
         if let hit = visibleNotes.last(where: { $0.rect.insetBy(dx: -tolerance / 2, dy: -tolerance / 2).contains(point) }) {
             onSelect(hit.id)
             drag = .moving(id: hit.id, start: point, original: hit.rect, current: hit.rect)
+            return
+        }
+        if event.clickCount == 2, let onDoubleClick {
+            onDoubleClick()
             return
         }
         onSelect(nil)

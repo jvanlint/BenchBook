@@ -313,6 +313,7 @@ struct ReferencesView: View {
         if targets.count == 1, let reference = targets.first {
             singleMenu(for: reference)
         } else {
+            compareMenu(for: targets)
             tagsMenu(for: targets)
             Button("Edit Tags…") { tagEditing = TagEditingTarget(references: targets) }
                 .keyboardShortcut("t", modifiers: [.command, .control])
@@ -365,6 +366,21 @@ struct ReferencesView: View {
         Button("Delete…", role: .destructive) { pendingDeletion = [reference] }
     }
 
+    /// Open Side by Side, when two or more images are selected.
+    @ViewBuilder
+    private func compareMenu(for targets: [Reference]) -> some View {
+        let images = targets.filter { $0.kind == .image }
+        if images.count > 1 {
+            if ImageComparison.canCompare(images.count) {
+                Button("Open Side by Side") { compare(images) }
+            } else {
+                Button("Open Side by Side (Up to \(ImageComparison.maximumImages) Images)") {}
+                    .disabled(true)
+            }
+            Divider()
+        }
+    }
+
     /// Move to Project and Copy to Project, listing the other projects.
     @ViewBuilder
     private func transferMenus(for targets: [Reference]) -> some View {
@@ -408,6 +424,14 @@ struct ReferencesView: View {
 
     private func open(_ reference: Reference) {
         focusedID = reference.id
+        // Opening one of several selected images compares them.
+        if reference.kind == .image, selection.contains(reference.id) {
+            let images = selectedReferences.filter { $0.kind == .image }
+            if images.count > 1, ImageComparison.canCompare(images.count) {
+                compare(images)
+                return
+            }
+        }
         if !selection.contains(reference.id) {
             selection = [reference.id]
             anchorID = reference.id
@@ -443,6 +467,10 @@ struct ReferencesView: View {
         }
     }
 
+    private func compare(_ images: [Reference]) {
+        openWindow(id: ImageComparisonWindow.id, value: images.map(\.id))
+    }
+
     private func openInDefaultApp(_ reference: Reference) {
         guard let url = originalURL(of: reference) else { return }
         NSWorkspace.shared.open(url)
@@ -459,6 +487,7 @@ struct ReferencesView: View {
     }
 
     private func delete(_ chosen: [Reference]) {
+        ImageViewerRequests.shared.willDelete(chosen.map(\.id))
         let service = ReferenceService(context: modelContext, library: assetLibrary)
         for reference in chosen {
             do {

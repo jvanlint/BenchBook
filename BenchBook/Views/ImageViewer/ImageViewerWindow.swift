@@ -35,6 +35,54 @@ struct ImageViewerWindow: View {
 final class ImageViewerRequests {
     static let shared = ImageViewerRequests()
     var noteToShow: [UUID: UUID] = [:]
+    /// References deleted this session, so comparison windows drop them.
+    private(set) var deletedReferences = Set<UUID>()
+
+    /// Call before deleting references that a viewer might show.
+    func willDelete(_ ids: some Sequence<UUID>) {
+        deletedReferences.formUnion(ids)
+    }
+}
+
+extension ImageLoader {
+    /// Why a reference's image can't be shown, in words for the user.
+    nonisolated enum ReferenceError: LocalizedError {
+        case noImage, missingFile
+
+        var errorDescription: String? {
+            switch self {
+            case .noImage: String(localized: "This reference has no saved image.")
+            case .missingFile: String(localized: "The saved copy of this image is missing from the library.")
+            }
+        }
+    }
+
+    /// Loads a reference's saved image off the main thread.
+    @MainActor
+    static func load(_ reference: Reference, from library: AssetLibrary) async throws -> Loaded {
+        guard let asset = reference.asset else { throw ReferenceError.noImage }
+        let url = library.url(forRelativePath: asset.originalRelativePath)
+        do {
+            return try await Task.detached(priority: .userInitiated) { try ImageLoader.load(url) }.value
+        } catch {
+            if FileManager.default.fileExists(atPath: url.path) { throw error }
+            throw ReferenceError.missingFile
+        }
+    }
+}
+
+extension NoteBox {
+    /// The numbered boxes for an image's notes, in image pixels.
+    @MainActor
+    static func boxes(for notes: [ImageNote], in imageSize: CGSize) -> [NoteBox] {
+        notes.enumerated().map { index, note in
+            NoteBox(
+                id: note.id,
+                rect: NoteGeometry.pixelRect(x: note.x, y: note.y, width: note.width, height: note.height, in: imageSize),
+                number: index + 1
+            )
+        }
+    }
 }
 
 /// The viewer's side panel tabs.
@@ -80,15 +128,7 @@ struct ImageViewer: View {
 
     private var notes: [ImageNote] { reference.sortedImageNotes }
 
-    private var noteBoxes: [NoteBox] {
-        notes.enumerated().map { index, note in
-            NoteBox(
-                id: note.id,
-                rect: NoteGeometry.pixelRect(x: note.x, y: note.y, width: note.width, height: note.height, in: imageSize),
-                number: index + 1
-            )
-        }
-    }
+    private var noteBoxes: [NoteBox] { NoteBox.boxes(for: notes, in: imageSize) }
 
     /// Images in the same Project, newest first, as in the gallery.
     private var siblings: [Reference] {
@@ -277,17 +317,10 @@ struct ImageViewer: View {
     // MARK: Actions
 
     private func loadImage() async {
-        guard let asset = reference.asset else {
-            loadError = String(localized: "This reference has no saved image.")
-            return
-        }
-        let url = assetLibrary.url(forRelativePath: asset.originalRelativePath)
         do {
-            loaded = try await Task.detached(priority: .userInitiated) { try ImageLoader.load(url) }.value
+            loaded = try await ImageLoader.load(reference, from: assetLibrary)
         } catch {
-            loadError = FileManager.default.fileExists(atPath: url.path)
-                ? error.localizedDescription
-                : String(localized: "The saved copy of this image is missing from the library.")
+            loadError = error.localizedDescription
         }
     }
 
