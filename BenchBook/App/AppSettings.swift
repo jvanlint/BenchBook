@@ -25,6 +25,14 @@ nonisolated enum AppSettings {
         defaults.object(forKey: showsNoteBoxesKey) as? Bool ?? true
     }
 
+    /// When the library was last backed up, as seconds since 1970; 0 if never.
+    static let lastBackupKey = "lastBackupDate"
+
+    static func lastBackup(in defaults: UserDefaults = .standard) -> Date? {
+        let seconds = defaults.double(forKey: lastBackupKey)
+        return seconds > 0 ? Date(timeIntervalSince1970: seconds) : nil
+    }
+
     /// Whether Apple Intelligence suggests titles and notes for new images.
     static let suggestsImageDetailsKey = "suggestsImageDetails"
 

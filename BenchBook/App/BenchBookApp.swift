@@ -64,6 +64,8 @@ private extension View {
             .environment(\.imageSuggestionService, library.imageSuggestions)
             .environment(\.searchIndex, library.search)
             .environment(\.projectDirectory, library.projectDirectory)
+            .environment(\.libraryLocation, library.location)
+            .environment(\.restoreNotice, library.restoreNotice)
     }
 }
 

@@ -16,6 +16,10 @@ struct SettingsView: View {
                 LibrarySettings()
                     .frame(height: 600)
             }
+            Tab("Backup", systemImage: "externaldrive.badge.timemachine") {
+                BackupSettings()
+                    .frame(height: 520)
+            }
         }
         .frame(width: 520)
     }
@@ -178,5 +182,247 @@ private struct LibrarySettings: View {
         thumbnailStore?.clearThumbnails()
         status = String(localized: "Thumbnails cleared.")
         Task { await measure() }
+    }
+}
+
+/// Back up the library to one file, and restore one.
+private struct BackupSettings: View {
+    @Environment(\.modelContext) private var modelContext
+    @Environment(\.libraryLocation) private var location
+    @AppStorage(AppSettings.lastBackupKey) private var lastBackup: Double = 0
+
+    @State private var progress = BackupProgress()
+    @State private var isChecking = false
+    @State private var status: String?
+    @State private var restoreCandidate: BackupManifest?
+    @State private var previousLibraries: [URL] = []
+    @State private var libraryToTrash: URL?
+    @State private var errorMessage: String?
+
+    private var isBusy: Bool { progress.fraction != nil || isChecking }
+
+    var body: some View {
+        Form {
+            Section {
+                LabeledContent {
+                    Button("Back Up Library…", action: backUp)
+                        .disabled(isBusy || location == nil)
+                } label: {
+                    Text("Back up your library")
+                    Text("Saves every project, reference, note, paint and original file into one file. Keep it on another drive or in cloud storage.")
+                }
+                if let fraction = progress.fraction {
+                    ProgressView(value: fraction) {
+                        Text("Backing up…")
+                    }
+                }
+            } header: {
+                Text("Back Up")
+            } footer: {
+                Text(status ?? lastBackupText)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Restore") {
+                LabeledContent {
+                    Button("Restore from Backup…", action: chooseBackup)
+                        .disabled(isBusy || location == nil)
+                } label: {
+                    Text("Restore a backup")
+                    Text("Replaces this library with the backup. BenchBook checks the backup first, then quits and reopens to finish. The library you have now is kept.")
+                }
+                if isChecking {
+                    HStack {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Checking the backup…")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            if !previousLibraries.isEmpty {
+                Section {
+                    ForEach(previousLibraries, id: \.self) { url in
+                        LabeledContent(url.lastPathComponent) {
+                            Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+                            Button("Move to Trash…") { libraryToTrash = url }
+                        }
+                    }
+                } header: {
+                    Text("Kept from Before a Restore")
+                } footer: {
+                    Text("Each is the whole library as it was before a restore. Keep it until you're sure the restore has everything.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .onAppear(perform: listPreviousLibraries)
+        .confirmationDialog(
+            restoreTitle,
+            isPresented: Binding(get: { restoreCandidate != nil }, set: { if !$0 { cancelRestore() } }),
+            presenting: restoreCandidate
+        ) { manifest in
+            Button("Restore and Reopen") { confirmRestore(manifest) }
+            Button("Cancel", role: .cancel) { cancelRestore() }
+        } message: { manifest in
+            Text(restoreMessage(for: manifest))
+        }
+        .confirmationDialog(
+            "Move “\(libraryToTrash?.lastPathComponent ?? "")” to the Trash?",
+            isPresented: Binding(get: { libraryToTrash != nil }, set: { if !$0 { libraryToTrash = nil } }),
+            presenting: libraryToTrash
+        ) { url in
+            Button("Move to Trash", role: .destructive) { trash(url) }
+        } message: { _ in
+            Text("It's no longer needed once you're sure the restored library has everything.")
+        }
+        .alert(
+            "Something Went Wrong",
+            isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "")
+        }
+    }
+
+    private var lastBackupText: String {
+        guard let date = AppSettings.lastBackup() else { return String(localized: "Not backed up yet.") }
+        _ = lastBackup // Redraw when it changes.
+        return String(localized: "Last backed up \(date.formatted(date: .long, time: .shortened)).")
+    }
+
+    private var currentCounts: BackupManifest.Counts {
+        BackupManifest.Counts(
+            projects: (try? modelContext.fetchCount(FetchDescriptor<Project>())) ?? 0,
+            references: (try? modelContext.fetchCount(FetchDescriptor<Reference>())) ?? 0,
+            paints: (try? modelContext.fetchCount(FetchDescriptor<Paint>())) ?? 0
+        )
+    }
+
+    // MARK: Back up
+
+    private func backUp() {
+        guard let location else { return }
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.benchBookBackup]
+        panel.nameFieldStringValue = "BenchBook Backup \(Date.now.formatted(.iso8601.year().month().day()))"
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+
+        do {
+            try modelContext.save()
+        } catch {
+            errorMessage = error.localizedDescription
+            return
+        }
+        let counts = currentCounts
+        let version = CurrentSchema.versionIdentifier
+        let schemaVersion = "\(version.major).\(version.minor).\(version.patch)"
+        let appVersion = Bundle.main.shortVersion
+        let progress = progress
+        progress.fraction = 0
+        status = nil
+        Task {
+            do {
+                let manifest = try await Task.detached(priority: .userInitiated) {
+                    try LibraryBackup.backUp(
+                        location, to: destination, appVersion: appVersion, schemaVersion: schemaVersion, counts: counts
+                    ) { fraction in
+                        Task { @MainActor in progress.update(fraction) }
+                    }
+                }.value
+                lastBackup = manifest.createdAt.timeIntervalSince1970
+                status = String(localized: "Backed up \(Self.summary(manifest)) to “\(destination.lastPathComponent)”.")
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            progress.fraction = nil
+        }
+    }
+
+    /// e.g. "12 projects, 340 references and 1.2 GB of files".
+    private static func summary(_ manifest: BackupManifest) -> String {
+        let projects = AttributedString(localized: "^[\(manifest.counts.projects) project](inflect: true)").inflected()
+        let references = AttributedString(localized: "^[\(manifest.counts.references) reference](inflect: true)").inflected()
+        let size = manifest.totalSize.formatted(.byteCount(style: .file))
+        return String(localized: "\(String(projects.characters)), \(String(references.characters)) and \(size) of files")
+    }
+
+    // MARK: Restore
+
+    private func chooseBackup() {
+        guard let location else { return }
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.benchBookBackup]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let archive = panel.url else { return }
+
+        isChecking = true
+        status = nil
+        Task {
+            do {
+                restoreCandidate = try await LibraryRestore.prepare(archive, for: location)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isChecking = false
+        }
+    }
+
+    private var restoreTitle: String {
+        guard let date = restoreCandidate?.createdAt else { return "" }
+        return String(localized: "Restore the Backup from \(date.formatted(date: .long, time: .shortened))?")
+    }
+
+    private func restoreMessage(for manifest: BackupManifest) -> String {
+        let now = currentCounts
+        let current = String(AttributedString(localized: "^[\(now.projects) project](inflect: true) and ^[\(now.references) reference](inflect: true)").inflected().characters)
+        return String(localized: "It has \(Self.summary(manifest)). It replaces your library now, with \(current); BenchBook keeps that in a folder beside it and lists it here. BenchBook will quit and reopen to finish.")
+    }
+
+    private func confirmRestore(_ manifest: BackupManifest) {
+        guard let location else { return }
+        restoreCandidate = nil
+        do {
+            try LibraryRestore.schedule(manifest, for: location)
+        } catch {
+            LibraryRestore.discard(for: location)
+            errorMessage = error.localizedDescription
+            return
+        }
+        LibraryRestore.relaunch { message in errorMessage = message }
+    }
+
+    private func cancelRestore() {
+        if let location, restoreCandidate != nil { LibraryRestore.discard(for: location) }
+        restoreCandidate = nil
+    }
+
+    // MARK: Earlier libraries
+
+    private func listPreviousLibraries() {
+        previousLibraries = location.map { LibraryRestore.previousLibraries(for: $0) } ?? []
+    }
+
+    private func trash(_ url: URL) {
+        do {
+            try FileManager.default.trashItem(at: url, resultingItemURL: nil)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        listPreviousLibraries()
+    }
+}
+
+/// How far a backup has got; nil when none is running.
+@Observable
+private final class BackupProgress {
+    var fraction: Double?
+
+    func update(_ value: Double) {
+        if fraction != nil { fraction = value }
     }
 }

@@ -12,6 +12,7 @@ struct ContentView: View {
     @Environment(\.assetLibrary) private var assetLibrary
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismissWindow) private var dismissWindow
+    @Environment(\.restoreNotice) private var restoreNotice
 
     @State private var selection: SidebarItem?
     @State private var editorRequest: ProjectEditorRequest?
@@ -135,6 +136,18 @@ struct ContentView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(transferError ?? "")
+        }
+        .alert(
+            restoreNotice?.outcome.map { Self.restoreTitle($0) } ?? "",
+            isPresented: Binding(get: { restoreNotice?.outcome != nil }, set: { if !$0 { restoreNotice?.dismiss() } }),
+            presenting: restoreNotice?.outcome
+        ) { outcome in
+            if case .restored(_, let previous) = outcome {
+                Button("Show Earlier Library") { NSWorkspace.shared.activateFileViewerSelecting([previous]) }
+            }
+            Button("OK", role: .cancel) {}
+        } message: { outcome in
+            Text(Self.restoreMessage(outcome))
         }
         .focusedSceneValue(\.projectActions, editorRequest == nil ? projectActions : nil)
         .onAppear(perform: restoreSelection)
@@ -282,6 +295,22 @@ struct ContentView: View {
             AccessibilityNotification.Announcement(notice.message).post()
         } catch {
             transferError = error.localizedDescription
+        }
+    }
+
+    private static func restoreTitle(_ outcome: LibraryRestore.Outcome) -> String {
+        switch outcome {
+        case .restored: String(localized: "Library Restored")
+        case .failed: String(localized: "Restore Didn't Finish")
+        }
+    }
+
+    private static func restoreMessage(_ outcome: LibraryRestore.Outcome) -> String {
+        switch outcome {
+        case .restored(let date, let previous):
+            String(localized: "Your library is back as it was on \(date.formatted(date: .long, time: .shortened)). The library you had before is kept in “\(previous.lastPathComponent)”, also listed in Settings › Backup.")
+        case .failed(let message):
+            message
         }
     }
 

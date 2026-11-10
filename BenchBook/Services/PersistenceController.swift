@@ -29,6 +29,13 @@ enum PersistenceController {
         )
     }
 
+    /// The on-disk store and file library, for backup and restore. Nil while
+    /// tests run, as their store is in memory.
+    static var location: LibraryLocation? {
+        guard !isRunningTests else { return nil }
+        return LibraryLocation(storeURL: defaultConfiguration.url, libraryURL: makeAssetLibrary().rootURL)
+    }
+
     /// Where original files live, next to the store.
     static func makeAssetLibrary() -> AssetLibrary {
         if isRunningTests {

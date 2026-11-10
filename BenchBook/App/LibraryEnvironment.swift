@@ -12,8 +12,14 @@ final class LibraryEnvironment {
     let search: SearchIndex
     /// Nil for tests and debug stores, which don't take part in sharing.
     let projectDirectory: ProjectDirectory?
+    /// Nil for tests, whose store is in memory.
+    let location: LibraryLocation?
+    let restoreNotice: RestoreNotice
 
     init() throws {
+        // A restore confirmed before relaunch replaces the library before it opens.
+        location = PersistenceController.location
+        restoreNotice = RestoreNotice(location.flatMap { LibraryRestore.finishPending(for: $0) })
         container = try PersistenceController.makeContainer()
         assetLibrary = PersistenceController.makeAssetLibrary()
         thumbnails = ThumbnailStore(library: assetLibrary)
@@ -42,4 +48,6 @@ extension EnvironmentValues {
     @Entry var imageSuggestionService: ImageSuggestionService?
     @Entry var searchIndex: SearchIndex?
     @Entry var projectDirectory: ProjectDirectory?
+    @Entry var libraryLocation: LibraryLocation?
+    @Entry var restoreNotice: RestoreNotice?
 }

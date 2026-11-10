@@ -71,6 +71,15 @@ BenchBook › Settings… (⌘,):
 - **General:** turn off automatic fetching of webpage previews and video details, the only network access BenchBook makes on its own. Refresh on a link still fetches when asked; turning it back on catches up on links saved meanwhile.
 - **Image viewer and projects** (also on General): open images at Fit to Window or Actual Size; whether note boxes show when an image opens (⌘B still toggles them for that image); and the status new projects start with.
 - **Library:** where the library is stored (Show in Finder), how much space saved files, thumbnails and previews use, Clean Up Now (removes files nothing uses, as at launch) and Clear Thumbnails (they're made again when shown).
+- **Backup:** Back Up Library… and Restore from Backup… (see below).
+
+## Backup and restore
+
+**Back Up Library…** (Settings › Backup) saves the whole library as one `.benchbookbackup` file: a consistent copy of the database, taken even while BenchBook is open, plus every original file and video poster. A checksum is recorded for each file. Thumbnails are left out, because they're made again when shown. The file is an Apple Archive, so it needs nothing beyond macOS.
+
+**Restore from Backup…** unpacks the backup beside the library and checks every file against its checksum. It refuses a backup with anything changed, missing or extra, or with links. It also confirms this BenchBook can open the backup's database; one from an older version is upgraded as usual. Only then does it ask to replace the library. BenchBook then quits and reopens, and swaps the libraries before the new one opens.
+
+The library you had is moved to a folder beside it, named like `BenchBook Before Restore 2026-11-10 15.30.12`, and listed in Settings › Backup to show in Finder or move to the Trash. If any step of the swap fails, every move is undone and the current library is left as it was.
 
 ## Using the Share menu
 
