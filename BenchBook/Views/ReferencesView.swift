@@ -38,6 +38,15 @@ struct ReferencesView: View {
     @State private var pendingDeletion: [Reference] = []
     @State private var errorMessage: String?
     @State private var scrollTarget: UUID?
+    /// The rectangle being dragged to select tiles, in grid coordinates.
+    @State private var selectionRect: CGRect?
+    /// Tile positions and the drag in progress, kept out of view state.
+    @State private var marquee = GalleryMarquee()
+    @State private var scrollPosition = ScrollPosition()
+    /// So empty space below the last row can start a selection rectangle.
+    @State private var viewportHeight: CGFloat = 0
+
+    private static let gridSpace = "referenceGrid"
 
     init(project: Project, filter: Binding<ReferenceFilter>, revealID: Binding<UUID?>,
          onAddFiles: @escaping () -> Void, onNewNote: @escaping () -> Void) {
@@ -149,16 +158,51 @@ struct ReferencesView: View {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 180, maximum: 260), spacing: 16)], spacing: 16) {
                 ForEach(visibleReferences) { reference in
                     tile(reference)
+                        // Where each tile is, for selection rectangles. Kept
+                        // after it scrolls away, as the rectangle may still reach it.
+                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.gridSpace)) } action: { frame in
+                            marquee.frames[reference.id] = frame
+                        }
+                        .onAppear { marquee.onScreen.insert(reference.id) }
+                        .onDisappear { marquee.onScreen.remove(reference.id) }
                 }
             }
             .padding(20)
-            // Clicking between tiles clears the selection.
+            .frame(maxWidth: .infinity, minHeight: viewportHeight, alignment: .top)
+            // Clicking between tiles clears the selection; dragging there
+            // draws a selection rectangle.
             .background {
                 Color.clear
                     .contentShape(Rectangle())
                     .onTapGesture { clearSelection() }
+                    .gesture(selectionDrag)
             }
+            .overlay(alignment: .topLeading) {
+                if let selectionRect {
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.15))
+                        .overlay(Rectangle().strokeBorder(Color.secondary.opacity(0.7), lineWidth: 1))
+                        .frame(width: selectionRect.width, height: selectionRect.height)
+                        .offset(x: selectionRect.minX, y: selectionRect.minY)
+                        .allowsHitTesting(false)
+                }
+            }
+            .coordinateSpace(.named(Self.gridSpace))
         }
+        .scrollPosition($scrollPosition)
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
+        } action: { _, height in
+            viewportHeight = height
+        }
+        .onScrollGeometryChange(for: ScrollGeometry.self) { $0 } action: { _, geometry in
+            marquee.scroll = geometry
+        }
+        // Positions of tiles out of view are out of date once the layout changes.
+        .onScrollGeometryChange(for: CGFloat.self) { $0.containerSize.width } action: { _, _ in
+            marquee.forgetOffscreenFrames()
+        }
+        .onChange(of: visibleReferences.map(\.id)) { marquee.forgetOffscreenFrames() }
         .onCommand(#selector(NSResponder.selectAll(_:))) {
             selection = Set(visibleReferences.map(\.id))
         }
@@ -267,6 +311,97 @@ struct ReferencesView: View {
     private func clearSelection() {
         selection = []
         anchorID = nil
+    }
+
+    // MARK: Selection rectangle
+
+    /// Dragging across empty space selects the tiles the rectangle touches:
+    /// ⇧ adds them to the selection, ⌘ flips them, Esc cancels.
+    private var selectionDrag: some Gesture {
+        DragGesture(minimumDistance: 3, coordinateSpace: .named(Self.gridSpace))
+            .onChanged { value in dragSelection(from: value.startLocation, to: value.location) }
+            .onEnded { _ in endDragSelection() }
+    }
+
+    private func dragSelection(from start: CGPoint, to point: CGPoint) {
+        if marquee.drag == nil { beginDragSelection(at: start) }
+        guard var drag = marquee.drag, !drag.isCancelled else { return }
+        drag.pointerX = point.x
+        drag.pointerYInView = point.y - (marquee.scroll?.visibleRect.minY ?? 0)
+        marquee.drag = drag
+        updateDragSelection(to: point)
+        startAutoscroll()
+    }
+
+    private func beginDragSelection(at start: CGPoint) {
+        let flags = NSEvent.modifierFlags
+        marquee.drag = GalleryMarquee.Drag(
+            start: start,
+            base: selection,
+            mode: SelectionRectangle.Mode(command: flags.contains(.command), shift: flags.contains(.shift)),
+            pointerX: start.x,
+            pointerYInView: start.y - (marquee.scroll?.visibleRect.minY ?? 0)
+        )
+        marquee.keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard event.keyCode == 53 else { return event } // Escape
+            MainActor.assumeIsolated { cancelDragSelection() }
+            return nil
+        }
+    }
+
+    private func updateDragSelection(to point: CGPoint) {
+        guard let drag = marquee.drag else { return }
+        let rect = SelectionRectangle.rect(from: drag.start, to: point)
+        selectionRect = rect
+        let hits = SelectionRectangle.hits(rect, frames: marquee.frames, among: visibleReferences.map(\.id))
+        let updated = SelectionRectangle.selection(base: drag.base, hits: hits, mode: drag.mode)
+        if updated != selection { selection = updated }
+    }
+
+    /// Esc: puts back the selection from before the drag.
+    private func cancelDragSelection() {
+        guard var drag = marquee.drag else { return }
+        drag.isCancelled = true
+        marquee.drag = drag
+        selection = drag.base
+        selectionRect = nil
+        marquee.stop()
+    }
+
+    private func endDragSelection() {
+        marquee.stop()
+        marquee.drag = nil
+        selectionRect = nil
+    }
+
+    /// Scrolls while the pointer is held near or past the top or bottom,
+    /// growing the rectangle with it.
+    private func startAutoscroll() {
+        guard marquee.autoscroll == nil else { return }
+        marquee.autoscroll = Task {
+            while !Task.isCancelled, autoscrollStep() {
+                try? await Task.sleep(for: .milliseconds(16))
+            }
+            // A cancelled loop may already have been replaced by a newer one.
+            if !Task.isCancelled { marquee.autoscroll = nil }
+        }
+    }
+
+    /// One step of auto-scrolling; false once the pointer leaves the edges.
+    private func autoscrollStep() -> Bool {
+        guard let drag = marquee.drag, !drag.isCancelled, let scroll = marquee.scroll else { return false }
+        let visible = scroll.visibleRect
+        let pointerY = visible.minY + drag.pointerYInView
+        let step = SelectionRectangle.autoscrollStep(pointerY: pointerY, visibleMinY: visible.minY, visibleMaxY: visible.maxY)
+        guard step != 0 else { return false }
+        let lowest = -scroll.contentInsets.top
+        let highest = max(lowest, scroll.contentSize.height + scroll.contentInsets.bottom - scroll.containerSize.height)
+        let offset = min(max(scroll.contentOffset.y + step, lowest), highest)
+        if offset != scroll.contentOffset.y {
+            scrollPosition.scrollTo(y: offset)
+            updateDragSelection(to: CGPoint(x: drag.pointerX, y: pointerY + offset - scroll.contentOffset.y))
+        }
+        return true
     }
 
     // MARK: Tags
@@ -498,5 +633,40 @@ struct ReferencesView: View {
             }
         }
         selection.subtract(chosen.map(\.id))
+    }
+}
+
+/// What rectangle selection needs between updates. Not observed, so tiles
+/// appearing and the gallery scrolling don't redraw it.
+private final class GalleryMarquee {
+    struct Drag {
+        let start: CGPoint
+        /// The selection when the drag began.
+        let base: Set<UUID>
+        let mode: SelectionRectangle.Mode
+        var pointerX: CGFloat
+        /// From the top of the visible area, so auto-scrolling moves the point.
+        var pointerYInView: CGFloat
+        var isCancelled = false
+    }
+
+    /// Tile frames in grid coordinates.
+    var frames: [UUID: CGRect] = [:]
+    var onScreen = Set<UUID>()
+    var scroll: ScrollGeometry?
+    var drag: Drag?
+    var keyMonitor: Any?
+    var autoscroll: Task<Void, Never>?
+
+    func forgetOffscreenFrames() {
+        frames = frames.filter { onScreen.contains($0.key) }
+    }
+
+    /// Ends auto-scrolling and stops watching for Esc.
+    func stop() {
+        autoscroll?.cancel()
+        autoscroll = nil
+        if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        keyMonitor = nil
     }
 }
