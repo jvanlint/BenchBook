@@ -24,3 +24,6 @@ fastlane/test_output
 # Local only: design docs and release scripts
 /docs/
 /scripts/
+
+# Local only: the website, its own repository
+/website/
