@@ -1,9 +1,26 @@
 import SwiftUI
 
+/// How a gallery tile shows that it's selected, as in Finder: every
+/// selected tile in the accent colour while the gallery is active, and in
+/// grey when it isn't.
+enum TileHighlight: Equatable {
+    case none
+    case emphasized
+    case unemphasized
+
+    init(isSelected: Bool, galleryIsActive: Bool) {
+        self = !isSelected ? .none : galleryIsActive ? .emphasized : .unemphasized
+    }
+}
+
 /// One Reference in the gallery: preview, title, type and tags.
 struct ReferenceTile: View {
     let reference: Reference
-    let isSelected: Bool
+    var highlight: TileHighlight = .none
+
+    private var isSelected: Bool { highlight != .none }
+    /// Text on the accent colour is white.
+    private var isOnAccent: Bool { highlight == .emphasized }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -18,26 +35,35 @@ struct ReferenceTile: View {
 
             Text(reference.displayTitle)
                 .lineLimit(2)
+                .foregroundStyle(isOnAccent ? AnyShapeStyle(Self.textOnAccent) : AnyShapeStyle(.primary))
 
             Label(typeLine, systemImage: reference.kind?.systemImage ?? "questionmark.square")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(isOnAccent ? AnyShapeStyle(Self.textOnAccent.opacity(0.8)) : AnyShapeStyle(.secondary))
                 .lineLimit(1)
 
             if !reference.tags.isEmpty {
                 TagChips(tags: reference.tags)
                     .padding(.top, 2)
+                    .environment(\.backgroundProminence, isOnAccent ? .increased : .standard)
             }
         }
         .padding(8)
-        .background(
-            isSelected ? AnyShapeStyle(.selection) : AnyShapeStyle(.clear),
-            in: RoundedRectangle(cornerRadius: 10)
-        )
+        .background(highlightColor, in: RoundedRectangle(cornerRadius: 10))
         .contentShape(RoundedRectangle(cornerRadius: 10))
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    private static let textOnAccent = Color(nsColor: .alternateSelectedControlTextColor)
+
+    private var highlightColor: Color {
+        switch highlight {
+        case .none: .clear
+        case .emphasized: Color(nsColor: .selectedContentBackgroundColor)
+        case .unemphasized: Color(nsColor: .unemphasizedSelectedContentBackgroundColor)
+        }
     }
 
     /// e.g. "Image", "Video · 1:30", "Webpage · example.com".

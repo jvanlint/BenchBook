@@ -23,9 +23,14 @@ struct ReferencesView: View {
     @Environment(\.linkInfoService) private var linkInfoService
     @Environment(\.openWindow) private var openWindow
     @Environment(\.transferReferences) private var transferReferences
+    @Environment(\.appearsActive) private var appearsActive
 
     /// The tile with keyboard focus.
     @FocusState private var focusedID: UUID?
+    /// The last click in this window was in the gallery, so its selection
+    /// shows in the accent colour. Keyboard focus can't be used for this:
+    /// macOS doesn't keep it on the gallery after a drag across empty space.
+    @State private var galleryWasClicked = false
     /// Selected tiles. ⌘-click adds or removes one, ⇧-click selects a range.
     @State private var selection = Set<UUID>()
     /// Where a ⇧-click range starts.
@@ -189,6 +194,13 @@ struct ReferencesView: View {
             }
             .coordinateSpace(.named(Self.gridSpace))
         }
+        .background { ViewAnchor { marquee.galleryView = $0 } }
+        .onAppear(perform: watchClicks)
+        .onDisappear { marquee.stopWatchingClicks() }
+        .onChange(of: focusedID) { old, new in
+            // Focus moving from a tile to somewhere else, e.g. ⌘F to search.
+            if old != nil, new == nil { galleryWasClicked = false }
+        }
         .scrollPosition($scrollPosition)
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
             geometry.containerSize.height - geometry.contentInsets.top - geometry.contentInsets.bottom
@@ -222,7 +234,10 @@ struct ReferencesView: View {
     }
 
     private func tile(_ reference: Reference) -> some View {
-        ReferenceTile(reference: reference, isSelected: selection.contains(reference.id))
+        ReferenceTile(
+            reference: reference,
+            highlight: TileHighlight(isSelected: selection.contains(reference.id), galleryIsActive: galleryIsActive)
+        )
             .overlay {
                 if tagDropTargetID == reference.id {
                     RoundedRectangle(cornerRadius: 10)
@@ -277,6 +292,12 @@ struct ReferencesView: View {
 
     // MARK: Selection
 
+    /// Whether selected tiles show in the accent colour: the window is in
+    /// front and keyboard focus is in the gallery, not the search field or sidebar.
+    private var galleryIsActive: Bool {
+        appearsActive && (focusedID != nil || galleryWasClicked || selectionRect != nil)
+    }
+
     /// Selected References in grid order.
     private var selectedReferences: [Reference] {
         visibleReferences.filter { selection.contains($0.id) }
@@ -311,6 +332,23 @@ struct ReferencesView: View {
     private func clearSelection() {
         selection = []
         anchorID = nil
+    }
+
+    // MARK: Gallery activity
+
+    /// Notes whether each click in this window lands in the gallery.
+    private func watchClicks() {
+        marquee.stopWatchingClicks()
+        marquee.clickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { event in
+            MainActor.assumeIsolated {
+                if let gallery = marquee.galleryView, event.window === gallery.window {
+                    let point = gallery.convert(event.locationInWindow, from: nil)
+                    let inside = gallery.bounds.contains(point)
+                    if galleryWasClicked != inside { galleryWasClicked = inside }
+                }
+            }
+            return event
+        }
     }
 
     // MARK: Selection rectangle
@@ -370,6 +408,10 @@ struct ReferencesView: View {
 
     private func endDragSelection() {
         marquee.stop()
+        // Like Finder, keyboard focus moves into what was selected.
+        if marquee.drag?.isCancelled == false, let first = selectedReferences.first {
+            anchorID = first.id
+        }
         marquee.drag = nil
         selectionRect = nil
     }
@@ -657,6 +699,14 @@ private final class GalleryMarquee {
     var drag: Drag?
     var keyMonitor: Any?
     var autoscroll: Task<Void, Never>?
+    /// The AppKit view behind the gallery, for telling where clicks land.
+    weak var galleryView: NSView?
+    var clickMonitor: Any?
+
+    func stopWatchingClicks() {
+        if let clickMonitor { NSEvent.removeMonitor(clickMonitor) }
+        clickMonitor = nil
+    }
 
     func forgetOffscreenFrames() {
         frames = frames.filter { onScreen.contains($0.key) }
@@ -669,4 +719,17 @@ private final class GalleryMarquee {
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
         keyMonitor = nil
     }
+}
+
+/// Hands over the AppKit view it's placed behind, once it's in a window.
+private struct ViewAnchor: NSViewRepresentable {
+    let onView: (NSView) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async { onView(view) }
+        return view
+    }
+
+    func updateNSView(_ view: NSView, context: Context) {}
 }

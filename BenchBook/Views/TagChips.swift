@@ -59,12 +59,15 @@ extension View {
 /// is darkened toward black; in dark mode it gets a faint shadow.
 /// A partial pill (a tag on only some selected items) is paler and dashed;
 /// a selected one (an active filter) is fuller with a thicker border.
+/// On a selected background (increased prominence, e.g. a highlighted
+/// tile) the tint sits on a solid base, so it isn't mixed with the accent.
 struct TagPillStyle: ViewModifier {
     let color: Color
     var isPartial = false
     var isSelected = false
 
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.backgroundProminence) private var prominence
 
     func body(content: Content) -> some View {
         let isDark = colorScheme == .dark
@@ -74,6 +77,10 @@ struct TagPillStyle: ViewModifier {
                 : color.mix(with: .black, by: isSelected ? 0.5 : 0.4))
             .shadow(color: .black.opacity(isDark ? 0.35 : 0.12), radius: 0.5, x: 0, y: 0.5)
             .background(color.opacity(fillOpacity(isDark: isDark)), in: Capsule())
+            .background(
+                prominence == .increased ? Color(nsColor: .controlBackgroundColor) : .clear,
+                in: Capsule()
+            )
             .overlay(
                 Capsule().strokeBorder(
                     color.opacity(isDark ? 0.75 : 0.85),
