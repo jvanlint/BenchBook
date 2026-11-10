@@ -27,6 +27,51 @@ nonisolated struct ItemProviderReader {
     /// when the sheet closes. The app imports dropped files directly.
     let copiesFileURLs: Bool
 
+    /// Reads one shared `NSExtensionItem`. Apps use its content text for
+    /// either the page title or the selected text, so that's decided from
+    /// what else is attached.
+    func read(attachments: [NSItemProvider], title: String?, contentText: String?) async -> Result {
+        Self.log.notice("Shared item offering: \(attachments.map(\.registeredTypeIdentifiers), privacy: .public)")
+        let (providers, title) = Self.sharedProviders(attachments: attachments, title: title, contentText: contentText)
+        return await read(providers, title: title)
+    }
+
+    /// The providers to read and the page title, from a shared item's parts.
+    /// - Content text with text already attached is the same selection again.
+    /// - A single line shared with a link or file, and no title, is the title.
+    /// - Otherwise it's the text being shared.
+    static func sharedProviders(attachments: [NSItemProvider], title: String?,
+                                contentText: String?) -> (providers: [NSItemProvider], title: String?) {
+        let title = title.flatMap(singleLine)
+        guard let content = contentText, !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return (attachments, title)
+        }
+        if attachments.contains(where: carriesText) {
+            return (attachments, title)
+        }
+        if title == nil, !attachments.isEmpty, let line = singleLine(content) {
+            return (attachments, line)
+        }
+        if let title, singleLine(content) == title {
+            return (attachments, title)
+        }
+        return (attachments + [NSItemProvider(object: content as NSString)], title)
+    }
+
+    /// Types a selection of text arrives as, plainest first.
+    static let textTypes: [UTType] = [.plainText, .rtf, .rtfd, .flatRTFD, .html]
+
+    private static func carriesText(_ provider: NSItemProvider) -> Bool {
+        textTypes.contains { provider.hasItemConformingToTypeIdentifier($0.identifier) }
+    }
+
+    /// Nil for blank or multi-line text, which isn't a usable title.
+    private static func singleLine(_ text: String) -> String? {
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, !value.contains(where: \.isNewline), value.count <= 300 else { return nil }
+        return value
+    }
+
     /// Reads one group of providers, such as one `NSExtensionItem` or one
     /// drop. `title` is a page title supplied alongside, if any.
     func read(_ providers: [NSItemProvider], title: String? = nil) async -> Result {
@@ -75,11 +120,10 @@ nonisolated struct ItemProviderReader {
                 } else {
                     links.append((url, nil))
                 }
-            } else if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier),
-                      let text = await loadText(provider) {
+            } else if Self.carriesText(provider), let text = await loadText(provider) {
                 if let url = Self.singleWebURL(in: text) {
                     links.append((url, nil))
-                } else {
+                } else if !texts.contains(text) {
                     texts.append(text)
                 }
             } else {
@@ -166,16 +210,29 @@ nonisolated struct ItemProviderReader {
         return url
     }
 
+    /// Plain text if offered, otherwise the text of rich text or HTML.
     private func loadText(_ provider: NSItemProvider) async -> String? {
-        guard let item = try? await provider.loadItem(forTypeIdentifier: UTType.plainText.identifier) else { return nil }
-        let text: String? = switch item {
-        case let string as String: string
-        case let attributed as NSAttributedString: attributed.string
-        case let data as Data: String(data: data, encoding: .utf8)
-        default: nil
+        for type in Self.textTypes where provider.hasItemConformingToTypeIdentifier(type.identifier) {
+            guard let item = try? await provider.loadItem(forTypeIdentifier: type.identifier) else { continue }
+            let text: String? = switch item {
+            case let string as String: string
+            case let attributed as NSAttributedString: attributed.string
+            case let data as Data: Self.text(from: data, type: type)
+            default: nil
+            }
+            if let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return text }
         }
-        guard let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-        return text
+        return nil
+    }
+
+    private static func text(from data: Data, type: UTType) -> String? {
+        if type.conforms(to: .plainText) { return String(data: data, encoding: .utf8) }
+        let documentType: NSAttributedString.DocumentType = switch type {
+        case .html: .html
+        case .rtfd, .flatRTFD: .rtfd
+        default: .rtf
+        }
+        return try? NSAttributedString(data: data, options: [.documentType: documentType], documentAttributes: nil).string
     }
 
     /// Copies the provider's file for `type` before the system deletes it.

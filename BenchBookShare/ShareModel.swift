@@ -55,18 +55,11 @@ final class ShareModel {
 
         let reader = ItemProviderReader(fileDirectory: folder, copiesFileURLs: true)
         for item in extensionItems {
-            var providers = item.attachments ?? []
-            var title = item.attributedTitle?.string.trimmedSingleLine
-            // Some apps put the page title in the content text, others the selected text.
-            if let content = item.attributedContentText?.string,
-               !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                if title == nil, let short = content.trimmedSingleLine {
-                    title = short
-                } else if content.trimmedSingleLine != title {
-                    providers.append(NSItemProvider(object: content as NSString))
-                }
-            }
-            let result = await reader.read(providers, title: title)
+            let result = await reader.read(
+                attachments: item.attachments ?? [],
+                title: item.attributedTitle?.string,
+                contentText: item.attributedContentText?.string
+            )
             items += result.items
             skipped += result.skipped
         }
@@ -126,14 +119,5 @@ final class ShareModel {
         configuration.activates = false
         configuration.addsToRecentItems = false
         NSWorkspace.shared.openApplication(at: appURL, configuration: configuration)
-    }
-}
-
-private extension String {
-    /// Nil for blank or multi-line text, which isn't a usable title.
-    var trimmedSingleLine: String? {
-        let value = trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !value.isEmpty, !value.contains(where: \.isNewline), value.count <= 300 else { return nil }
-        return value
     }
 }

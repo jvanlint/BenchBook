@@ -85,6 +85,70 @@ struct CaptureHandoffTests {
         #expect(result.items == [.text("Main gear bay is white.", sourceURL: URL(string: "https://example.com/f16"), title: "F-16 Walkaround")])
     }
 
+    /// Highlighted text shared from a browser comes as both the content text
+    /// and an attachment, often with no title.
+    @Test func sharedSelectionIsKeptWithoutATitle() async throws {
+        let folder = try TemporaryFolder()
+        let reader = ItemProviderReader(fileDirectory: folder.url, copiesFileURLs: true)
+
+        let attached = await reader.read(
+            attachments: [NSItemProvider(object: "Main gear bay is white." as NSString)],
+            title: nil, contentText: "Main gear bay is white."
+        )
+        #expect(attached.items == [.text("Main gear bay is white.", sourceURL: nil, title: nil)])
+
+        let contentOnly = await reader.read(attachments: [], title: nil, contentText: "Main gear bay is white.")
+        #expect(contentOnly.items == [.text("Main gear bay is white.", sourceURL: nil, title: nil)])
+
+        // Safari: a long selection as content text only, with no title or attachments.
+        let long = String(repeating: "The main gear bay is white, the struts are too. ", count: 16)
+        let safari = await reader.read(attachments: [], title: nil, contentText: long)
+        #expect(safari.items == [.text(long, sourceURL: nil, title: nil)])
+
+        let withPage = await reader.read(
+            attachments: [
+                NSItemProvider(object: NSURL(string: "https://example.com/f16")!),
+                NSItemProvider(object: "Main gear bay is white." as NSString),
+            ],
+            title: nil, contentText: "Main gear bay is white."
+        )
+        #expect(withPage.items == [.text("Main gear bay is white.", sourceURL: URL(string: "https://example.com/f16"), title: nil)])
+    }
+
+    /// Sharing a page puts its title in the content text.
+    @Test func sharedPageUsesContentTextAsTitle() async throws {
+        let folder = try TemporaryFolder()
+        let reader = ItemProviderReader(fileDirectory: folder.url, copiesFileURLs: true)
+        let result = await reader.read(
+            attachments: [NSItemProvider(object: NSURL(string: "https://example.com/f16")!)],
+            title: nil, contentText: "F-16 Walkaround"
+        )
+        #expect(result.items == [.link(url: URL(string: "https://example.com/f16")!, title: "F-16 Walkaround")])
+
+        let note = await reader.read(
+            attachments: [NSItemProvider(object: NSURL(string: "https://example.com/f16")!)],
+            title: "F-16 Walkaround", contentText: "Gear bay is white.\nStruts are too."
+        )
+        #expect(note.items == [.text("Gear bay is white.\nStruts are too.", sourceURL: URL(string: "https://example.com/f16"), title: "F-16 Walkaround")])
+    }
+
+    @Test func readerReadsRichTextSelections() async throws {
+        let folder = try TemporaryFolder()
+        let reader = ItemProviderReader(fileDirectory: folder.url, copiesFileURLs: true)
+        let rich = NSAttributedString(string: "Main gear bay is white.", attributes: [.font: NSFont.boldSystemFont(ofSize: 12)])
+        let rtf = try rich.data(from: NSRange(location: 0, length: rich.length),
+                                documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf])
+        let provider = NSItemProvider()
+        provider.registerDataRepresentation(forTypeIdentifier: UTType.rtf.identifier, visibility: .all) { completion in
+            completion(rtf, nil)
+            return nil
+        }
+
+        let result = await reader.read(attachments: [provider], title: nil, contentText: nil)
+
+        #expect(result.items == [.text("Main gear bay is white.", sourceURL: nil, title: nil)])
+    }
+
     @Test func readerTreatsLinkTextAsLinkAndCopiesFiles() async throws {
         let folder = try TemporaryFolder()
         let outputs = folder.url.appending(path: "out")
