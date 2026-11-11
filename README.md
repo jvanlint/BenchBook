@@ -2,21 +2,24 @@
 
 A native macOS app for gathering and using scale-modelling research, organised by build Project.
 
+Current release: **1.0.0**. Download it from [Releases](https://github.com/jvanlint/BenchBook/releases/latest).
+
 ## Current scope
 
-What BenchBook does so far:
+What BenchBook 1.0 does:
 
 - Project sidebar, a create/edit sheet (name required), and a References / Paint / Aftermarket workspace.
 - Project status (Researching, In Progress, Paused, Completed), with a sidebar filter for one status or all projects.
-- Project deletion from the sidebar or the Project menu. It removes the project's references, image notes, paint list, aftermarket parts and their stored files; catalogue paints and tags are kept.
+- Project deletion from the sidebar or the Project menu. It removes the project's references, image notes, PDF markups, paint list, aftermarket parts and their stored files; catalogue paints and tags are kept.
 - References: images (JPEG, PNG, WebP, HEIC), PDFs, Markdown files, webpage links (with the page's preview image, site name and description), video links (YouTube timestamps become moments; YouTube and Vimeo links get their poster, title, channel, length, publish date and description), highlighted text snippets, and notes you write yourself (New Note, ⇧⌘N).
 - Capture by dragging onto the window or a sidebar project, pasting (⌘V), Add Files (⌘O), or the macOS Share menu (**BenchBook**), with optional tags and a note.
-- A gallery of tiles (preview, title, type, tags) with type and tag filters. Images open in a viewer window; other files open in Quick Look (Space previews anything); links open in the browser.
+- A gallery of tiles (preview, title, type, tags) with type and tag filters. Images and PDFs open in their own viewer windows; other files open in Quick Look (Space previews anything); links open in the browser.
 - Select several references by ⌘-clicking, ⇧-clicking a range, ⌘A, or dragging a selection rectangle across empty space, as in Finder (hold ⇧ to add to the selection or ⌘ to flip tiles in and out; Esc cancels; the gallery scrolls when you drag to its top or bottom edge).
-- Move or copy references to another project: right-click › Move to Project or Copy to Project, or drag tiles onto a project in the sidebar (hold Option to copy). Copies keep their tags, image notes and video moments, and share the stored file instead of duplicating it.
+- Move or copy references to another project: right-click › Move to Project or Copy to Project, or drag tiles onto a project in the sidebar (hold Option to copy). Copies keep their tags, image notes, PDF markups and video moments, and share the stored file instead of duplicating it.
 - Paints: a library-wide catalogue (add, edit, owned, CSV import and export, filter by brand, range and ownership), a shopping list of paints to buy that exports as text, and a per-project paint list with what each paint is used for and what still needs buying.
 - Aftermarket: each project's decals, resin, photo-etch and other parts, with type, status, scale or fit, product page, picture and notes.
 - Image notes: zoom and pan a photo, draw boxes around features, and attach a numbered note to each. The original image is never changed.
+- PDF markup: read a PDF with page thumbnails, zoom and find, and add numbered notes, highlights and arrows in six colours. Export Marked-Up Copy… saves a separate PDF with them drawn in. The original PDF is never changed.
 - Compare images side by side: select two to four images and choose Open Side by Side (or press Return). Each image zooms on its own; the Notes and Info panel follows the image you last clicked. Switch between a row and a grid, double-click an image to fill the window, and drag images in from any project's gallery to add or replace one.
 - Local SwiftData persistence, with originals copied byte-for-byte into an app-managed file library.
 
@@ -37,11 +40,12 @@ Why macOS 15: everything used now (SwiftData, `VersionedSchema`, `ContentUnavail
 ```text
 BenchBook/
   App/        App entry point, menu commands, LibraryEnvironment (shared services)
-  Models/     Versioned SwiftData schemas (V1–V10), migration plan, display helpers
+  Models/     SwiftData schema (V1, the 1.0 baseline), migration plan, display helpers
   Services/   Store setup, Project/Reference services, import, file checks,
               asset library, thumbnails, Share inbox
   Views/      Sidebar, workspace, references gallery, editors,
-              ImageViewer/ (viewer and comparison windows, zoomable canvas, notes panel)
+              ImageViewer/ (viewer and comparison windows, zoomable canvas, notes panel),
+              PDFViewer/ (viewer window, markup canvas and panel, export)
 Shared/       Code compiled into both the app and the Share extension
 BenchBookShare/  The Share extension (share sheet UI)
 BenchBookTests/  Swift Testing unit tests
@@ -52,7 +56,8 @@ Rules:
 - Views edit a `ProjectDraft` and hand it to `ProjectService`. The service validates the draft, normalises blank optional text to `nil`, updates `updatedAt` and saves explicitly.
 - Every capture path goes through `ReferenceImporter`. It checks file contents (not names), copies the original byte-for-byte into the asset library, then saves the Reference. Within a Project, an identical file is reported as already saved instead of being added twice.
 - The Share extension never writes to the library. It leaves an envelope (files plus JSON) in the App Group inbox, and `CaptureCoordinator` imports it when BenchBook is running. The extension starts BenchBook in the background after sending. The App Group also holds the Project list and the active Project shown in the share sheet.
-- Schemas are versioned (`BenchBookSchemaV1` to `BenchBookSchemaV10`, `BenchBookMigrationPlan`). Add a new schema and stage for each model change; never edit one that has shipped.
+- Schemas are versioned (`BenchBookSchemaV1`, `BenchBookMigrationPlan`). `BenchBookSchemaV1` is the model 1.0 shipped with. Add a new schema and stage for each model change; never edit one that has shipped.
+- Image notes and PDF markups are both `Markup` records. An image's are notes only, with boxes in fractions of the image from its top-left corner; a PDF's are in page points from the bottom left.
 - If the store fails to open, the app shows an error and leaves the store alone. It never deletes or resets it.
 
 Storage, inside `~/Library/Containers/com.jasonvanlint.BenchBook/Data/Library/Application Support/`:
@@ -114,6 +119,31 @@ In the image viewer:
 | ⌥⌘I | Show or hide the Notes and Info panel |
 
 When comparing images, the toolbar's zoom, Draw Box and ⌘[ / ⌘] act on the selected image, outlined in the accent colour; click another image to select it.
+
+In the PDF viewer:
+
+| Shortcut | Action |
+|---|---|
+| ⌘F | Find in the PDF |
+| ⌘G / ⇧⌘G | Next / previous match |
+| ⌥⌘↓ / ⌥⌘↑ | Next / previous page |
+| ⌘= / ⌘− | Zoom in / out |
+| ⌘9 / ⌘0 | Zoom to Fit / Actual Size |
+| ⌘B | Show or hide markups |
+| ⌫ | Delete the selected markup (asks first) |
+| Esc | Back to Select, and deselect |
+| ⇧⌘E | Export Marked-Up Copy… |
+| ⌘[ / ⌘] | Previous / next PDF in the project |
+| ⌥⌘I | Show or hide the Markups panel |
+
+## PDF markup
+
+Double-click a PDF to open it in its own window, with page thumbnails in the sidebar.
+
+- **Tools:** choose Note, Highlight or Arrow in the toolbar, with its colour beside it. Click to place a note and type straight away; drag to draw a highlight (hold ⇧ for a straight line) or an arrow. Choose Select to move markups by dragging them.
+- **Markups panel:** every markup, numbered and grouped by page, with its text. Highlights and arrows can have text too ("Paint XF-1 here"). Edit text in the panel, or right-click a markup on the page or in the panel to change its colour or delete it.
+- **Export:** Export Marked-Up Copy… (in the toolbar, or right-click a PDF in the gallery or search results) saves a new PDF with the markups drawn on each page. Notes show their text on the page; numbered highlights and arrows with text are listed on a Markup Notes page at the end.
+- Markups are saved in the library, not in the PDF, and are searchable.
 
 ## Paints
 
@@ -188,7 +218,7 @@ Each project's Aftermarket tab (⌘3) lists the parts for that build: name, manu
 
 ## Search
 
-The search field in the main window's toolbar (Edit › Find…, ⌘F) searches every project at once: project details, paints (including FS / RLM codes), aftermarket parts, and references' titles, text, notes, tags, file names, links, video channels, descriptions and moments, and the notes on boxes drawn on images. Every word must match, ignoring case, accents and punctuation ("f16" finds "F-16"). Typing part of a tag name suggests it as a token, which limits results to references with that tag. Results are grouped by project; a matching image box or video moment has its own row that opens the image zoomed to the box, or the video at that time. Right-click for Show in Project or Show in Paints.
+The search field in the main window's toolbar (Edit › Find…, ⌘F) searches every project at once: project details, paints (including FS / RLM codes), aftermarket parts, and references' titles, text, notes, tags, file names, links, video channels, descriptions and moments, the notes on boxes drawn on images, and the text of PDF markups. Every word must match, ignoring case, accents and punctuation ("f16" finds "F-16"). Typing part of a tag name suggests it as a token, which limits results to references with that tag. Results are grouped by project; a matching image box, PDF markup or video moment has its own row that opens the image zoomed to the box, the PDF at the markup, or the video at that time. Right-click for Show in Project or Show in Paints.
 
 Searchable text is prepared in memory (`SearchIndex`) and rebuilt after each save. Text inside PDFs and Markdown files, and text in images, isn't searched yet.
 
