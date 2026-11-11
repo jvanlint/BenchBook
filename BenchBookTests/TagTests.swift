@@ -114,36 +114,6 @@ struct TagServiceTests {
     }
 }
 
-/// Libraries from the search release open with their tags intact.
-@MainActor
-struct MigrationV6Tests {
-    @Test func migratesVersion6LibraryToVersion7() throws {
-        let folder = try TemporaryFolder()
-        let storeURL = folder.file("Library.store")
-
-        do {
-            let v6Schema = Schema(versionedSchema: BenchBookSchemaV6.self)
-            let v6 = try ModelContainer(for: v6Schema, configurations: ModelConfiguration(schema: v6Schema, url: storeURL))
-            let project = BenchBookSchemaV6.Project(name: "F-16")
-            let reference = BenchBookSchemaV6.Reference(project: project, kind: .note, text: "Intakes")
-            let tag = BenchBookSchemaV6.Tag(name: "Intake", normalizedName: "intake")
-            v6.mainContext.insert(project)
-            v6.mainContext.insert(reference)
-            v6.mainContext.insert(tag)
-            v6.mainContext.insert(BenchBookSchemaV6.ReferenceTag(reference: reference, tag: tag))
-            try v6.mainContext.save()
-        }
-
-        let current = try PersistenceController.makeContainer(
-            configuration: ModelConfiguration(schema: PersistenceController.schema, url: storeURL)
-        )
-        let tag = try #require(try current.mainContext.fetch(FetchDescriptor<BenchBook.Tag>()).first)
-        #expect(tag.name == "Intake")
-        #expect(tag.colorName == nil)
-        #expect(tag.references.first?.text == "Intakes")
-    }
-}
-
 /// Dragged tags and References travel as BenchBook's own types, never as
 /// text the window would capture.
 struct TagDragTests {

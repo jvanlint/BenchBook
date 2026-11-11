@@ -58,8 +58,8 @@ extension Project {
     /// "12 references, 3 image notes, 8 paints from its paint list and
     /// 2 aftermarket parts". Empty when the project holds nothing.
     var deletionSummary: String {
-        let noteCount = references.reduce(0) { $0 + $1.imageNotes.count }
-        let markupCount = references.reduce(0) { $0 + $1.markups.count }
+        let noteCount = references.reduce(0) { $0 + $1.sortedImageNotes.count }
+        let markupCount = references.reduce(0) { $0 + ($1.kind == .image ? 0 : $1.markups.count) }
         let parts = [
             references.isEmpty ? nil : Self.counted(AttributedString(localized: "^[\(references.count) reference](inflect: true)")),
             noteCount == 0 ? nil : Self.counted(AttributedString(localized: "^[\(noteCount) image note](inflect: true)")),

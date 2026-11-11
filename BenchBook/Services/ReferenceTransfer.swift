@@ -95,12 +95,6 @@ struct ReferenceTransfer {
                 title: moment.title, note: moment.note, createdAt: moment.createdAt
             ))
         }
-        for note in original.imageNotes {
-            context.insert(ImageNote(
-                reference: copy, x: note.x, y: note.y, width: note.width, height: note.height,
-                text: note.text, createdAt: note.createdAt
-            ))
-        }
         for markup in original.markups {
             context.insert(Markup(
                 reference: copy, pageIndex: markup.pageIndex, kindRaw: markup.kindRaw, colorName: markup.colorName,

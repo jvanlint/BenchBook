@@ -74,7 +74,7 @@ extension ImageLoader {
 extension NoteBox {
     /// The numbered boxes for an image's notes, in image pixels.
     @MainActor
-    static func boxes(for notes: [ImageNote], in imageSize: CGSize) -> [NoteBox] {
+    static func boxes(for notes: [Markup], in imageSize: CGSize) -> [NoteBox] {
         notes.enumerated().map { index, note in
             NoteBox(
                 id: note.id,
@@ -115,7 +115,7 @@ struct ImageViewer: View {
     /// Starts as set in Settings; ⌘B changes it for this image only.
     @State private var showsBoxes = AppSettings.showsNoteBoxes()
     @State private var noteToFocus: UUID?
-    @State private var notePendingDeletion: ImageNote?
+    @State private var notePendingDeletion: Markup?
     @State private var errorMessage: String?
 
     private var service: ImageNoteService { ImageNoteService(context: modelContext) }
@@ -126,7 +126,7 @@ struct ImageViewer: View {
         image.map { CGSize(width: $0.width, height: $0.height) } ?? .zero
     }
 
-    private var notes: [ImageNote] { reference.sortedImageNotes }
+    private var notes: [Markup] { reference.sortedImageNotes }
 
     private var noteBoxes: [NoteBox] { NoteBox.boxes(for: notes, in: imageSize) }
 
@@ -365,7 +365,7 @@ struct ImageViewer: View {
         }
     }
 
-    private func delete(_ note: ImageNote) {
+    private func delete(_ note: Markup) {
         if selection == note.id { selection = nil }
         do {
             try service.delete(note)

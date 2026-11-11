@@ -222,7 +222,7 @@ final class SearchIndex {
         for (index, note) in reference.sortedImageNotes.enumerated() {
             add(.imageNote(id: note.id, number: index + 1), note.text)
         }
-        for (index, markup) in reference.sortedMarkups.enumerated() {
+        for (index, markup) in (reference.kind == .image ? [] : reference.sortedMarkups).enumerated() {
             add(.markup(id: markup.id, number: index + 1, kind: markup.kind), markup.text)
         }
         for moment in reference.sortedVideoMoments {

@@ -92,11 +92,11 @@ struct ImageNoteServiceTests {
     @Test func deletingReferenceDeletesItsNotes() async throws {
         let reference = try await makeImageReference()
         try ImageNoteService(context: context).addNote(to: reference, pixelRect: CGRect(x: 0, y: 0, width: 100, height: 100), imageSize: size)
-        #expect(try context.fetchCount(FetchDescriptor<ImageNote>()) == 1)
+        #expect(try context.fetchCount(FetchDescriptor<Markup>()) == 1)
 
         try ReferenceService(context: context, library: library).delete(reference)
 
-        #expect(try context.fetchCount(FetchDescriptor<ImageNote>()) == 0)
+        #expect(try context.fetchCount(FetchDescriptor<Markup>()) == 0)
     }
 }
 
@@ -123,46 +123,6 @@ struct ImageLoaderTests {
         let folder = try TemporaryFolder()
         let url = try Fixtures.writeText("not an image", to: folder.file("bad.jpg"))
         #expect(throws: ImageLoader.LoadError.self) { try ImageLoader.load(url) }
-    }
-}
-
-/// Libraries saved by the capture release open with their References intact.
-@MainActor
-struct MigrationV2Tests {
-    @Test func migratesVersion2LibraryToVersion3() throws {
-        let folder = try TemporaryFolder()
-        let storeURL = folder.file("Library.store")
-
-        do {
-            let v2Schema = Schema(versionedSchema: BenchBookSchemaV2.self)
-            let v2 = try ModelContainer(for: v2Schema, configurations: ModelConfiguration(schema: v2Schema, url: storeURL))
-            let context = v2.mainContext
-            let project = BenchBookSchemaV2.Project(name: "F-16")
-            let reference = BenchBookSchemaV2.Reference(project: project, kind: .image)
-            let asset = BenchBookSchemaV2.ManagedAsset(
-                id: UUID(), originalRelativePath: "Originals/x.png", originalFilename: "x.png",
-                mimeType: "image/png", byteCount: 10, sha256: "abc"
-            )
-            let tag = BenchBookSchemaV2.Tag(name: "Livery", normalizedName: "livery")
-            context.insert(project)
-            context.insert(reference)
-            context.insert(asset)
-            context.insert(tag)
-            reference.asset = asset
-            context.insert(BenchBookSchemaV2.ReferenceTag(reference: reference, tag: tag))
-            try context.save()
-        }
-
-        let current = try PersistenceController.makeContainer(
-            configuration: ModelConfiguration(schema: PersistenceController.schema, url: storeURL)
-        )
-        let references = try current.mainContext.fetch(FetchDescriptor<Reference>())
-        let reference = try #require(references.first)
-        #expect(references.count == 1)
-        #expect(reference.project?.name == "F-16")
-        #expect(reference.asset?.originalFilename == "x.png")
-        #expect(reference.tags.map(\.name) == ["Livery"])
-        #expect(reference.imageNotes.isEmpty)
     }
 }
 

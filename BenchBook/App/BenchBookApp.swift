@@ -89,6 +89,12 @@ private struct LibraryErrorView: View {
             Text("BenchBook didn't change any of your data. Quit and reopen the app to try again.")
             Text(error.localizedDescription)
                 .textSelection(.enabled)
+        } actions: {
+            if let storeURL = PersistenceController.location?.storeURL {
+                Button("Show Library in Finder") {
+                    NSWorkspace.shared.activateFileViewerSelecting([storeURL])
+                }
+            }
         }
         .frame(minWidth: 480, minHeight: 320)
     }

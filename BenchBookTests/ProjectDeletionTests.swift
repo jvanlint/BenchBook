@@ -79,7 +79,7 @@ struct ProjectDeletionTests {
         // Only the other project's records and files remain.
         #expect(try context.fetch(FetchDescriptor<Project>()).map(\.name) == ["Spitfire"])
         #expect(try count(Reference.self) == 2)
-        #expect(try count(ImageNote.self) == 1)
+        #expect(try count(Markup.self) == 1)
         #expect(try count(ReferenceTag.self) == 1)
         #expect(try count(ProjectPaint.self) == 1)
         #expect(try count(AftermarketItem.self) == 1)

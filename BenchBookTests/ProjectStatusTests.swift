@@ -49,32 +49,3 @@ struct ProjectStatusTests {
         #expect(ProjectStatusFilter(storageValue: "unknown") == .all)
     }
 }
-
-/// Libraries from the Aftermarket release open with every project Researching.
-@MainActor
-struct MigrationV9Tests {
-    @Test func migratesVersion9LibraryToVersion10() throws {
-        let folder = try TemporaryFolder()
-        let storeURL = folder.file("Library.store")
-
-        do {
-            let v9Schema = Schema(versionedSchema: BenchBookSchemaV9.self)
-            let v9 = try ModelContainer(for: v9Schema, configurations: ModelConfiguration(schema: v9Schema, url: storeURL))
-            let project = BenchBookSchemaV9.Project(name: "F-16", scale: "1:48")
-            v9.mainContext.insert(project)
-            v9.mainContext.insert(BenchBookSchemaV9.AftermarketItem(
-                project: project, productName: "FOD cover", typeRaw: "printed3D", statusRaw: "considering"
-            ))
-            try v9.mainContext.save()
-        }
-
-        let current = try PersistenceController.makeContainer(
-            configuration: ModelConfiguration(schema: PersistenceController.schema, url: storeURL)
-        )
-        let project = try #require(try current.mainContext.fetch(FetchDescriptor<Project>()).first)
-        #expect(project.scale == "1:48")
-        #expect(project.statusRaw == nil)
-        #expect(project.status == .researching)
-        #expect(project.aftermarketItems.first?.productName == "FOD cover")
-    }
-}

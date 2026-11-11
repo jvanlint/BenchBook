@@ -57,7 +57,7 @@ struct ImageComparisonWindow: View {
     @AppStorage("imageViewer.inspectorTab") private var inspectorTab = ImageInspectorTab.notes
     @State private var dropTarget: DropTarget?
     @State private var showsAddSlot = false
-    @State private var notePendingDeletion: ImageNote?
+    @State private var notePendingDeletion: Markup?
     @State private var errorMessage: String?
 
     private enum DropTarget: Equatable {
@@ -441,7 +441,7 @@ struct ImageComparisonWindow: View {
         }
     }
 
-    private func delete(_ note: ImageNote) {
+    private func delete(_ note: Markup) {
         if let id = note.reference?.id {
             let pane = panes.pane(for: id)
             if pane.selection == note.id { pane.selection = nil }

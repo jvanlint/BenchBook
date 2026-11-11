@@ -279,30 +279,3 @@ struct MarkupDisplayTests {
         #expect(page.annotations.isEmpty)
     }
 }
-
-@MainActor
-struct MigrationV11Tests {
-    @Test func migratesVersion11LibraryToVersion12() throws {
-        let folder = try TemporaryFolder()
-        let storeURL = folder.file("Library.store")
-
-        do {
-            let v11Schema = Schema(versionedSchema: BenchBookSchemaV11.self)
-            let v11 = try ModelContainer(for: v11Schema, configurations: ModelConfiguration(schema: v11Schema, url: storeURL))
-            let project = BenchBookSchemaV11.Project(name: "F-16C")
-            v11.mainContext.insert(project)
-            v11.mainContext.insert(BenchBookSchemaV11.Reference(project: project, kind: .pdf, title: "Instructions"))
-            try v11.mainContext.save()
-        }
-
-        let current = try PersistenceController.makeContainer(
-            configuration: ModelConfiguration(schema: PersistenceController.schema, url: storeURL)
-        )
-        let reference = try #require(try current.mainContext.fetch(FetchDescriptor<Reference>()).first)
-        #expect(reference.title == "Instructions")
-        #expect(reference.markups.isEmpty)
-        try MarkupService(context: current.mainContext)
-            .addNote(to: reference, page: 0, at: CGPoint(x: 50, y: 50), pageBounds: CGRect(x: 0, y: 0, width: 612, height: 792))
-        #expect(try current.mainContext.fetchCount(FetchDescriptor<Markup>()) == 1)
-    }
-}

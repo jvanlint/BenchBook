@@ -71,7 +71,7 @@ struct ReferenceTile: View {
         let kindName = reference.kind?.displayName ?? String(localized: "Unknown Type")
         switch reference.kind {
         case .image:
-            let count = reference.imageNotes.count
+            let count = reference.markups.count
             if count > 0 {
                 return "\(kindName) · " + String(localized: "\(count) notes")
             }

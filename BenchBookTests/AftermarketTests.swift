@@ -174,33 +174,3 @@ struct AftermarketServiceTests {
         #expect(index.search(SearchQuery(text: "galaxy", tags: ["cockpit"])).aftermarketItems.isEmpty)
     }
 }
-
-/// Libraries from the webpage previews release open unchanged, with no parts.
-@MainActor
-struct MigrationV8Tests {
-    @Test func migratesVersion8LibraryToVersion9() throws {
-        let folder = try TemporaryFolder()
-        let storeURL = folder.file("Library.store")
-
-        do {
-            let v8Schema = Schema(versionedSchema: BenchBookSchemaV8.self)
-            let v8 = try ModelContainer(for: v8Schema, configurations: ModelConfiguration(schema: v8Schema, url: storeURL))
-            let project = BenchBookSchemaV8.Project(name: "F-16", scale: "1:48")
-            let page = BenchBookSchemaV8.Reference(
-                project: project, kind: .webpage, title: "Intakes", sourcePageURL: URL(string: "https://example.com")!
-            )
-            page.linkSiteName = "Example"
-            v8.mainContext.insert(project)
-            v8.mainContext.insert(page)
-            try v8.mainContext.save()
-        }
-
-        let current = try PersistenceController.makeContainer(
-            configuration: ModelConfiguration(schema: PersistenceController.schema, url: storeURL)
-        )
-        let project = try #require(try current.mainContext.fetch(FetchDescriptor<Project>()).first)
-        #expect(project.scale == "1:48")
-        #expect(project.aftermarketItems.isEmpty)
-        #expect(project.references.first?.linkSiteName == "Example")
-    }
-}

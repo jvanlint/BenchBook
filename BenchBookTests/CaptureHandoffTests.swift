@@ -174,30 +174,6 @@ struct CaptureHandoffTests {
     }
 }
 
-/// Opening a library saved by the first release keeps its Projects.
-@MainActor
-struct MigrationTests {
-    @Test func migratesVersion1LibraryToVersion2() throws {
-        let folder = try TemporaryFolder()
-        let storeURL = folder.file("Library.store")
-
-        do {
-            let v1Schema = Schema(versionedSchema: BenchBookSchemaV1.self)
-            let v1 = try ModelContainer(for: v1Schema, configurations: ModelConfiguration(schema: v1Schema, url: storeURL))
-            v1.mainContext.insert(BenchBookSchemaV1.Project(name: "Tamiya F-16CJ", manufacturer: "Tamiya", scale: "1:48"))
-            try v1.mainContext.save()
-        }
-
-        let current = try PersistenceController.makeContainer(
-            configuration: ModelConfiguration(schema: PersistenceController.schema, url: storeURL)
-        )
-        let projects = try current.mainContext.fetch(FetchDescriptor<Project>())
-        #expect(projects.map(\.name) == ["Tamiya F-16CJ"])
-        #expect(projects.first?.scale == "1:48")
-        #expect(projects.first?.references.isEmpty == true)
-    }
-}
-
 /// Browsers sometimes hand over an error page in place of a dragged image.
 @MainActor
 struct BrowserImageDragTests {

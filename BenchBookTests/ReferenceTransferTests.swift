@@ -48,7 +48,7 @@ struct ReferenceTransferTests {
         #expect(result.transferred.map(\.id) == [image.id, note.id])
         #expect(f16.references.isEmpty)
         #expect(Set(spitfire.references.map(\.id)) == [image.id, note.id])
-        #expect(image.imageNotes.count == 1)
+        #expect(image.markups.count == 1)
         #expect(image.tags.map(\.name) == ["Cockpit"])
         #expect(try context.fetchCount(FetchDescriptor<Reference>()) == 2)
         #expect(!context.hasChanges)
@@ -79,7 +79,7 @@ struct ReferenceTransferTests {
         let imageCopy = try #require(copies.first { $0.kind == .image })
         #expect(imageCopy.id != image.id)
         #expect(imageCopy.asset?.id == image.asset?.id)
-        #expect(imageCopy.imageNotes.count == 1)
+        #expect(imageCopy.markups.count == 1)
         #expect(imageCopy.tags.map(\.name) == ["Cockpit"])
         #expect(originals().count == 1)
 

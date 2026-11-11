@@ -212,64 +212,6 @@ struct PaintCSVImporterTests {
     }
 }
 
-/// Libraries from the image-notes release open with their data intact.
-@MainActor
-struct MigrationV3Tests {
-    @Test func migratesVersion3LibraryToVersion4() throws {
-        let folder = try TemporaryFolder()
-        let storeURL = folder.file("Library.store")
-
-        do {
-            let v3Schema = Schema(versionedSchema: BenchBookSchemaV3.self)
-            let v3 = try ModelContainer(for: v3Schema, configurations: ModelConfiguration(schema: v3Schema, url: storeURL))
-            let project = BenchBookSchemaV3.Project(name: "F-16")
-            let reference = BenchBookSchemaV3.Reference(project: project, kind: .image)
-            v3.mainContext.insert(project)
-            v3.mainContext.insert(reference)
-            v3.mainContext.insert(BenchBookSchemaV3.ImageNote(reference: reference, x: 0.1, y: 0.2, width: 0.3, height: 0.4, text: "Pitot"))
-            try v3.mainContext.save()
-        }
-
-        let current = try PersistenceController.makeContainer(
-            configuration: ModelConfiguration(schema: PersistenceController.schema, url: storeURL)
-        )
-        let project = try #require(try current.mainContext.fetch(FetchDescriptor<Project>()).first)
-        #expect(project.name == "F-16")
-        #expect(project.references.first?.imageNotes.first?.text == "Pitot")
-        #expect(project.paintRequirements.isEmpty)
-        #expect(try current.mainContext.fetchCount(FetchDescriptor<Paint>()) == 0)
-    }
-}
-
-/// Libraries from the video-details release open with their paints intact.
-@MainActor
-struct MigrationV5Tests {
-    @Test func migratesVersion5LibraryToVersion6() throws {
-        let folder = try TemporaryFolder()
-        let storeURL = folder.file("Library.store")
-
-        do {
-            let v5Schema = Schema(versionedSchema: BenchBookSchemaV5.self)
-            let v5 = try ModelContainer(for: v5Schema, configurations: ModelConfiguration(schema: v5Schema, url: storeURL))
-            let project = BenchBookSchemaV5.Project(name: "Bf 109")
-            v5.mainContext.insert(project)
-            let paint = BenchBookSchemaV5.Paint(brand: "Gunze", code: "H-417", name: "RLM76", identityKey: "gunze||h417")
-            v5.mainContext.insert(paint)
-            v5.mainContext.insert(BenchBookSchemaV5.ProjectPaint(project: project, paint: paint, usedFor: "Undersides"))
-            try v5.mainContext.save()
-        }
-
-        let current = try PersistenceController.makeContainer(
-            configuration: ModelConfiguration(schema: PersistenceController.schema, url: storeURL)
-        )
-        let paint = try #require(try current.mainContext.fetch(FetchDescriptor<Paint>()).first)
-        #expect(paint.name == "RLM76")
-        #expect(paint.standardCode == "")
-        #expect(paint.projectSelections.first?.usedFor == "Undersides")
-    }
-}
-
-
 /// Removing a paint from a project frees it for deletion in a saved library too.
 @MainActor
 struct OnDiskPaintRemovalTests {

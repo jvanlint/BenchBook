@@ -2,12 +2,12 @@ import SwiftUI
 
 /// The viewer's side panel: one numbered, editable row per box.
 struct ImageNotesPanel: View {
-    let notes: [ImageNote]
+    let notes: [Markup]
     @Binding var selection: UUID?
     /// Set to a new note's ID to move the cursor into its text.
     @Binding var noteToFocus: UUID?
     let service: ImageNoteService
-    let onDelete: (ImageNote) -> Void
+    let onDelete: (Markup) -> Void
 
     @FocusState private var focusedNote: UUID?
 
@@ -47,7 +47,7 @@ struct ImageNotesPanel: View {
         }
     }
 
-    private func row(_ note: ImageNote, number: Int) -> some View {
+    private func row(_ note: Markup, number: Int) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text("\(number)")
                 .font(.caption.weight(.bold))

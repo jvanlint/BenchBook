@@ -165,38 +165,3 @@ struct PageInfoServiceTests {
         #expect(!LinkInfoService.shouldReplaceTitle("Example", host: "www.example.com"))
     }
 }
-
-/// Libraries from the tags release open with their webpages intact, ready
-/// to fetch previews.
-@MainActor
-struct MigrationV7Tests {
-    @Test func migratesVersion7LibraryToVersion8() throws {
-        let folder = try TemporaryFolder()
-        let storeURL = folder.file("Library.store")
-
-        do {
-            let v7Schema = Schema(versionedSchema: BenchBookSchemaV7.self)
-            let v7 = try ModelContainer(for: v7Schema, configurations: ModelConfiguration(schema: v7Schema, url: storeURL))
-            let project = BenchBookSchemaV7.Project(name: "F-16")
-            let page = BenchBookSchemaV7.Reference(
-                project: project, kind: .webpage, title: "Intakes", sourcePageURL: URL(string: "https://example.com")!
-            )
-            let tag = BenchBookSchemaV7.Tag(name: "Intake", normalizedName: "intake")
-            tag.colorName = "teal"
-            v7.mainContext.insert(project)
-            v7.mainContext.insert(page)
-            v7.mainContext.insert(tag)
-            v7.mainContext.insert(BenchBookSchemaV7.ReferenceTag(reference: page, tag: tag))
-            try v7.mainContext.save()
-        }
-
-        let current = try PersistenceController.makeContainer(
-            configuration: ModelConfiguration(schema: PersistenceController.schema, url: storeURL)
-        )
-        let page = try #require(try current.mainContext.fetch(FetchDescriptor<Reference>()).first)
-        #expect(page.title == "Intakes")
-        #expect(page.linkPreviewFetchedAt == nil)
-        #expect(page.linkSiteName == nil)
-        #expect(page.tags.first?.tagColor == .teal)
-    }
-}

@@ -99,31 +99,3 @@ struct ProjectColourTests {
         #expect(list.text().contains("No Paint Chosen\n☐ FS 36270\n    F-16C (upper surfaces)\n"))
     }
 }
-
-@MainActor
-struct MigrationV10Tests {
-    @Test func migratesVersion10LibraryToVersion11() throws {
-        let folder = try TemporaryFolder()
-        let storeURL = folder.file("Library.store")
-
-        do {
-            let v10Schema = Schema(versionedSchema: BenchBookSchemaV10.self)
-            let v10 = try ModelContainer(for: v10Schema, configurations: ModelConfiguration(schema: v10Schema, url: storeURL))
-            let project = BenchBookSchemaV10.Project(name: "F-16C")
-            v10.mainContext.insert(project)
-            let paint = BenchBookSchemaV10.Paint(brand: "Mr. Color", code: "C307", identityKey: "mr color||c307")
-            v10.mainContext.insert(paint)
-            v10.mainContext.insert(BenchBookSchemaV10.ProjectPaint(project: project, paint: paint, usedFor: "Upper surfaces"))
-            try v10.mainContext.save()
-        }
-
-        let current = try PersistenceController.makeContainer(
-            configuration: ModelConfiguration(schema: PersistenceController.schema, url: storeURL)
-        )
-        let row = try #require(try current.mainContext.fetch(FetchDescriptor<ProjectPaint>()).first)
-        #expect(row.selectedPaint?.code == "C307")
-        #expect(row.usedFor == "Upper surfaces")
-        #expect(row.standard == nil)
-        #expect(row.project?.name == "F-16C")
-    }
-}

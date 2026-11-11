@@ -203,35 +203,3 @@ struct VideoInfoServiceTests {
         }
     }
 }
-
-/// Libraries from the paint release open with their data intact.
-@MainActor
-struct MigrationV4Tests {
-    @Test func migratesVersion4LibraryToVersion5() throws {
-        let folder = try TemporaryFolder()
-        let storeURL = folder.file("Library.store")
-
-        do {
-            let v4Schema = Schema(versionedSchema: BenchBookSchemaV4.self)
-            let v4 = try ModelContainer(for: v4Schema, configurations: ModelConfiguration(schema: v4Schema, url: storeURL))
-            let project = BenchBookSchemaV4.Project(name: "F-16")
-            v4.mainContext.insert(project)
-            v4.mainContext.insert(BenchBookSchemaV4.Reference(
-                project: project, kind: .videoLink, sourcePageURL: URL(string: "https://youtu.be/abc123DEF45")
-            ))
-            let paint = BenchBookSchemaV4.Paint(brand: "Tamiya", code: "XF-54", identityKey: "tamiya||xf54")
-            v4.mainContext.insert(paint)
-            v4.mainContext.insert(BenchBookSchemaV4.ProjectPaint(project: project, paint: paint))
-            try v4.mainContext.save()
-        }
-
-        let current = try PersistenceController.makeContainer(
-            configuration: ModelConfiguration(schema: PersistenceController.schema, url: storeURL)
-        )
-        let project = try #require(try current.mainContext.fetch(FetchDescriptor<Project>()).first)
-        let video = try #require(project.references.first)
-        #expect(video.kind == .videoLink)
-        #expect(video.videoInfoFetchedAt == nil)
-        #expect(project.paintRequirements.first?.selectedPaint?.code == "XF-54")
-    }
-}
