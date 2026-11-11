@@ -315,11 +315,15 @@ struct ContentView: View {
     }
 
     private func delete(_ project: Project) {
-        // Leave the project and close its image windows before its records go.
+        // Leave the project and close its image and PDF windows before its records go.
         if selectedProjectID == project.id { selection = nil }
         ImageViewerRequests.shared.willDelete(project.references.map(\.id))
-        for reference in project.references where reference.kind == .image {
-            dismissWindow(id: ImageViewerWindow.id, value: reference.id)
+        for reference in project.references {
+            switch reference.kind {
+            case .image: dismissWindow(id: ImageViewerWindow.id, value: reference.id)
+            case .pdf: dismissWindow(id: PDFViewerWindow.id, value: reference.id)
+            default: break
+            }
         }
         do {
             try ProjectService(context: modelContext).delete(project, library: assetLibrary)

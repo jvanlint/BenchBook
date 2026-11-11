@@ -75,6 +75,11 @@ struct ReferenceTile: View {
             if count > 0 {
                 return "\(kindName) · " + String(localized: "\(count) notes")
             }
+        case .pdf:
+            let count = reference.markups.count
+            if count > 0 {
+                return "\(kindName) · " + String(localized: "\(count) markups")
+            }
         case .videoLink:
             if let channel = reference.videoChannel {
                 return "\(kindName) · \(channel)"

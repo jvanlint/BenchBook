@@ -7,6 +7,8 @@ enum SearchMatchKind: Equatable {
     case title, fileName, type, tag, link, text, note, channel, site, description
     /// The text of a box drawn on an image.
     case imageNote(id: UUID, number: Int)
+    /// The text of a note, highlight or arrow on a PDF.
+    case markup(id: UUID, number: Int, kind: MarkupKind)
     /// A named point in a video.
     case moment(seconds: Double)
 
@@ -24,6 +26,7 @@ enum SearchMatchKind: Equatable {
         case .site: String(localized: "Site")
         case .description: String(localized: "Description")
         case .imageNote(_, let number): String(localized: "Box \(number)")
+        case .markup(_, let number, let kind): "\(kind.displayName) \(number)"
         case .moment(let seconds): VideoLink.format(seconds: seconds)
         }
     }
@@ -66,7 +69,7 @@ struct SearchResults {
 }
 
 /// Searches every Project, Paint and Reference, including the notes drawn
-/// on images. The searchable text is prepared once and rebuilt after the
+/// on images and PDFs. The searchable text is prepared once and rebuilt after the
 /// library is saved, so typing stays fast.
 @Observable
 final class SearchIndex {
@@ -218,6 +221,9 @@ final class SearchIndex {
         add(.description, reference.videoDescription ?? reference.linkDescription)
         for (index, note) in reference.sortedImageNotes.enumerated() {
             add(.imageNote(id: note.id, number: index + 1), note.text)
+        }
+        for (index, markup) in reference.sortedMarkups.enumerated() {
+            add(.markup(id: markup.id, number: index + 1, kind: markup.kind), markup.text)
         }
         for moment in reference.sortedVideoMoments {
             add(.moment(seconds: moment.offsetSeconds), [moment.title, moment.note].compactMap { $0 }.joined(separator: " — "))

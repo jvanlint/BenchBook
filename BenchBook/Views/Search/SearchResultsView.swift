@@ -10,6 +10,8 @@ enum SearchResultID: Hashable {
     case reference(UUID)
     /// A box drawn on an image.
     case imageNote(reference: UUID, note: UUID)
+    /// A note, highlight or arrow on a PDF.
+    case markup(reference: UUID, markup: UUID)
     case moment(reference: UUID, seconds: Double)
 }
 
@@ -189,7 +191,7 @@ struct SearchResultsView: View {
         let reference = hit.reference
         let lines = hit.matches.filter { match in
             switch match.kind {
-            case .imageNote, .moment: false
+            case .imageNote, .markup, .moment: false
             default: match.kind.isShownAsLine
             }
         }
@@ -232,6 +234,10 @@ struct SearchResultsView: View {
             matchRow(match, systemImage: "rectangle.dashed")
                 .tag(SearchResultID.imageNote(reference: reference.id, note: id))
                 .help("Open the image at this box")
+        case .markup(let id, _, let kind):
+            matchRow(match, systemImage: kind.systemImage)
+                .tag(SearchResultID.markup(reference: reference.id, markup: id))
+                .help("Open the PDF at this \(kind.displayName.lowercased())")
         case .moment(let seconds):
             matchRow(match, systemImage: "play.circle")
                 .tag(SearchResultID.moment(reference: reference.id, seconds: seconds))
@@ -273,10 +279,22 @@ struct SearchResultsView: View {
                 Button("Edit Part…") { aftermarketEditor = .edit(item) }
                 Button("Show in Project") { onShowAftermarketItem(item) }
             }
-        case .reference(let referenceID), .imageNote(let referenceID, _), .moment(let referenceID, _):
+        case .reference(let referenceID), .imageNote(let referenceID, _), .markup(let referenceID, _),
+             .moment(let referenceID, _):
             if let reference = reference(referenceID, in: results) {
                 Button("Open") { activate(id, in: results) }
                 Button("Show in Project") { onShowReference(reference) }
+                if reference.kind == .pdf, reference.asset != nil {
+                    Button("Export Marked-Up Copy…") {
+                        Task {
+                            do {
+                                try await MarkupExporter.saveMarkedUpCopy(of: reference, from: assetLibrary)
+                            } catch {
+                                errorMessage = error.localizedDescription
+                            }
+                        }
+                    }
+                }
                 Divider()
                 Button(reference.kind == .note ? "Edit Note…" : "Edit Details…") { detailsReference = reference }
             }
@@ -296,6 +314,9 @@ struct SearchResultsView: View {
         case .imageNote(let referenceID, let noteID):
             ImageViewerRequests.shared.noteToShow[referenceID] = noteID
             openWindow(id: ImageViewerWindow.id, value: referenceID)
+        case .markup(let referenceID, let markupID):
+            PDFViewerRequests.shared.markupToShow[referenceID] = markupID
+            openWindow(id: PDFViewerWindow.id, value: referenceID)
         case .moment(let referenceID, let seconds):
             if let source = reference(referenceID, in: results)?.sourcePageURL {
                 openURL(VideoLink.playbackURL(for: source, at: seconds))
@@ -308,7 +329,9 @@ struct SearchResultsView: View {
         switch reference.kind {
         case .image:
             openWindow(id: ImageViewerWindow.id, value: reference.id)
-        case .pdf, .markdown:
+        case .pdf:
+            openWindow(id: PDFViewerWindow.id, value: reference.id)
+        case .markdown:
             guard let asset = reference.asset else { return }
             let url = assetLibrary.url(forRelativePath: asset.originalRelativePath)
             if FileManager.default.fileExists(atPath: url.path) {

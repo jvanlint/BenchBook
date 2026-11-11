@@ -537,6 +537,9 @@ struct ReferencesView: View {
             Button("Quick Look") { quickLook(reference) }
             Button("Open in Default App") { openInDefaultApp(reference) }
         }
+        if reference.kind == .pdf, reference.asset != nil {
+            Button("Export Marked-Up Copy…") { exportMarkedUpCopy(of: reference) }
+        }
         if reference.kind == .videoLink {
             ForEach(reference.sortedVideoMoments) { moment in
                 if let source = reference.sourcePageURL {
@@ -646,7 +649,9 @@ struct ReferencesView: View {
         switch reference.kind {
         case .image:
             openWindow(id: ImageViewerWindow.id, value: reference.id)
-        case .pdf, .markdown:
+        case .pdf:
+            openWindow(id: PDFViewerWindow.id, value: reference.id)
+        case .markdown:
             quickLook(reference)
         case .webpage:
             if let url = reference.sourcePageURL { openURL(url) }
@@ -676,6 +681,17 @@ struct ReferencesView: View {
 
     private func compare(_ images: [Reference]) {
         openWindow(id: ImageComparisonWindow.id, value: images.map(\.id))
+    }
+
+    /// Saves a copy of a PDF with its markups drawn in.
+    private func exportMarkedUpCopy(of reference: Reference) {
+        Task {
+            do {
+                try await MarkupExporter.saveMarkedUpCopy(of: reference, from: assetLibrary)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 
     private func openInDefaultApp(_ reference: Reference) {

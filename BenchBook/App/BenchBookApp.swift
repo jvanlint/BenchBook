@@ -35,6 +35,15 @@ struct BenchBookApp: App {
         }
         .defaultSize(width: 1100, height: 760)
 
+        // One window per PDF; reopening a PDF brings its window forward.
+        WindowGroup("PDF", id: PDFViewerWindow.id, for: UUID.self) { $referenceID in
+            if case .success(let library) = library {
+                PDFViewerWindow(referenceID: $referenceID)
+                    .libraryEnvironment(library)
+            }
+        }
+        .defaultSize(width: 1000, height: 820)
+
         // Two to four images side by side; the same images bring the same window forward.
         WindowGroup("Compare Images", id: ImageComparisonWindow.id, for: [UUID].self) { $referenceIDs in
             if case .success(let library) = library {

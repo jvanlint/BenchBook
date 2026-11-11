@@ -101,6 +101,13 @@ struct ReferenceTransfer {
                 text: note.text, createdAt: note.createdAt
             ))
         }
+        for markup in original.markups {
+            context.insert(Markup(
+                reference: copy, pageIndex: markup.pageIndex, kindRaw: markup.kindRaw, colorName: markup.colorName,
+                x: markup.x, y: markup.y, width: markup.width, height: markup.height,
+                points: markup.points, text: markup.text, createdAt: markup.createdAt
+            ))
+        }
         return copy
     }
 }
