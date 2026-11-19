@@ -68,6 +68,7 @@ struct ProjectSearchGroup: Identifiable {
 
 struct SearchResults {
     var projects: [Project] = []
+    var kits: [Kit] = []
     var paints: [Paint] = []
     var aftermarketItems: [AftermarketItem] = []
     /// References and build photos, grouped by project.
@@ -75,10 +76,10 @@ struct SearchResults {
 
     var referenceCount: Int { referenceGroups.reduce(0) { $0 + $1.hits.count } }
     var buildPhotoCount: Int { referenceGroups.reduce(0) { $0 + $1.photoHits.count } }
-    var isEmpty: Bool { projects.isEmpty && paints.isEmpty && aftermarketItems.isEmpty && referenceGroups.isEmpty }
+    var isEmpty: Bool { projects.isEmpty && kits.isEmpty && paints.isEmpty && aftermarketItems.isEmpty && referenceGroups.isEmpty }
 }
 
-/// Searches every Project, Paint, Reference and build photo, including the
+/// Searches every Project, Kit, Paint, Reference and build photo, including the
 /// notes drawn on images, build photos and PDFs. The searchable text is prepared once and rebuilt after the
 /// library is saved, so typing stays fast.
 @Observable
@@ -89,6 +90,7 @@ final class SearchIndex {
     @ObservationIgnored private let context: ModelContext
     @ObservationIgnored private var isStale = true
     @ObservationIgnored private var projectEntries: [(project: Project, fields: [SearchField])] = []
+    @ObservationIgnored private var kitEntries: [(kit: Kit, fields: [SearchField])] = []
     @ObservationIgnored private var paintEntries: [(paint: Paint, fields: [SearchField])] = []
     @ObservationIgnored private var aftermarketEntries: [(item: AftermarketItem, fields: [SearchField])] = []
     @ObservationIgnored private var referenceEntries: [ReferenceEntry] = []
@@ -140,6 +142,9 @@ final class SearchIndex {
             results.projects = projectEntries
                 .filter { query.matchesEveryWord(in: $0.fields) }
                 .map(\.project)
+            results.kits = kitEntries
+                .filter { query.matchesEveryWord(in: $0.fields) }
+                .map(\.kit)
             results.paints = paintEntries
                 .filter { query.matchesEveryWord(in: $0.fields) }
                 .map(\.paint)
@@ -203,6 +208,21 @@ final class SearchIndex {
                 let texts = [project.name, project.manufacturer, project.subject, project.scale,
                              project.kitNumber ?? "", project.markingsScheme ?? "", project.notes ?? ""]
                 return (project, texts.filter { !$0.isEmpty }.map(SearchField.init))
+            }
+
+        // Brand, name, number and notes. Copies of a kit are each listed.
+        let kits = (try? context.fetch(FetchDescriptor<Kit>())) ?? []
+        kitEntries = kits
+            .sorted { lhs, rhs in
+                for (a, b) in [(lhs.brand, rhs.brand), (lhs.name, rhs.name), (lhs.number ?? "", rhs.number ?? "")] {
+                    let result = a.localizedStandardCompare(b)
+                    if result != .orderedSame { return result == .orderedAscending }
+                }
+                return lhs.createdAt < rhs.createdAt
+            }
+            .map { kit in
+                let texts = [kit.brand, kit.name, kit.number ?? "", kit.notes ?? ""]
+                return (kit, texts.filter { !$0.isEmpty }.map(SearchField.init))
             }
 
         let paints = (try? context.fetch(FetchDescriptor<Paint>())) ?? []

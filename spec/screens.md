@@ -34,7 +34,8 @@ VoiceOver. Those are Mac bugs, not wording to copy.
   ("Projects · In Progress") or all of them, and below that, Sort By: Name,
   Date Created, Last Updated. If none match: "No In Progress
   Projects", with "Show All Projects".
-- **Library**: Paints, Shopping List (with the number of paints to buy), Tags.
+- **Library**: Kits (a box icon), Paints, Shopping List (with the number of
+  paints to buy), Tags.
 - **Tags**: the ten most used tags with their colour and count, then
   "Show More (6)" or "Show Less".
 - A + button above the list adds a project.
@@ -265,6 +266,65 @@ project."
 
 ![Add Paint to a project](screens/paint-picker.png)
 
+## Kits catalogue
+
+`Views/Kits/KitCatalogueView.swift`
+
+One row per physical kit: Picture (box art, or a box icon), Brand, Name,
+Scale, Number, Status, Rating (stars), Price Paid, For Sale (a tick box) and
+Sale Price. Kits that aren't owned show "Not Owned" in Status. Prices are in
+the device's currency format. Every column sorts; right-click a heading to
+hide columns, except Brand and Name. The title bar counts entries: "116 kits ·
+4 not owned", or "12 of 116 kits · 4 not owned" while filtered.
+
+Toolbar: Brand ▸ ("All Brands", "Italeri (12)"), Scale ▸, Status ▸ ("Any
+Status", "WIP (3)", counting owned kits only), a Show menu (All Kits, Owned,
+Not Owned, For Sale), Import CSV…, Export CSV…, Add Kit.
+
+- Double-click to edit. Right-click one kit: Edit Kit…, Add Another Copy,
+  Open Link (when it has one), Status ▸, Mark as Owned or Not Owned, Mark as
+  For Sale or Not For Sale, Delete Kit…. With several selected, the status,
+  owned, sale and delete commands apply to all of them ("Delete 3 Kits…").
+- Delete asks "Delete “Italeri 1:72 Super Cobra (1234)”?" or "Delete 3 Kits?":
+  "This removes the kit and its picture from BenchBook. This can't be undone."
+- Import shows "Added 3 Kits and Updated 1" (or "Added 3 Kits", "Updated 1
+  Kit", "No Kits Added"), then "Already in your catalogue: 110.", "27 rows
+  skipped that aren't kits: Markings (Decals) 22, Detail and Conversion sets
+  5.", and up to ten problems.
+- Export asks first: "All 116 kits are saved, one row each, with their
+  details, status, rating, prices and links, in a CSV file BenchBook can
+  import. Pictures aren't included; a backup has them.", with "Include notes",
+  off.
+
+Empty: "No Kits. Add the kits in your stash, and the ones you want, or import
+a Scalemates stash export. Each box is its own entry, with its own status.",
+with Add Kit and Import CSV…. Nothing matching the filters: "No Matching Kits.
+No kits match the chosen brand, scale, status and ownership.", with Show All
+Kits.
+
+## Kit editor
+
+`Views/Kits/KitEditorView.swift`
+
+"New Kit" or "Edit Kit": Brand ("e.g. Italeri"), Name ("e.g. Super Cobra"),
+Scale ("e.g. 1:72"), Number ("Optional"); Owned, Status (BNIB, Opened, WIP,
+Built; dimmed while Owned is off, with "Kits you don't own yet have no
+status."), Rating (five stars); Link ("Scalemates, a shop or the maker");
+Price Paid (an example in the device's currency), For Sale, Sale Price
+(dimmed while For Sale is off); the picture, as in the aftermarket editor,
+with "Use Image from Product Page" using Link; and Notes.
+
+- **Rating**: click a star to set it, click the same star to clear it. With
+  keyboard focus, the arrow keys step it and 0–5 set it. VoiceOver reads it
+  as an adjustable "Rating", e.g. "3 stars" or "No rating".
+- **Same kit**: under the first section, "You already have 2 of this kit.
+  This adds another." for a new kit, or "You have 1 more of this kit." when
+  editing. It never stops Save.
+- Save needs a brand and a name. A bad link shows "Enter a web address, such
+  as scalemates.com/kits/…"; a bad price shows "Enter prices as numbers, such
+  as 18.50.".
+- Dropping a link on the picture fills in Link if it's empty.
+
 ## Paints catalogue
 
 `Views/Paint/PaintCatalogueView.swift`
@@ -445,14 +505,16 @@ Each group is headed "Project — 2 references" or "Project — 2 references,
 ![Search results](screens/search.png)
 
 The search field replaces the project with results: "Search · 4 references".
-Sections for Projects, Paints and Aftermarket, then references grouped by
+Sections for Projects, Kits, Paints and Aftermarket, then references grouped by
 project ("F-16CJ Wild Weasel 50th Anniversary — 3 references"). Each reference
 shows its thumbnail, title, kind and tags, then a line for each part that
 matched ("Box 2: **Discoloration**"). Clicking a box, markup or moment line
 opens the image, PDF or video at that spot.
 
 Right-click: Open, Show in Project, Edit Details…, Export Marked-Up Copy…
-(PDFs). Paints: Edit Paint…, Show in Paints. Parts: Edit Part…, Show in Project.
+(PDFs). Kits: Edit Kit…, Show in Kits; each shows its box art, brand and
+name, scale, number and notes, and its status or "Not Owned". Paints: Edit
+Paint…, Show in Paints. Parts: Edit Part…, Show in Project.
 
 Build photos come after a project's references, each with its thumbnail,
 caption or date, "Build Photo · WIP" and its tags, and a line per matching

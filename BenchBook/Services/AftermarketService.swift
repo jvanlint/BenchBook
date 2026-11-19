@@ -68,31 +68,14 @@ struct AftermarketService {
     /// Copies an image file into the library as the item's picture,
     /// replacing any earlier one.
     func setImage(from url: URL, on item: AftermarketItem) async throws {
-        let accessing = url.startAccessingSecurityScopedResource()
-        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
-
-        let inspected = try await Task.detached(priority: .userInitiated) {
-            try FileInspector.inspect(url)
-        }.value
-        guard inspected.kind == .image else { throw AftermarketError.notAnImage(url.lastPathComponent) }
-
-        let assetID = UUID()
-        let relativePath = AssetLibrary.originalRelativePath(assetID: assetID, fileExtension: inspected.fileExtension)
-        let library = library
-        try await Task.detached(priority: .userInitiated) {
-            try library.copyOriginal(from: url, toRelativePath: relativePath)
-        }.value
-
-        let asset = ManagedAsset(
-            id: assetID,
-            originalRelativePath: relativePath,
-            originalFilename: url.lastPathComponent,
-            mimeType: inspected.mimeType,
-            byteCount: inspected.byteCount,
-            sha256: inspected.sha256,
-            pixelWidth: inspected.pixelWidth,
-            pixelHeight: inspected.pixelHeight
-        )
+        let asset: ManagedAsset
+        do {
+            asset = try await PictureImporter(library: library).importImage(from: url)
+        } catch PictureImporter.PictureError.notAnImage(let name) {
+            throw AftermarketError.notAnImage(name)
+        }
+        let assetID = asset.id
+        let relativePath = asset.originalRelativePath
         let previous = item.imageAsset
         context.insert(asset)
         item.imageAsset = asset

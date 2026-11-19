@@ -5,6 +5,8 @@ import UniformTypeIdentifiers
 
 /// What the sidebar can show in the main area.
 enum SidebarItem: Hashable {
+    /// The library-wide Kits catalogue.
+    case kits
     case paints
     /// Paints to buy for projects that aren't Completed.
     case shoppingList
@@ -84,6 +86,8 @@ struct ProjectSidebar: View {
                 projectsHeader
             }
             Section("Library") {
+                Label("Kits", systemImage: "shippingbox")
+                    .tag(SidebarItem.kits)
                 Label("Paints", systemImage: "paintpalette")
                     .tag(SidebarItem.paints)
                 Label("Shopping List", systemImage: "cart")

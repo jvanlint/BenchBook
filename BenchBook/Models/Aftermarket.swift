@@ -120,14 +120,21 @@ struct AftermarketDraft: Equatable {
 
     /// The product page, adding "https://" if it was left off. Nil when
     /// the field is empty or isn't a web address.
-    var parsedURL: URL? {
-        guard var text = productURL.trimmedOrNil else { return nil }
+    var parsedURL: URL? { WebAddress.parse(productURL) }
+
+    var hasValidURL: Bool { productURL.trimmedOrNil == nil || parsedURL != nil }
+}
+
+/// Web addresses the user types, such as a product page.
+nonisolated enum WebAddress {
+    /// The address, adding "https://" if it was left off. Nil when the text
+    /// is empty or isn't an http or https address with a domain.
+    static func parse(_ text: String) -> URL? {
+        guard var text = text.trimmedOrNil else { return nil }
         if !text.contains("://") { text = "https://" + text }
         guard let url = URL(string: text), let scheme = url.scheme?.lowercased(),
               ["http", "https"].contains(scheme), let host = url.host(), host.contains(".")
         else { return nil }
         return url
     }
-
-    var hasValidURL: Bool { productURL.trimmedOrNil == nil || parsedURL != nil }
 }

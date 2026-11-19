@@ -170,8 +170,9 @@ apart from its references.
 | Tag | its links | references, build photos |
 | Paint | its ownership record | — refused while any project paint uses it |
 | Aftermarket item | — | its image asset, unless nothing else uses it |
+| Kit | — | its picture asset, unless another copy or anything else uses it; projects |
 
-- An asset is unused when no reference, aftermarket item or build photo
+- An asset is unused when no reference, aftermarket item, build photo or kit
   points to it.
   Deleting an unused asset deletes its original and thumbnail.
 - Refusing to delete a paint names the projects using it.
@@ -193,45 +194,15 @@ equivalent comparer).
   (newest first) or Last Updated (most recent first). Projects with the same
   date are in name order. The choice is remembered, and starts as Name.
 - References in a project: by capture date, newest first.
+- Kits: by brand, name and number, then the order they were added, so copies
+  stay together. Status sorts BNIB, Opened, WIP, Built, then kits that aren't
+  owned. Ratings sort highest first; empty ratings and prices sort last.
 - Paints: by brand, then code.
 - Project paints: colours with no paint chosen first (by standard), then paints
   by brand and code.
 - Aftermarket items: by status in the order listed in the format, then by name.
 - Build photos: completed first, then work in progress; each newest taken
   first. Work in progress is grouped by day.
-
-## Search
-
-One search field covers the whole library. It finds projects, paints,
-aftermarket items, references and build photos, with references and build
-photos grouped by project ("F-16 — 3 references, 2 build photos").
-
-- The query is split on whitespace. An item matches when **every** word is
-  found in at least one of its fields.
-- A word is found in a field when the folded field contains the folded word.
-  Folding ignores case, accents and full-width forms. If that fails, both are
-  compared with everything except letters and digits removed, so "f16" finds
-  "F-16" and "xf54" finds "XF-54".
-- Tags chosen as tokens in the field narrow the results to references and
-  build photos with every chosen tag, and hide projects, paints and
-  aftermarket items. Choosing a tag in the sidebar shows the same results.
-
-Fields searched:
-
-| Item | Fields |
-|---|---|
-| Project | name, manufacturer, subject, scale, kit number, markings, notes |
-| Paint | brand, range, code, name, standard, notes |
-| Aftermarket item | product name, manufacturer, product number, type name, scale, notes, product page host |
-| Reference | title (or the fallback title), kind name, tags, file name, source link, text, note, channel, site name, description, image note text, PDF markup text, video moment title and note |
-| Build photo | caption, "Build Photo", stage name, tags, file name, the whole notes, box note text |
-
-Each reference result lists the parts that matched, labelled ("Box 2",
-"Highlight 3", "1:23", "Description"), with a short excerpt and the matched
-words in bold. Results with a title match come first, then newest first.
-
-A reference's fallback title, in order: its title; its file name; the first
-line of its text (up to 120 characters); its source page's host; its kind name.
 
 ### When a project was last updated (stored)
 
@@ -251,6 +222,40 @@ changes to tags themselves (creating, renaming, colouring, merging or deleting
 a tag). A new project's `updatedAt` equals its `createdAt`.
 
 Code: `Services/ProjectActivity.swift` (`touchEditedProjects`).
+
+## Search
+
+One search field covers the whole library. It finds projects, kits, paints,
+aftermarket items, references and build photos, with references and build
+photos grouped by project ("F-16 — 3 references, 2 build photos").
+
+- The query is split on whitespace. An item matches when **every** word is
+  found in at least one of its fields.
+- A word is found in a field when the folded field contains the folded word.
+  Folding ignores case, accents and full-width forms. If that fails, both are
+  compared with everything except letters and digits removed, so "f16" finds
+  "F-16" and "xf54" finds "XF-54".
+- Tags chosen as tokens in the field narrow the results to references and
+  build photos with every chosen tag, and hide projects, kits, paints and
+  aftermarket items. Choosing a tag in the sidebar shows the same results.
+
+Fields searched:
+
+| Item | Fields |
+|---|---|
+| Project | name, manufacturer, subject, scale, kit number, markings, notes |
+| Kit | brand, name, number, notes. Each copy is listed. |
+| Paint | brand, range, code, name, standard, notes |
+| Aftermarket item | product name, manufacturer, product number, type name, scale, notes, product page host |
+| Reference | title (or the fallback title), kind name, tags, file name, source link, text, note, channel, site name, description, image note text, PDF markup text, video moment title and note |
+| Build photo | caption, "Build Photo", stage name, tags, file name, the whole notes, box note text |
+
+Each reference result lists the parts that matched, labelled ("Box 2",
+"Highlight 3", "1:23", "Description"), with a short excerpt and the matched
+words in bold. Results with a title match come first, then newest first.
+
+A reference's fallback title, in order: its title; its file name; the first
+line of its text (up to 120 characters); its source page's host; its kind name.
 
 ## Filters
 
@@ -342,6 +347,120 @@ BenchBook never downloads videos.
 The aftermarket editor's "Use Image from Product Page" uses the same preview
 image rules on the product URL, without falling back to icons, and stores the
 result as the item's image asset.
+
+## Kits
+
+The Kits catalogue belongs to the library. Each entry is one physical kit, so
+two boxes of the same kit are two entries. There's no quantity.
+
+### Same kit (stored)
+
+Two entries are the same kit when either:
+
+- both links are Scalemates addresses and their keys match. The key is the
+  host without `www.` plus the path, in lowercase, without a trailing slash
+  or query: `https://www.scalemates.com/kits/Italeri-1234--100/?x=1` →
+  `scalemates.com/kits/italeri-1234--100`; or
+- brand, number and scale all match after folding: lowercase, with every
+  whitespace character removed. The number must not be empty: without one,
+  brand and scale alone would make every unnumbered kit of that brand and
+  scale the same. Two empty scales match.
+
+Owning the same kit twice is normal. Adding one by hand says "You already have
+2 of this kit. This adds another." and still adds it. **Add Another Copy**
+makes a new entry with the same brand, name, scale, number, link and picture,
+owned and BNIB, with no price, rating, sale details or notes.
+
+### Status and rating (stored)
+
+- Status is `bnib`, `opened`, `wip` or `built`, shown as BNIB, Opened, WIP and
+  Built. Unknown values show as BNIB and are kept until the user picks one.
+- A kit that isn't owned shows "Not Owned" instead of its status, and the
+  status can't be edited. The value is kept.
+- Rating is a whole number from 1 to 5. Anything else reads as no rating.
+
+### Prices (stored)
+
+Prices are in the library's one currency, which isn't stored, and are shown in
+the device's currency format. Typed or imported prices are read like this:
+
+- Currency symbols, letters and spaces are ignored. A minus sign makes it
+  unreadable.
+- With both `.` and `,`, the last one is the decimal point.
+- One separator used more than once groups thousands: `1,250,000`.
+- One separator used once is the decimal point, unless it has one to three
+  digits before it (not just `0`) and exactly three after: `1,250` is 1250,
+  `0.250` is 0.25, `25,00` is 25.
+- Files and backups write a plain number with a full stop and two decimals:
+  `18.50`.
+
+### Import
+
+Reads a Scalemates stash export or BenchBook's own kits export. A file with a
+`BenchBook ID` column is BenchBook's own. Columns are found by name, in any
+order and case; other columns are ignored. Parsing is as for paint CSV.
+
+| Column | Header names |
+|---|---|
+| ID | benchbook id |
+| Brand (required) | brand, manufacturer |
+| Name (required) | title, name |
+| Scale | scale |
+| Number | number, kit number |
+| Type | type |
+| Price Paid | price, price paid |
+| Link | link, url |
+| Owned, Status, Rating, For Sale, Sale Price, Notes | owned; status; rating; for sale; sale price; notes. Read from BenchBook files only. |
+
+- **Only kits.** A row with a Type other than `Static model kits` (any case)
+  is skipped and counted by its type. Rows with no Type are kits.
+- A row without a brand or name is reported and skipped. A bad link or price
+  is reported and left out; the rest of the row is imported.
+- **Scalemates files.** Each row is one owned kit. Rows for the same kit are
+  grouped. Rows and library entries with neither a number nor a Scalemates
+  address are also the same kit when brand, name and scale fold the same.
+  For each group:
+  1. Owned entries for the kit count first, oldest first.
+  2. If there are more rows than owned entries, entries that aren't owned
+     become owned, oldest first.
+  3. New entries are added for any rows left: owned, BNIB, no rating.
+  4. Brand, name, scale, number and link are set from the group's first row
+     on every matching entry. Empty values in the file never clear one.
+  5. Rows are paired with entries in that order. A row's price fills its
+     entry's Price Paid only if it has none. `0` means not entered.
+  6. Status, rating, For Sale, Sale Price, notes and picture never change.
+
+  Importing the same file again adds nothing, and import never deletes kits
+  or lowers how many copies there are.
+- **BenchBook files.** A row whose ID is in the library updates that entry;
+  any other row is added, keeping its ID if it has one. Every column the file
+  has is applied, except that an empty scale, number, link or price never
+  clears one. Owned and For Sale
+  are true for `yes`, `y`, `true`, `1`, `x`, `✓` or `✔`. Status must be BNIB,
+  Opened, WIP or Built (any case); empty leaves it as it is, and BNIB for a new
+  kit. Rating must be 1 to 5; empty means no rating. Other values are reported
+  and that field is left as it was.
+- The whole file saves at once: it all imports, or nothing does.
+- The summary: "Added 3 Kits and Updated 1", then "Already in your catalogue:
+  110.", "27 rows skipped that aren't kits: Markings (Decals) 22, Detail and
+  Conversion sets 5.", and up to ten problems.
+
+Test file: [fixtures/kits-scalemates.csv](fixtures/kits-scalemates.csv), a
+made-up stash with two copies of one kit, two single kits and three rows that
+aren't kits.
+
+### Export
+
+- Columns: `BenchBook ID,Brand,Title,Scale,Number,Type,Price,Link,Owned,Status,Rating,For Sale,Sale Price`,
+  plus `Notes` only if the user asks.
+- Type is always `Static model kits`. Owned and For Sale are `Yes` or empty.
+  Status is BNIB, Opened, WIP or Built; an unknown stored status is written as
+  it is.
+- One row per entry, sorted by brand, number and scale, then the order they
+  were added. Pictures aren't included.
+- Quoting and line endings as for paint CSV. File name:
+  `BenchBook Kits YYYY-MM-DD.csv`.
+- Whether Scalemates can import this file is untested.
 
 ## Paint CSV
 

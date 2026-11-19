@@ -85,9 +85,10 @@ the Mac since 1.0 are listed in [changes.md](changes.md).
 
 | Mac | Windows |
 |---|---|
-| Sidebar (`NavigationSplitView`) | `NavigationView` in left mode: projects with a status filter and a sort (Name, Date Created, Last Updated), Paints, Shopping List, Tags, and Settings at the foot |
+| Sidebar (`NavigationSplitView`) | `NavigationView` in left mode: projects with a status filter and a sort (Name, Date Created, Last Updated), Kits, Paints, Shopping List, Tags, and Settings at the foot |
 | Project tabs | `SelectorBar` or `TabView` without close buttons: References, Paint, Aftermarket, Build Photos |
 | Reference grid, Build Photos grid | `ItemsView` or `GridView` with tiles, multiple selection, a selection rectangle and keyboard navigation. Build Photos groups tiles under headers (Completed, then one per day). |
+| Kits and Paints tables (`Table`) | `ListView` with column headers: sortable columns, multiple selection, and columns the user can hide. A data grid package would be a new dependency, so discuss it first. |
 | Import from Photos | Add Photos only: Windows has no shared photo library to pick from. Explorer drops and the Photos app's Share work as they do for references. |
 | Sheets (editors) | `ContentDialog`, or a side pane for longer editors |
 | Image viewer, PDF viewer, Compare | Separate windows that remember their size and position |
@@ -198,7 +199,8 @@ works.
 3. **Core.** Projects with status; references: capture by drop, paste and Add
    Files; the gallery with filters; notes; tags and the tag manager; moving and
    copying; search; link details and posters.
-4. **Paint, parts and build photos.** The paint catalogue with CSV import and
+4. **Kits, paint, parts and build photos.** The Kits catalogue with Scalemates
+   and BenchBook CSV import and export, the paint catalogue with CSV import and
    export, project paints, the shopping list, aftermarket items, and build
    photos with export that leaves out location data.
 5. **Viewers.** Image viewer with notes, Compare, Markdown, and the PDF viewer

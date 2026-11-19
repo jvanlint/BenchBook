@@ -28,10 +28,11 @@ commit.
 - **Paint**: a commercial paint in the catalogue, such as Tamiya XF-54 Dark Sea Grey.
 - **Project paint**: a colour a project needs, and the paint chosen for it.
 - **Aftermarket item**: a part bought or considered for a project, such as decals or a resin cockpit.
+- **Kit**: one physical model kit the user owns or wants, in the library-wide Kits catalogue.
 - **Build photo**: the user's own photo of a build, work in progress or completed. Not a reference.
 
 ## Versions
 
-- Data model: schema **2.0.0**, which adds build photos (#43) to the schema
-  1.0.0 that shipped in BenchBook 1.0.0.
+- Data model: schema **3.0.0**. Schema 2.0.0 added build photos (#43) and
+  3.0.0 adds kits (#41) to the schema 1.0.0 that shipped in BenchBook 1.0.0.
 - Portable backup: format **2** (proposed here). The Mac app's current backups are format 1, which only a Mac can read.

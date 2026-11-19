@@ -188,4 +188,47 @@ struct LibraryBackupTests {
         #expect(older.lastPathComponent.hasPrefix("BenchBook Before Restore "))
         #expect(LibraryRestore.previousLibraries(for: location) == [newer, older])
     }
+
+    @Test func restoreBringsBackKitsAndTheirPictures() throws {
+        let picturePath: String
+        let picture: Data
+        do {
+            let container = try openContainer()
+            let context = container.mainContext
+            let library = AssetLibrary(rootURL: location.libraryURL)
+            let source = try Fixtures.writePNG(to: folder.file("box.png"), width: 30, height: 20)
+            let assetID = UUID()
+            picturePath = AssetLibrary.originalRelativePath(assetID: assetID, fileExtension: "png")
+            try library.copyOriginal(from: source, toRelativePath: picturePath)
+            picture = try Data(contentsOf: source)
+            let asset = ManagedAsset(id: assetID, originalRelativePath: picturePath, originalFilename: "box.png",
+                                     mimeType: "image/png", byteCount: Int64(picture.count), sha256: "abc")
+            context.insert(asset)
+            for status in [KitStatus.wip, .bnib] {
+                let kit = Kit(brand: "Italeri", name: "Super Cobra", scale: "1:72", number: "1234")
+                kit.status = status
+                kit.pricePaid = Decimal(string: "18.50")
+                kit.picture = asset
+                context.insert(kit)
+            }
+            try context.save()
+
+            let manifest = try backUp()
+            #expect(manifest.files.map(\.path).contains("Library/" + picturePath))
+
+            // A change after the backup, which the restore undoes.
+            for kit in try context.fetch(FetchDescriptor<Kit>()) { context.delete(kit) }
+            try context.save()
+        }
+
+        _ = try LibraryBackup.unpack(backupURL, into: stagingURL)
+        try LibraryBackup.swap(location, withUnpacked: stagingURL, keepingCurrentIn: previousURL)
+
+        let container = try openContainer()
+        let kits = try container.mainContext.fetch(FetchDescriptor<Kit>())
+        #expect(kits.count == 2)
+        #expect(Set(kits.map(\.status)) == [.wip, .bnib])
+        #expect(kits.allSatisfy { $0.pricePaid == Decimal(string: "18.50") && $0.picture?.originalRelativePath == picturePath })
+        #expect(try Data(contentsOf: location.libraryURL.appending(path: picturePath)) == picture)
+    }
 }

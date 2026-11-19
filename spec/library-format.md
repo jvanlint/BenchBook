@@ -83,7 +83,7 @@ Describes the backup, so a restore can check it before touching the library.
   "createdAt": "2026-11-13T09:41:07Z",
   "appVersion": "1.1.0",
   "platform": "windows",
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "counts": { "projects": 4, "references": 212, "paints": 1267 },
   "files": [
     { "path": "library.json", "size": 482113, "sha256": "9f2c…" },
@@ -106,7 +106,7 @@ breaking an older one.
 
 ```json
 {
-  "schemaVersion": "2.0.0",
+  "schemaVersion": "3.0.0",
   "projects": [ … ],
   "references": [ … ],
   "assets": [ … ],
@@ -119,7 +119,8 @@ breaking an older one.
   "projectPaints": [ … ],
   "aftermarketItems": [ … ],
   "buildPhotos": [ … ],
-  "buildPhotoTags": [ … ]
+  "buildPhotoTags": [ … ],
+  "kits": [ … ]
 }
 ```
 
@@ -132,6 +133,7 @@ breaking an older one.
 | url | Absolute URL string |
 | text | JSON string. Optional fields are left out or `null` when empty, never `""`, unless the table says empty is allowed. |
 | number | JSON number. Coordinates and seconds are doubles; counts are integers. |
+| decimal | An amount of money, as a JSON string with a full stop and no currency, e.g. `"18.50"`, so it's never rounded. |
 
 Every record has `id`, `createdAt` and `updatedAt`. They're not repeated in
 the tables below. A project's `updatedAt` follows the rule in `behaviour.md`
@@ -178,8 +180,8 @@ the tables below. A project's `updatedAt` follows the rule in `behaviour.md`
 
 One per stored file. Several references may share one asset: copying a
 reference to another project shares its file instead of duplicating it.
-References, aftermarket items and build photos all point at assets; an asset
-is deleted, with its file, only when none of them use it.
+References, aftermarket items, build photos and kits all point at assets; an
+asset is deleted, with its file, only when none of them use it.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -321,6 +323,28 @@ One file can be a build photo and a reference in the same project; each
 keeps its own asset. Adding the same file (same `sha256`) twice to one
 project's build photos is refused as a duplicate.
 
+#### kits
+
+Model kits the user owns or wants. They belong to the library, not to a
+project. Each record is one physical kit: two boxes of the same kit are two
+records, each with its own status and price. Schema 3.
+
+| Field | Type | Notes |
+|---|---|---|
+| brand | text | Required, not empty. e.g. "Italeri". |
+| name | text | Required, not empty. The product's name as on the box, e.g. "Super Cobra". |
+| scale | text? | e.g. "1:72". |
+| number | text? | The maker's number. Text, so leading zeros and dashes are kept: "07109", "85-5444". |
+| owned | boolean | `false` for a kit the user wants but hasn't got. |
+| status | text | `bnib` (brand new in box), `opened`, `wip` or `built`. Unknown values show as `bnib` and are kept. |
+| rating | integer? | 1 to 5 stars. Other values read as no rating. |
+| link | url? | http or https only. Scalemates, a shop or the maker. |
+| pricePaid | decimal? | In the library's one currency, which isn't stored. |
+| forSale | boolean | |
+| salePrice | decimal? | Kept when `forSale` is `false`. |
+| notes | text? | |
+| pictureAssetId | id? | Box art. An asset, not a reference. Copies of a kit can share one asset. |
+
 ## Writing a backup
 
 1. Copy `Originals` and `Posters` to a staging folder, skipping hidden and
@@ -377,6 +401,7 @@ half-restored library or lose their current one.
 |---|---|
 | 1.0.0 | BenchBook 1.0. |
 | 2.0.0 | Build photos (#43): `buildPhotos`, `buildPhotoTags`, `projects.projectPhotoId`, `markups.buildPhotoId`; `markups.referenceId` becomes optional. Additive: a 1.0.0 library reads as 2.0.0 with no build photos. |
+| 3.0.0 | Kits (#41): `kits`, and the `decimal` value type. Additive: a 2.0.0 library reads as 3.0.0 with no kits. |
 
 ## Mac app changes
 

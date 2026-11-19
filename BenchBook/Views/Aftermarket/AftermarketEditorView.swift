@@ -16,13 +16,6 @@ struct AftermarketEditorView: View {
         }
     }
 
-    /// What Save does to the picture.
-    private enum ImageChange: Equatable {
-        case unchanged
-        case removed
-        case file(URL)
-    }
-
     let request: Request
 
     @Environment(\.modelContext) private var modelContext
@@ -34,11 +27,9 @@ struct AftermarketEditorView: View {
     /// Set once a new item is first saved, so retrying after an error
     /// doesn't add it twice.
     @State private var savedItem: AftermarketItem?
-    @State private var imageChange = ImageChange.unchanged
+    @State private var imageChange = PictureChange.unchanged
     @State private var preview: NSImage?
-    @State private var isChoosingImage = false
     @State private var isFetchingImage = false
-    @State private var isDropTargeted = false
     @State private var isSaving = false
     @State private var errorMessage: String?
     /// Dropped and downloaded pictures wait here until Save.
@@ -62,14 +53,6 @@ struct AftermarketEditorView: View {
 
     private var isNew: Bool {
         if case .new = request { true } else { false }
-    }
-
-    private var hasImage: Bool {
-        switch imageChange {
-        case .unchanged: savedItem?.imageAsset != nil
-        case .removed: false
-        case .file: true
-        }
     }
 
     var body: some View {
@@ -122,9 +105,6 @@ struct AftermarketEditorView: View {
                     .disabled(!draft.hasValidName || !draft.hasValidURL || isSaving || isFetchingImage)
             }
         }
-        .fileImporter(isPresented: $isChoosingImage, allowedContentTypes: [.image]) { result in
-            if case .success(let url) = result { useImage(at: url) }
-        }
         .task {
             if let asset = savedItem?.imageAsset {
                 preview = await thumbnailStore?.thumbnail(assetID: asset.id, originalRelativePath: asset.originalRelativePath)
@@ -146,106 +126,22 @@ struct AftermarketEditorView: View {
     // MARK: Picture
 
     private var imageWell: some View {
-        HStack(alignment: .center, spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(.quaternary.opacity(0.6))
-                if let preview {
-                    Image(nsImage: preview)
-                        .resizable()
-                        .scaledToFit()
-                        .accessibilityLabel("Picture of the part")
-                } else {
-                    VStack(spacing: 4) {
-                        Image(systemName: "photo")
-                            .font(.title2)
-                        Text("Drop an Image")
-                            .font(.caption)
-                    }
-                    .foregroundStyle(.secondary)
-                }
-                if isFetchingImage {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-            }
-            .frame(width: 140, height: 100)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay {
-                if isDropTargeted {
-                    RoundedRectangle(cornerRadius: 8).strokeBorder(Color.accentColor, lineWidth: 2)
-                }
-            }
-            .onDrop(of: CaptureDrop.types, isTargeted: $isDropTargeted) { providers in
-                receiveDrop(CaptureDrop.providers(fallback: providers))
+        PictureWell(
+            change: $imageChange,
+            preview: $preview,
+            isFetching: $isFetchingImage,
+            hasStoredPicture: savedItem?.imageAsset != nil,
+            pageURL: draft.parsedURL,
+            workFolder: workFolder,
+            accessibilityLabel: "Picture of the part",
+            onLinkDropped: { url in
+                // A dropped link fills in the product page if it's empty.
+                guard draft.productURL.trimmedOrNil == nil else { return false }
+                draft.productURL = url.absoluteString
                 return true
-            }
-
-            VStack(alignment: .leading, spacing: 6) {
-                Button("Choose Image…") { isChoosingImage = true }
-                Button("Use Image from Product Page", action: fetchPageImage)
-                    .disabled(draft.parsedURL == nil || isFetchingImage)
-                    .help(draft.parsedURL == nil
-                          ? "Enter the product page first"
-                          : "Download the picture the product page shows in link previews")
-                if hasImage {
-                    Button("Remove Image") {
-                        imageChange = .removed
-                        preview = nil
-                    }
-                }
-            }
-            .controlSize(.small)
-        }
-        .padding(.vertical, 4)
-    }
-
-    private func useImage(at url: URL) {
-        let accessing = url.startAccessingSecurityScopedResource()
-        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
-        guard let image = NSImage(contentsOf: url) else {
-            errorMessage = AftermarketError.notAnImage(url.lastPathComponent).localizedDescription
-            return
-        }
-        preview = image
-        imageChange = .file(url)
-    }
-
-    /// An image becomes the picture; a dropped link fills in the product
-    /// page if it's empty.
-    private func receiveDrop(_ providers: [NSItemProvider]) {
-        let folder = workFolder.appending(path: UUID().uuidString, directoryHint: .isDirectory)
-        Task {
-            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            let result = await ItemProviderReader(fileDirectory: folder, copiesFileURLs: true).read(providers)
-            for item in result.items {
-                if case .file(let url, _, _) = item, ItemProviderReader.isReadableImage(url) {
-                    useImage(at: url)
-                    return
-                }
-            }
-            for item in result.items {
-                if case .link(let url, _) = item, draft.productURL.trimmedOrNil == nil {
-                    draft.productURL = url.absoluteString
-                    return
-                }
-            }
-            errorMessage = String(localized: "Drop an image file, or an image from a web page.")
-        }
-    }
-
-    private func fetchPageImage() {
-        guard let page = draft.parsedURL else { return }
-        isFetchingImage = true
-        let folder = workFolder.appending(path: UUID().uuidString, directoryHint: .isDirectory)
-        Task {
-            defer { isFetchingImage = false }
-            do {
-                useImage(at: try await AftermarketService.downloadPageImage(from: page, into: folder))
-            } catch {
-                errorMessage = error.localizedDescription
-            }
-        }
+            },
+            onError: { errorMessage = $0 }
+        )
     }
 
     // MARK: Saving

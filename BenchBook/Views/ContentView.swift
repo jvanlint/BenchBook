@@ -22,6 +22,7 @@ struct ContentView: View {
     @FocusState private var isSearchFocused: Bool
     @State private var revealReferenceID: UUID?
     @State private var revealPaintID: UUID?
+    @State private var revealKitID: UUID?
     @State private var revealAftermarketID: UUID?
     @State private var revealBuildPhotoID: UUID?
     @State private var projectPendingDeletion: Project?
@@ -185,6 +186,8 @@ struct ContentView: View {
             searchResults(searchQuery, title: String(localized: "Search"))
         } else if selection == .tags {
             TagManagerView { tag in selection = .tag(tag.id) }
+        } else if selection == .kits {
+            KitCatalogueView(revealID: $revealKitID)
         } else if selection == .paints {
             PaintCatalogueView(revealID: $revealPaintID)
         } else if selection == .shoppingList {
@@ -234,6 +237,11 @@ struct ContentView: View {
                 endSearch()
                 selection = .project(projectID)
                 revealReferenceID = reference.id
+            },
+            onShowKit: { kit in
+                endSearch()
+                selection = .kits
+                revealKitID = kit.id
             },
             onShowPaint: { paint in
                 endSearch()

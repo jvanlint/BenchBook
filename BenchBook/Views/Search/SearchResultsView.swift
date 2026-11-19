@@ -5,6 +5,7 @@ import SwiftUI
 /// One row in the search results.
 enum SearchResultID: Hashable {
     case project(UUID)
+    case kit(UUID)
     case paint(UUID)
     case aftermarket(UUID)
     case reference(UUID)
@@ -18,8 +19,8 @@ enum SearchResultID: Hashable {
     case buildPhotoNote(photo: UUID, note: UUID)
 }
 
-/// Results for a search across every Project: projects, paints, aftermarket
-/// parts, then
+/// Results for a search across every Project: projects, kits, paints,
+/// aftermarket parts, then
 /// references grouped by project. Matching image boxes and video moments
 /// get their own rows so they can be opened directly.
 struct SearchResultsView: View {
@@ -27,6 +28,7 @@ struct SearchResultsView: View {
     var title: String = String(localized: "Search")
     var onShowProject: (Project) -> Void
     var onShowReference: (Reference) -> Void
+    var onShowKit: (Kit) -> Void
     var onShowPaint: (Paint) -> Void
     var onShowAftermarketItem: (AftermarketItem) -> Void
     var onShowBuildPhoto: (BuildPhoto) -> Void
@@ -39,6 +41,7 @@ struct SearchResultsView: View {
     @State private var selection: SearchResultID?
     @State private var quickLookURL: URL?
     @State private var detailsReference: Reference?
+    @State private var kitEditor: KitEditorView.Request?
     @State private var paintEditor: PaintEditorRequest?
     @State private var aftermarketEditor: AftermarketEditorView.Request?
     @State private var detailsPhoto: BuildPhoto?
@@ -72,6 +75,9 @@ struct SearchResultsView: View {
                 ReferenceDetailsView(reference: reference)
             }
         }
+        .sheet(item: $kitEditor) { request in
+            NavigationStack { KitEditorView(request: request) }
+        }
         .sheet(item: $paintEditor) { request in
             PaintEditorView(request: request)
         }
@@ -97,6 +103,13 @@ struct SearchResultsView: View {
                 Section("Projects") {
                     ForEach(results.projects) { project in
                         projectRow(project).tag(SearchResultID.project(project.id))
+                    }
+                }
+            }
+            if !results.kits.isEmpty {
+                Section("Kits") {
+                    ForEach(results.kits) { kit in
+                        kitRow(kit).tag(SearchResultID.kit(kit.id))
                     }
                 }
             }
@@ -161,6 +174,28 @@ struct SearchResultsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+        }
+        .padding(.vertical, 2)
+    }
+
+    private func kitRow(_ kit: Kit) -> some View {
+        HStack(spacing: 10) {
+            KitThumbnail(kit: kit, size: 28)
+                .frame(width: 64)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(SearchSnippet.highlighted("\(kit.brand) \(kit.name)", for: query))
+                let details = [kit.scale ?? "", kit.number ?? "", kit.notes ?? ""].filter { !$0.isEmpty }
+                if !details.isEmpty {
+                    Text(SearchSnippet.highlighted(details.joined(separator: " · "), for: query))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            Spacer()
+            Text(kit.isOwned ? kit.status.displayName : String(localized: "Not Owned"))
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
     }
@@ -334,6 +369,11 @@ struct SearchResultsView: View {
             if let project = results.projects.first(where: { $0.id == projectID }) {
                 Button("Show Project") { onShowProject(project) }
             }
+        case .kit(let kitID):
+            if let kit = results.kits.first(where: { $0.id == kitID }) {
+                Button("Edit Kit…") { kitEditor = .edit(kit) }
+                Button("Show in Kits") { onShowKit(kit) }
+            }
         case .paint(let paintID):
             if let paint = results.paints.first(where: { $0.id == paintID }) {
                 Button("Edit Paint…") { paintEditor = .edit(paint) }
@@ -377,6 +417,8 @@ struct SearchResultsView: View {
         switch id {
         case .project(let projectID):
             if let project = results.projects.first(where: { $0.id == projectID }) { onShowProject(project) }
+        case .kit(let kitID):
+            if let kit = results.kits.first(where: { $0.id == kitID }) { kitEditor = .edit(kit) }
         case .paint(let paintID):
             if let paint = results.paints.first(where: { $0.id == paintID }) { paintEditor = .edit(paint) }
         case .aftermarket(let itemID):
@@ -447,6 +489,9 @@ struct SearchResultsView: View {
     private func summary(_ results: SearchResults) -> String {
         var parts: [String] = []
         if !results.projects.isEmpty { parts.append(String(localized: "\(results.projects.count) projects")) }
+        if !results.kits.isEmpty {
+            parts.append(String(AttributedString(localized: "^[\(results.kits.count) kit](inflect: true)").inflected().characters))
+        }
         if !results.paints.isEmpty { parts.append(String(localized: "\(results.paints.count) paints")) }
         if !results.aftermarketItems.isEmpty { parts.append(String(localized: "\(results.aftermarketItems.count) parts")) }
         if results.referenceCount > 0 { parts.append(String(localized: "\(results.referenceCount) references")) }

@@ -39,6 +39,23 @@ struct SearchIndexTests {
         folder = try TemporaryFolder()
     }
 
+    @Test func findsKitsByBrandNameNumberAndNotes() throws {
+        let cobra = Kit(brand: "Italeri", name: "Super Cobra", scale: "1:72", number: "1234")
+        cobra.notes = "Missing the decal sheet"
+        let copy = Kit(brand: "Italeri", name: "Super Cobra", scale: "1:72", number: "1234")
+        let spitfire = Kit(brand: "Airfix", name: "Spitfire", scale: "1:72")
+        for kit in [cobra, copy, spitfire] { context.insert(kit) }
+        try context.save()
+        let index = SearchIndex(context: context)
+
+        #expect(index.search(SearchQuery(text: "italeri cobra")).kits.count == 2)
+        #expect(index.search(SearchQuery(text: "1234")).kits.count == 2)
+        #expect(index.search(SearchQuery(text: "decal")).kits.map(\.id) == [cobra.id])
+        #expect(index.search(SearchQuery(text: "spitfire")).kits.map(\.id) == [spitfire.id])
+        // Tags only belong to references and build photos.
+        #expect(index.search(SearchQuery(text: "cobra", tags: ["cockpit"])).kits.isEmpty)
+    }
+
     private func reference(_ kind: ReferenceKind, in project: Project, title: String? = nil, text: String? = nil,
                            tags: [String] = []) throws -> Reference {
         let reference = Reference(project: project, kind: kind, title: title, text: text)
