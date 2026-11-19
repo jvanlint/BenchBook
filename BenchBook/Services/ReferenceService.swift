@@ -106,7 +106,8 @@ struct ReferenceService {
         return removed
     }
 
-    /// Deletes the asset and its files if no Reference or aftermarket item uses it.
+    /// Deletes the asset and its files if no Reference, aftermarket item or
+    /// build photo uses it.
     func removeAssetIfUnused(_ asset: ManagedAsset) throws {
         guard asset.isUnused else { return }
         let id = asset.id
@@ -118,6 +119,7 @@ struct ReferenceService {
 
     private func save() throws {
         do {
+            context.touchEditedProjects()
             try context.save()
         } catch {
             context.rollback()
@@ -127,8 +129,8 @@ struct ReferenceService {
 }
 
 extension ManagedAsset {
-    /// True when no Reference or aftermarket item uses this file.
-    var isUnused: Bool { references.isEmpty && aftermarketItems.isEmpty }
+    /// True when no Reference, aftermarket item or build photo uses this file.
+    var isUnused: Bool { references.isEmpty && aftermarketItems.isEmpty && buildPhotos.isEmpty }
 }
 
 enum NoteError: LocalizedError, Equatable {

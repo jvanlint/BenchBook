@@ -30,6 +30,7 @@ struct ProjectSidebar: View {
     @Query private var paintSelections: [ProjectPaint]
     @AppStorage("sidebar.showsAllTags") private var showsAllTags = false
     @AppStorage("sidebar.projectStatusFilter") private var statusFilterValue = ProjectStatusFilter.all.storageValue
+    @AppStorage("sidebar.projectSort") private var projectSort = ProjectSort.name
     @State private var nameSheet: TagNameSheet.Mode?
     @State private var tagPendingDeletion: Tag?
 
@@ -53,7 +54,7 @@ struct ProjectSidebar: View {
     }
 
     private var visibleProjects: [Project] {
-        projects.filter { statusFilter.includes($0.status) }
+        projectSort.sorted(projects.filter { statusFilter.includes($0.status) })
     }
 
     var body: some View {
@@ -97,7 +98,7 @@ struct ProjectSidebar: View {
                         TagRow(tag: tag)
                             .tag(SidebarItem.tag(tag.id))
                             .contextMenu {
-                                Button("Show References") { selection = .tag(tag.id) }
+                                Button("Show Tagged Items") { selection = .tag(tag.id) }
                                 Button("Rename…") { nameSheet = .rename(tag) }
                                 TagColorPicker(tags: [tag])
                                 Divider()
@@ -172,6 +173,12 @@ struct ProjectSidebar: View {
                     }
                 }
                 .pickerStyle(.inline)
+                Picker("Sort By", selection: $projectSort) {
+                    ForEach(ProjectSort.allCases) { sort in
+                        Text(sort.displayName).tag(sort)
+                    }
+                }
+                .pickerStyle(.inline)
             } label: {
                 Image(systemName: statusFilter == .all
                       ? "line.3.horizontal.decrease.circle"
@@ -180,8 +187,8 @@ struct ProjectSidebar: View {
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
-            .help("Show projects by status")
-            .accessibilityLabel("Filter Projects by Status")
+            .help("Show projects by status, and sort them")
+            .accessibilityLabel("Filter and Sort Projects")
         }
     }
 
@@ -227,7 +234,7 @@ private struct TagRow: View {
                 .font(.callout)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
-                .accessibilityLabel("\(tag.usageCount) references")
+                .accessibilityLabel(tag.usageSummary)
         }
         .contentShape(Rectangle())
         .overlay {
@@ -243,15 +250,19 @@ private struct TagRow: View {
         .dropDestination(for: ReferencesDragItem.self) { items, _ in
             tagReferences(items.flatMap(\.referenceIDs))
         } isTargeted: { isDropTargeted = $0 }
-        .help("Drag onto references to tag them, or drag references here")
+        .help("Drag onto references or build photos to tag them, or drag them here")
     }
 
+    /// Tags dragged references and build photos; the IDs can be either.
     private func tagReferences(_ ids: [UUID]) -> Bool {
         guard !ids.isEmpty else { return false }
         do {
+            let service = TagService(context: modelContext)
             let references = try modelContext.fetch(FetchDescriptor<Reference>(predicate: #Predicate { ids.contains($0.id) }))
-            try TagService(context: modelContext).add(tag, to: references)
-            return true
+            let photos = try modelContext.fetch(FetchDescriptor<BuildPhoto>(predicate: #Predicate { ids.contains($0.id) }))
+            if !references.isEmpty { try service.add(tag, to: references) }
+            if !photos.isEmpty { try service.add(tag, to: photos) }
+            return !references.isEmpty || !photos.isEmpty
         } catch {
             Logger.capture.error("Tagging dropped references failed: \(error.localizedDescription, privacy: .public)")
             return false

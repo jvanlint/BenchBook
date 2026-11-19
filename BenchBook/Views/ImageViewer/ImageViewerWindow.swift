@@ -1,23 +1,22 @@
 import SwiftData
 import SwiftUI
 
-/// Root of an image viewer window. The window's value is the Reference ID,
-/// so previous/next simply changes it.
+/// Root of an image viewer window. The window's value is the ID of a
+/// reference image or a build photo, so previous/next simply changes it.
 struct ImageViewerWindow: View {
     static let id = "image-viewer"
 
     @Binding var referenceID: UUID?
     @Environment(\.modelContext) private var modelContext
 
-    private var reference: Reference? {
-        guard let referenceID else { return nil }
-        return try? modelContext.fetch(FetchDescriptor<Reference>(predicate: #Predicate { $0.id == referenceID })).first
+    private var image: ViewerImage? {
+        referenceID.flatMap { ViewerImage.find($0, in: modelContext) }
     }
 
     var body: some View {
-        if let reference, reference.kind == .image {
-            ImageViewer(reference: reference) { referenceID = $0 }
-                .id(reference.id)
+        if let image {
+            ImageViewer(item: image) { referenceID = $0 }
+                .id(image.id)
         } else {
             ContentUnavailableView(
                 "Image Not Found",
@@ -30,12 +29,12 @@ struct ImageViewerWindow: View {
 }
 
 /// Asks an image viewer to show one of its notes, e.g. from search.
-/// Keyed by Reference ID; the viewer clears the request once shown.
+/// Keyed by Reference or build photo ID; the viewer clears the request once shown.
 @Observable
 final class ImageViewerRequests {
     static let shared = ImageViewerRequests()
     var noteToShow: [UUID: UUID] = [:]
-    /// References deleted this session, so comparison windows drop them.
+    /// References and build photos deleted this session, so comparison windows drop them.
     private(set) var deletedReferences = Set<UUID>()
 
     /// Call before deleting references that a viewer might show.
@@ -57,10 +56,10 @@ extension ImageLoader {
         }
     }
 
-    /// Loads a reference's saved image off the main thread.
+    /// Loads a reference image's or build photo's saved original off the main thread.
     @MainActor
-    static func load(_ reference: Reference, from library: AssetLibrary) async throws -> Loaded {
-        guard let asset = reference.asset else { throw ReferenceError.noImage }
+    static func load(_ image: ViewerImage, from library: AssetLibrary) async throws -> Loaded {
+        guard let asset = image.asset else { throw ReferenceError.noImage }
         let url = library.url(forRelativePath: asset.originalRelativePath)
         do {
             return try await Task.detached(priority: .userInitiated) { try ImageLoader.load(url) }.value
@@ -99,7 +98,7 @@ enum ImageInspectorTab: String, CaseIterable {
 
 /// Shows one image with zoom, pan and note boxes, plus a Notes/Info panel.
 struct ImageViewer: View {
-    let reference: Reference
+    let item: ViewerImage
     let onNavigate: (UUID) -> Void
 
     @Environment(\.modelContext) private var modelContext
@@ -126,19 +125,15 @@ struct ImageViewer: View {
         image.map { CGSize(width: $0.width, height: $0.height) } ?? .zero
     }
 
-    private var notes: [Markup] { reference.sortedImageNotes }
+    private var notes: [Markup] { item.sortedImageNotes }
 
     private var noteBoxes: [NoteBox] { NoteBox.boxes(for: notes, in: imageSize) }
 
-    /// Images in the same Project, newest first, as in the gallery.
-    private var siblings: [Reference] {
-        (reference.project?.references ?? [])
-            .filter { $0.kind == .image }
-            .sorted { $0.capturedAt > $1.capturedAt }
-    }
+    /// Images in the same Project and section, in gallery order.
+    private var siblings: [UUID] { item.siblingIDs }
 
-    private func sibling(offset: Int) -> Reference? {
-        guard let index = siblings.firstIndex(where: { $0.id == reference.id }) else { return nil }
+    private func sibling(offset: Int) -> UUID? {
+        guard let index = siblings.firstIndex(of: item.id) else { return nil }
         let target = index + offset
         return siblings.indices.contains(target) ? siblings[target] : nil
     }
@@ -146,7 +141,7 @@ struct ImageViewer: View {
     var body: some View {
         content
             .frame(minWidth: 520, minHeight: 360)
-            .navigationTitle(reference.displayTitle)
+            .navigationTitle(item.displayTitle)
             .navigationSubtitle(subtitle)
             .inspector(isPresented: $showsNotes) {
                 VStack(spacing: 0) {
@@ -169,7 +164,7 @@ struct ImageViewer: View {
                             onDelete: { notePendingDeletion = $0 }
                         )
                     case .info:
-                        ImageInfoPanel(reference: reference, loaded: loaded)
+                        ImageInfoPanel(image: item, loaded: loaded)
                     }
                 }
                 // Keep the tab switch pinned to the top, whatever is below it.
@@ -177,8 +172,8 @@ struct ImageViewer: View {
                 .inspectorColumnWidth(min: 240, ideal: 300, max: 440)
             }
             .toolbar { toolbar }
-            .task(id: reference.id) { await loadImage() }
-            .task(id: RequestedNote(noteID: ImageViewerRequests.shared.noteToShow[reference.id], isLoaded: image != nil)) {
+            .task(id: item.id) { await loadImage() }
+            .task(id: RequestedNote(noteID: ImageViewerRequests.shared.noteToShow[item.id], isLoaded: image != nil)) {
                 await showRequestedNote()
             }
             .onDisappear { commit() }
@@ -238,14 +233,14 @@ struct ImageViewer: View {
     private var toolbar: some ToolbarContent {
         ToolbarItemGroup(placement: .navigation) {
             Button("Previous Image", systemImage: "chevron.left") {
-                if let previous = sibling(offset: -1) { onNavigate(previous.id) }
+                if let previous = sibling(offset: -1) { onNavigate(previous) }
             }
             .keyboardShortcut("[")
             .disabled(sibling(offset: -1) == nil)
             .help("Previous Image (⌘[)")
 
             Button("Next Image", systemImage: "chevron.right") {
-                if let next = sibling(offset: 1) { onNavigate(next.id) }
+                if let next = sibling(offset: 1) { onNavigate(next) }
             }
             .keyboardShortcut("]")
             .disabled(sibling(offset: 1) == nil)
@@ -307,7 +302,7 @@ struct ImageViewer: View {
 
     /// e.g. "F-16CJ · 4,032 × 3,024".
     private var subtitle: String {
-        var parts = [reference.project?.name].compactMap { $0 }
+        var parts = [item.project?.name].compactMap { $0 }
         if let metadata = loaded?.metadata {
             parts.append("\(metadata.pixelWidth.formatted()) × \(metadata.pixelHeight.formatted())")
         }
@@ -318,7 +313,7 @@ struct ImageViewer: View {
 
     private func loadImage() async {
         do {
-            loaded = try await ImageLoader.load(reference, from: assetLibrary)
+            loaded = try await ImageLoader.load(item, from: assetLibrary)
         } catch {
             loadError = error.localizedDescription
         }
@@ -331,8 +326,8 @@ struct ImageViewer: View {
 
     /// Selects the requested note and zooms to its box, once the image is shown.
     private func showRequestedNote() async {
-        guard image != nil, let id = ImageViewerRequests.shared.noteToShow[reference.id] else { return }
-        ImageViewerRequests.shared.noteToShow[reference.id] = nil
+        guard image != nil, let id = ImageViewerRequests.shared.noteToShow[item.id] else { return }
+        ImageViewerRequests.shared.noteToShow[item.id] = nil
         guard let box = noteBoxes.first(where: { $0.id == id }) else { return }
         showsBoxes = true
         showsNotes = true
@@ -345,7 +340,7 @@ struct ImageViewer: View {
 
     private func create(_ rect: CGRect) {
         do {
-            if let note = try service.addNote(to: reference, pixelRect: rect, imageSize: imageSize) {
+            if let note = try service.addNote(to: item, pixelRect: rect, imageSize: imageSize) {
                 selection = note.id
                 showsNotes = true
                 inspectorTab = .notes

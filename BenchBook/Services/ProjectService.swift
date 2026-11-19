@@ -78,6 +78,7 @@ struct ProjectService {
     /// paints, ownership and tags are kept.
     func delete(_ project: Project, library: AssetLibrary) throws {
         let assets = project.references.compactMap(\.asset) + project.aftermarketItems.compactMap(\.imageAsset)
+            + project.buildPhotos.compactMap(\.asset)
         let posters = project.references.map { library.posterURL(referenceID: $0.id) }
         context.delete(project)
         try save()
@@ -107,6 +108,7 @@ struct ProjectService {
     /// changes are discarded so the UI never shows edits that aren't stored.
     private func save() throws {
         do {
+            context.touchEditedProjects()
             try context.save()
         } catch {
             context.rollback()

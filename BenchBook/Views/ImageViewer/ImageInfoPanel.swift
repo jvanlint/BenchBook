@@ -2,12 +2,28 @@ import SwiftUI
 
 /// The viewer's Info tab: facts about the original image and where it came from.
 struct ImageInfoPanel: View {
-    let reference: Reference
+    let image: ViewerImage
     /// Nil until the image has loaded.
     let loaded: ImageLoader.Loaded?
 
+    private var reference: Reference? {
+        if case .reference(let reference) = image { reference } else { nil }
+    }
+
     var body: some View {
         Form {
+            if case .buildPhoto(let photo) = image {
+                Section("Build Photo") {
+                    LabeledContent("Stage") {
+                        Label(photo.stage.displayName, systemImage: photo.stage.systemImage)
+                    }
+                    LabeledContent("Taken", value: photo.takenAt.formatted(date: .abbreviated, time: .shortened))
+                    if let notes = photo.notes {
+                        LabeledContent("Notes", value: notes)
+                    }
+                }
+            }
+
             if let metadata = loaded?.metadata {
                 Section("Image") {
                     LabeledContent("Dimensions", value: Self.dimensions(metadata.pixelWidth, metadata.pixelHeight))
@@ -41,14 +57,14 @@ struct ImageInfoPanel: View {
                 }
             }
 
-            if let asset = reference.asset {
+            if let asset = image.asset {
                 Section {
                     LabeledContent("Format", value: Self.formatName(asset.mimeType))
                     LabeledContent("Size", value: asset.byteCount.formatted(.byteCount(style: .file)))
                     if let filename = asset.originalFilename {
                         LabeledContent("File Name", value: filename)
                     }
-                    LabeledContent("Added", value: reference.capturedAt.formatted(date: .abbreviated, time: .shortened))
+                    LabeledContent("Added", value: image.addedAt.formatted(date: .abbreviated, time: .shortened))
                 } header: {
                     Text("File")
                 } footer: {
@@ -58,7 +74,7 @@ struct ImageInfoPanel: View {
                 }
             }
 
-            if reference.sourcePageURL != nil || reference.originalResourceURL != nil {
+            if let reference, reference.sourcePageURL != nil || reference.originalResourceURL != nil {
                 Section("Source") {
                     if let page = reference.sourcePageURL {
                         LabeledContent("Page") {
@@ -73,9 +89,9 @@ struct ImageInfoPanel: View {
                 }
             }
 
-            if !reference.tags.isEmpty {
+            if !image.tags.isEmpty {
                 Section("Tags") {
-                    TagChips(tags: reference.tags, limit: 50)
+                    TagChips(tags: image.tags, limit: 50)
                 }
             }
         }

@@ -39,7 +39,7 @@ final class ImageComparisonPanes {
 
 /// Up to four images side by side or in a grid, each zoomed on its own,
 /// with one Notes and Info panel for the image last clicked. The window's
-/// value is the images' Reference IDs, so it reopens after relaunch.
+/// value is the images' Reference or build photo IDs, so it reopens after relaunch.
 struct ImageComparisonWindow: View {
     static let id = "image-comparison"
 
@@ -70,9 +70,9 @@ struct ImageComparisonWindow: View {
     private var ids: [UUID] { referenceIDs ?? [] }
 
     var body: some View {
-        let references = images(ids.filter { !ImageViewerRequests.shared.deletedReferences.contains($0) })
-        if let active = references.first(where: { $0.id == activeID }) ?? references.first {
-            comparison(references, active: active)
+        let shownImages = images(ids.filter { !ImageViewerRequests.shared.deletedReferences.contains($0) })
+        if let active = shownImages.first(where: { $0.id == activeID }) ?? shownImages.first {
+            comparison(shownImages, active: active)
         } else {
             ContentUnavailableView(
                 "Images Not Found",
@@ -83,16 +83,16 @@ struct ImageComparisonWindow: View {
         }
     }
 
-    private func comparison(_ references: [Reference], active: Reference) -> some View {
+    private func comparison(_ shownImages: [ViewerImage], active: ViewerImage) -> some View {
         let pane = panes.pane(for: active.id)
-        let arrangement = arrangement(for: references.count)
-        let shown = references.contains { $0.id == expandedID } ? references.filter { $0.id == expandedID } : references
+        let arrangement = arrangement(for: shownImages.count)
+        let shown = shownImages.contains { $0.id == expandedID } ? shownImages.filter { $0.id == expandedID } : shownImages
 
         return ComparisonLayout(arrangement: arrangement) {
-            ForEach(shown, id: \.id) { reference in
-                paneView(reference, in: references, isActive: reference.id == active.id)
+            ForEach(shown, id: \.id) { item in
+                paneView(item, in: shownImages, isActive: item.id == active.id)
             }
-            if showsAddSlot, shown.count == references.count, references.count < ImageComparison.maximumImages {
+            if showsAddSlot, shown.count == shownImages.count, shownImages.count < ImageComparison.maximumImages {
                 addSlot
             }
         }
@@ -100,12 +100,12 @@ struct ImageComparisonWindow: View {
         .ignoresSafeArea(edges: .bottom)
         .frame(minWidth: 640, minHeight: 400)
         .navigationTitle(active.displayTitle)
-        .navigationSubtitle(subtitle(references, active: active))
+        .navigationSubtitle(subtitle(shownImages, active: active))
         .inspector(isPresented: $showsInspector) {
-            inspector(for: active, pane: pane, isComparing: references.count > 1)
+            inspector(for: active, pane: pane, isComparing: shownImages.count > 1)
         }
-        .toolbar { toolbar(references, active: active, pane: pane, arrangement: arrangement) }
-        .onChange(of: references.map(\.id), initial: true) { _, shown in tidy(keeping: shown) }
+        .toolbar { toolbar(shownImages, active: active, pane: pane, arrangement: arrangement) }
+        .onChange(of: shownImages.map(\.id), initial: true) { _, shown in tidy(keeping: shown) }
         .onChange(of: activeID) { commit() }
         .onChange(of: pane.selection) { commit() }
         .onDisappear { commit() }
@@ -138,29 +138,29 @@ struct ImageComparisonWindow: View {
         }
     }
 
-    private func paneView(_ reference: Reference, in references: [Reference], isActive: Bool) -> some View {
+    private func paneView(_ item: ViewerImage, in shownImages: [ViewerImage], isActive: Bool) -> some View {
         ImageComparisonPaneView(
-            reference: reference,
-            pane: panes.pane(for: reference.id),
-            isActive: isActive && references.count > 1,
-            isExpanded: expandedID == reference.id,
-            isComparing: references.count > 1,
+            item: item,
+            pane: panes.pane(for: item.id),
+            isActive: isActive && shownImages.count > 1,
+            isExpanded: expandedID == item.id,
+            isComparing: shownImages.count > 1,
             showsBoxes: showsBoxes,
-            isDropTarget: dropTarget == .pane(reference.id),
+            isDropTarget: dropTarget == .pane(item.id),
             actions: ImageComparisonPaneView.Actions(
-                activate: { activate(reference.id) },
-                toggleExpanded: { toggleExpanded(reference.id) },
-                remove: { remove(reference.id) },
-                create: { create($0, on: reference) },
-                move: { move($0, to: $1, on: reference) },
-                delete: { id in notePendingDeletion = reference.sortedImageNotes.first { $0.id == id } }
+                activate: { activate(item.id) },
+                toggleExpanded: { toggleExpanded(item.id) },
+                remove: { remove(item.id) },
+                create: { create($0, on: item) },
+                move: { move($0, to: $1, on: item) },
+                delete: { id in notePendingDeletion = item.sortedImageNotes.first { $0.id == id } }
             )
         )
         // Dropping images from a gallery replaces this one.
         .dropDestination(for: ReferencesDragItem.self) { items, _ in
-            replace(reference.id, with: items)
+            replace(item.id, with: items)
         } isTargeted: { targeted in
-            dropHover(.pane(reference.id), targeted)
+            dropHover(.pane(item.id), targeted)
         }
     }
 
@@ -180,7 +180,7 @@ struct ImageComparisonWindow: View {
         }
     }
 
-    private func inspector(for reference: Reference, pane: ImageComparisonPane, isComparing: Bool) -> some View {
+    private func inspector(for item: ViewerImage, pane: ImageComparisonPane, isComparing: Bool) -> some View {
         VStack(spacing: 0) {
             Picker("Panel", selection: $inspectorTab) {
                 ForEach(ImageInspectorTab.allCases, id: \.self) { tab in
@@ -193,7 +193,7 @@ struct ImageComparisonWindow: View {
 
             if isComparing {
                 // Says which image the panel describes; click another image to switch.
-                Text(reference.displayTitle)
+                Text(item.displayTitle)
                     .font(.headline)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -204,25 +204,25 @@ struct ImageComparisonWindow: View {
             switch inspectorTab {
             case .notes:
                 ImageNotesPanel(
-                    notes: reference.sortedImageNotes,
+                    notes: item.sortedImageNotes,
                     selection: Bindable(pane).selection,
                     noteToFocus: Bindable(pane).noteToFocus,
                     service: service,
                     onDelete: { notePendingDeletion = $0 }
                 )
             case .info:
-                ImageInfoPanel(reference: reference, loaded: pane.loaded)
+                ImageInfoPanel(image: item, loaded: pane.loaded)
             }
         }
         // A fresh panel for each image, so typing focus doesn't carry over.
-        .id(reference.id)
+        .id(item.id)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .inspectorColumnWidth(min: 240, ideal: 300, max: 440)
     }
 
     @ToolbarContentBuilder
     private func toolbar(
-        _ references: [Reference], active: Reference, pane: ImageComparisonPane, arrangement: ImageComparison.Arrangement
+        _ shownImages: [ViewerImage], active: ViewerImage, pane: ImageComparisonPane, arrangement: ImageComparison.Arrangement
     ) -> some ToolbarContent {
         let controller = pane.controller
         ToolbarItemGroup(placement: .navigation) {
@@ -243,13 +243,13 @@ struct ImageComparisonWindow: View {
                 set: { chosenArrangement = $0.rawValue }
             )) {
                 Label("Side by Side", systemImage: "rectangle.split.3x1").tag(ImageComparison.Arrangement.row)
-                Label("Grid", systemImage: references.count == 2 ? "rectangle.split.1x2" : "square.grid.2x2")
+                Label("Grid", systemImage: shownImages.count == 2 ? "rectangle.split.1x2" : "square.grid.2x2")
                     .tag(ImageComparison.Arrangement.grid)
             }
             .pickerStyle(.segmented)
             .labelStyle(.iconOnly)
-            .disabled(references.count < 2 || expandedID != nil)
-            .help(references.count == 2 ? "Side by side or one above the other" : "Side by side or in a grid")
+            .disabled(shownImages.count < 2 || expandedID != nil)
+            .help(shownImages.count == 2 ? "Side by side or one above the other" : "Side by side or in a grid")
 
             Toggle(isOn: $showsBoxes) {
                 Label(showsBoxes ? "Hide Boxes" : "Show Boxes", systemImage: showsBoxes ? "eye" : "eye.slash")
@@ -303,9 +303,9 @@ struct ImageComparisonWindow: View {
     }
 
     /// e.g. "Comparing 3 images" or, for one image, its project.
-    private func subtitle(_ references: [Reference], active: Reference) -> String {
-        guard references.count > 1 else { return active.project?.name ?? "" }
-        return String(AttributedString(localized: "Comparing ^[\(references.count) image](inflect: true)").inflected().characters)
+    private func subtitle(_ shownImages: [ViewerImage], active: ViewerImage) -> String {
+        guard shownImages.count > 1 else { return active.project?.name ?? "" }
+        return String(AttributedString(localized: "Comparing ^[\(shownImages.count) image](inflect: true)").inflected().characters)
     }
 
     private func arrangement(for count: Int) -> ImageComparison.Arrangement {
@@ -314,12 +314,9 @@ struct ImageComparisonWindow: View {
 
     // MARK: Images
 
-    /// The images among `ids`, in that order.
-    private func images(_ ids: [UUID]) -> [Reference] {
-        guard !ids.isEmpty else { return [] }
-        let found = (try? modelContext.fetch(FetchDescriptor<Reference>(predicate: #Predicate { ids.contains($0.id) }))) ?? []
-        let byID = Dictionary(found.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        return ids.compactMap { byID[$0] }.filter { $0.kind == .image }
+    /// The images among `ids`, in that order: reference images and build photos.
+    private func images(_ ids: [UUID]) -> [ViewerImage] {
+        ViewerImage.find(ids, in: modelContext)
     }
 
     /// Drops deleted images from the window and forgets their panes.
@@ -349,24 +346,21 @@ struct ImageComparisonWindow: View {
         referenceIDs = ids.filter { $0 != id }
     }
 
-    /// Images in the same Project, newest first, as in the gallery.
-    private func siblings(of reference: Reference) -> [UUID] {
-        (reference.project?.references ?? [])
-            .filter { $0.kind == .image }
-            .sorted { $0.capturedAt > $1.capturedAt }
-            .map(\.id)
+    /// Images in the same Project and section, in gallery order.
+    private func siblings(of item: ViewerImage) -> [UUID] {
+        item.siblingIDs
     }
 
-    private func neighbour(of reference: Reference, offset: Int) -> UUID? {
-        ImageComparison.neighbour(of: reference.id, offset: offset, in: siblings(of: reference), skipping: ids)
+    private func neighbour(of item: ViewerImage, offset: Int) -> UUID? {
+        ImageComparison.neighbour(of: item.id, offset: offset, in: siblings(of: item), skipping: ids)
     }
 
     /// Shows the previous or next image from the same project in the selected pane.
-    private func step(_ reference: Reference, by offset: Int) {
-        guard let next = neighbour(of: reference, offset: offset) else { return }
+    private func step(_ item: ViewerImage, by offset: Int) {
+        guard let next = neighbour(of: item, offset: offset) else { return }
         commit()
-        referenceIDs = ids.map { $0 == reference.id ? next : $0 }
-        if expandedID == reference.id { expandedID = next }
+        referenceIDs = ids.map { $0 == item.id ? next : $0 }
+        if expandedID == item.id { expandedID = next }
         activeID = next
     }
 
@@ -417,11 +411,11 @@ struct ImageComparisonWindow: View {
 
     // MARK: Notes
 
-    private func create(_ rect: CGRect, on reference: Reference) {
-        let pane = panes.pane(for: reference.id)
+    private func create(_ rect: CGRect, on item: ViewerImage) {
+        let pane = panes.pane(for: item.id)
         do {
-            if let note = try service.addNote(to: reference, pixelRect: rect, imageSize: pane.imageSize) {
-                activate(reference.id)
+            if let note = try service.addNote(to: item, pixelRect: rect, imageSize: pane.imageSize) {
+                activate(item.id)
                 pane.selection = note.id
                 showsInspector = true
                 inspectorTab = .notes
@@ -432,17 +426,17 @@ struct ImageComparisonWindow: View {
         }
     }
 
-    private func move(_ id: UUID, to rect: CGRect, on reference: Reference) {
-        guard let note = reference.sortedImageNotes.first(where: { $0.id == id }) else { return }
+    private func move(_ id: UUID, to rect: CGRect, on item: ViewerImage) {
+        guard let note = item.sortedImageNotes.first(where: { $0.id == id }) else { return }
         do {
-            try service.move(note, toPixelRect: rect, imageSize: panes.pane(for: reference.id).imageSize)
+            try service.move(note, toPixelRect: rect, imageSize: panes.pane(for: item.id).imageSize)
         } catch {
             errorMessage = error.localizedDescription
         }
     }
 
     private func delete(_ note: Markup) {
-        if let id = note.reference?.id {
+        if let id = note.imageID {
             let pane = panes.pane(for: id)
             if pane.selection == note.id { pane.selection = nil }
         }
@@ -473,7 +467,7 @@ private struct ImageComparisonPaneView: View {
         var delete: (UUID) -> Void
     }
 
-    let reference: Reference
+    let item: ViewerImage
     @Bindable var pane: ImageComparisonPane
     /// The image the toolbar and Notes panel act on.
     let isActive: Bool
@@ -513,18 +507,18 @@ private struct ImageComparisonPaneView: View {
                 .allowsHitTesting(false)
             }
         }
-        .task(id: reference.id) { await load() }
+        .task(id: item.id) { await load() }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(reference.displayTitle)
+        .accessibilityLabel(item.displayTitle)
     }
 
     private var header: some View {
         HStack(spacing: 8) {
             HStack(spacing: 6) {
-                Text(reference.displayTitle)
+                Text(item.displayTitle)
                     .fontWeight(isActive ? .semibold : .regular)
                     .layoutPriority(1)
-                if let project = reference.project?.name {
+                if let project = item.project?.name {
                     Text(project)
                         .foregroundStyle(.secondary)
                 }
@@ -560,7 +554,7 @@ private struct ImageComparisonPaneView: View {
         if let image = pane.image {
             ImageCanvas(
                 image: image,
-                notes: NoteBox.boxes(for: reference.sortedImageNotes, in: pane.imageSize),
+                notes: NoteBox.boxes(for: item.sortedImageNotes, in: pane.imageSize),
                 showsBoxes: showsBoxes,
                 selection: $pane.selection,
                 controller: pane.controller,
@@ -582,7 +576,7 @@ private struct ImageComparisonPaneView: View {
     private func load() async {
         guard pane.loaded == nil, pane.loadError == nil else { return }
         do {
-            pane.loaded = try await ImageLoader.load(reference, from: assetLibrary)
+            pane.loaded = try await ImageLoader.load(item, from: assetLibrary)
         } catch {
             pane.loadError = error.localizedDescription
         }

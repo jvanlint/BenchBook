@@ -5,18 +5,19 @@ import SwiftData
 ///
 /// Schema 1 is the 1.0 baseline. Libraries from the 0.9 betas still open,
 /// as SwiftData upgrades them itself, but their image notes are dropped.
+/// Schema 2 adds build photos; the upgrade only adds, so it's lightweight.
 enum BenchBookMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [BenchBookSchemaV1.self]
+        [BenchBookSchemaV1.self, BenchBookSchemaV2.self]
     }
 
     static var stages: [MigrationStage] {
-        []
+        [.lightweight(fromVersion: BenchBookSchemaV1.self, toVersion: BenchBookSchemaV2.self)]
     }
 }
 
 /// The current version of each model. Update these when a new schema ships.
-typealias CurrentSchema = BenchBookSchemaV1
+typealias CurrentSchema = BenchBookSchemaV2
 typealias Project = CurrentSchema.Project
 typealias Reference = CurrentSchema.Reference
 typealias ManagedAsset = CurrentSchema.ManagedAsset
@@ -28,3 +29,5 @@ typealias OwnedPaint = CurrentSchema.OwnedPaint
 typealias ProjectPaint = CurrentSchema.ProjectPaint
 typealias AftermarketItem = CurrentSchema.AftermarketItem
 typealias Markup = CurrentSchema.Markup
+typealias BuildPhoto = CurrentSchema.BuildPhoto
+typealias BuildPhotoTag = CurrentSchema.BuildPhotoTag

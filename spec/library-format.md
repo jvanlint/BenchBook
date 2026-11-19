@@ -83,7 +83,7 @@ Describes the backup, so a restore can check it before touching the library.
   "createdAt": "2026-11-13T09:41:07Z",
   "appVersion": "1.1.0",
   "platform": "windows",
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "2.0.0",
   "counts": { "projects": 4, "references": 212, "paints": 1267 },
   "files": [
     { "path": "library.json", "size": 482113, "sha256": "9f2c…" },
@@ -106,7 +106,7 @@ breaking an older one.
 
 ```json
 {
-  "schemaVersion": "1.0.0",
+  "schemaVersion": "2.0.0",
   "projects": [ … ],
   "references": [ … ],
   "assets": [ … ],
@@ -117,7 +117,9 @@ breaking an older one.
   "paints": [ … ],
   "ownedPaints": [ … ],
   "projectPaints": [ … ],
-  "aftermarketItems": [ … ]
+  "aftermarketItems": [ … ],
+  "buildPhotos": [ … ],
+  "buildPhotoTags": [ … ]
 }
 ```
 
@@ -132,7 +134,8 @@ breaking an older one.
 | number | JSON number. Coordinates and seconds are doubles; counts are integers. |
 
 Every record has `id`, `createdAt` and `updatedAt`. They're not repeated in
-the tables below.
+the tables below. A project's `updatedAt` follows the rule in `behaviour.md`
+(When a project was last updated).
 
 #### projects
 
@@ -146,6 +149,7 @@ the tables below.
 | markingsScheme | text? | |
 | notes | text? | |
 | status | text? | `researching`, `inProgress`, `paused` or `completed`. Missing means `researching`. |
+| projectPhotoId | id? | A build photo of this project, shown in its header. Missing, or the id of a photo that no longer exists, shows none. Schema 2. |
 
 #### references
 
@@ -174,6 +178,8 @@ the tables below.
 
 One per stored file. Several references may share one asset: copying a
 reference to another project shares its file instead of duplicating it.
+References, aftermarket items and build photos all point at assets; an asset
+is deleted, with its file, only when none of them use it.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -198,6 +204,14 @@ reference to another project shares its file instead of duplicating it.
 | referenceId | id | |
 | tagId | id | One link per reference and tag pair. |
 
+| buildPhotoTags field | Type | Notes |
+|---|---|---|
+| buildPhotoId | id | Schema 2. |
+| tagId | id | One link per build photo and tag pair. |
+
+A tag is in use while any reference or build photo has it. "Remove unused
+tags" never deletes a tag that only build photos use.
+
 #### videoMoments
 
 | Field | Type | Notes |
@@ -209,12 +223,13 @@ reference to another project shares its file instead of duplicating it.
 
 #### markups
 
-Notes, highlights and arrows on a PDF, and note boxes on an image. The file
-itself is never changed.
+Notes, highlights and arrows on a PDF, and note boxes on an image or a build
+photo. The file itself is never changed.
 
 | Field | Type | Notes |
 |---|---|---|
-| referenceId | id | A `pdf` or `image` reference. |
+| referenceId | id? | A `pdf` or `image` reference. Exactly one of `referenceId` and `buildPhotoId` is set. |
+| buildPhotoId | id? | A build photo. Its markups are always `note`s on page 0, positioned like an image's. Schema 2. |
 | pageIndex | integer | Zero-based. Always 0 on images. |
 | kind | text | `note`, `highlight` or `arrow`. Images only have `note`. |
 | color | text | `yellow`, `orange`, `red`, `pink`, `green` or `blue`. |
@@ -227,8 +242,8 @@ Coordinates depend on the reference's kind:
 - **PDF**: the page's own coordinate space in points (1/72 inch), origin at the
   **bottom left** of the page's crop box, y going up. A note's `y` is its
   bottom edge.
-- **Image**: fractions from 0 to 1 of the image's width and height, origin at
-  the **top left**, y going down.
+- **Image** and **build photo**: fractions from 0 to 1 of the image's width
+  and height, origin at the **top left**, y going down.
 
 Windows APIs put the origin at the top left for both, so the PDF conversion is
 `windowsY = pageHeight - y - height` for a rectangle and
@@ -236,7 +251,8 @@ Windows APIs put the origin at the top left for both, so the PDF conversion is
 Interop tests must cover it.
 
 Markup numbers aren't stored. They come from sorting: PDF markups by
-`pageIndex`, then `createdAt`; image notes by `createdAt`. The first is 1.
+`pageIndex`, then `createdAt`; image and build photo notes by `createdAt`.
+The first is 1.
 
 #### paints
 
@@ -283,6 +299,27 @@ A colour a project needs and the paint chosen for it. Either can be missing.
 | productUrl | url? | http or https only. |
 | notes | text? | |
 | imageAssetId | id? | A picture of the part. It's an asset, not a reference. |
+
+#### buildPhotos
+
+The user's own photos of a build: work in progress and the completed model.
+They're kept apart from references, which hold research. Schema 2.
+
+| Field | Type | Notes |
+|---|---|---|
+| projectId | id | Required. |
+| assetId | id | Required. Always an image: `image/jpeg`, `image/png`, `image/webp` or `image/heic`. |
+| notes | text? | The first line is shown under the photo as its caption. |
+| takenAt | date | From the photo's EXIF `DateTimeOriginal` (or `DateTimeDigitized`) when it's added, read as local time; otherwise when it was added. The user can change it. |
+| stage | text | `wip` or `completed`. Unknown values show as `wip` and are kept. |
+
+Order: `completed` photos first, then `wip`; within each, `takenAt` newest
+first, then `createdAt` newest first. The grid groups `wip` photos by the day
+of `takenAt`, in the device's time zone.
+
+One file can be a build photo and a reference in the same project; each
+keeps its own asset. Adding the same file (same `sha256`) twice to one
+project's build photos is refused as a duplicate.
 
 ## Writing a backup
 
@@ -335,6 +372,11 @@ half-restored library or lose their current one.
   "Other"), and write it back unchanged.
 - **Schema changes**: any change to the tables above raises `schemaVersion`
   and is listed here, in the same commit as the Mac change.
+
+| schemaVersion | Change |
+|---|---|
+| 1.0.0 | BenchBook 1.0. |
+| 2.0.0 | Build photos (#43): `buildPhotos`, `buildPhotoTags`, `projects.projectPhotoId`, `markups.buildPhotoId`; `markups.referenceId` becomes optional. Additive: a 1.0.0 library reads as 2.0.0 with no build photos. |
 
 ## Mac app changes
 

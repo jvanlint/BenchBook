@@ -31,7 +31,8 @@ VoiceOver. Those are Mac bugs, not wording to copy.
   ("Tamiya · 1:48 · F-16CJ Block 50"), and its status as a small icon on the
   right: magnifying glass for Researching, hammer for In Progress, pause for
   Paused, tick for Completed. A filter button in the header shows one status
-  ("Projects · In Progress") or all of them. If none match: "No In Progress
+  ("Projects · In Progress") or all of them, and below that, Sort By: Name,
+  Date Created, Last Updated. If none match: "No In Progress
   Projects", with "Show All Projects".
 - **Library**: Paints, Shopping List (with the number of paints to buy), Tags.
 - **Tags**: the ten most used tags with their colour and count, then
@@ -39,19 +40,21 @@ VoiceOver. Those are Mac bugs, not wording to copy.
 - A + button above the list adds a project.
 
 Right-click a project: Edit Project…, Delete Project…. Right-click a tag:
-Show References, Rename…, Colour, Manage Tags…, Delete Tag….
+Show Tagged Items, Rename…, Colour, Manage Tags…, Delete Tag….
 
 **Dragging onto the sidebar**:
 
 - Files, links or text dropped on a project are added to it, without selecting it.
 - References dragged from the grid onto another project move there. Holding
   Option copies them instead. Windows: hold Ctrl to copy, as in Explorer.
-- References dragged onto a tag get that tag. A tag dragged onto references
-  in the grid tags them.
+- References or build photos dragged onto a tag get that tag. A tag dragged
+  onto references or build photos in their grid tags them.
 
-**Project header**: name and summary, then the References / Paint / Aftermarket
-switch, then Add Files, New Note and Edit Project buttons, then the search field
-("Search All Projects").
+**Project header**: the project photo, if one is set (a small thumbnail that
+opens it), then name and summary, then the References / Paint / Aftermarket /
+Build Photos switch (⌘1–⌘4), then Add Files, New Note and Edit Project
+buttons, then the search field ("Search All Projects"). In Build Photos, Add
+Files and New Note are replaced by Add Photos and Import from Photos.
 
 **Empty states**:
 
@@ -62,7 +65,7 @@ switch, then Add Files, New Note and Edit Project buttons, then the search field
   or merged."
 
 **Deleting a project** asks "Delete “F-16C”?", then "Its 12 references,
-3 image notes and 2 aftermarket parts will be deleted. Paints in your catalogue
+3 image notes, 2 aftermarket parts and 5 build photos will be deleted. Paints in your catalogue
 and your tags are kept. This can't be undone." For an empty project: "The
 project is empty. …"
 
@@ -355,33 +358,85 @@ such as hannants.co.uk/product/…".
 
 ![Edit Part](screens/aftermarket-editor.png)
 
+## Build Photos tab
+
+`Views/BuildPhotos/BuildPhotosView.swift`
+
+The user's own photos of the build. A grid of tiles in groups: **Completed**
+first, then work in progress by day ("Thursday, 19 November 2026"), each
+group headed by its name and count. Each tile shows the photo, its caption
+(the first line of its notes) or its date taken, then the stage with its
+icon (hammer for WIP, seal for Completed), the time when there's a caption,
+and "2 notes" when it has box notes, then its tags. The project photo has a
+star in its corner.
+
+- Double-click or Return opens the image viewer; Space shows Quick Look.
+  Opening one of 2–4 selected photos opens them side by side.
+- Selection works as in References: click, ⌘-click, ⇧-click, a drag across
+  empty space for a rectangle, and Select All. Delete asks to delete the
+  selected photos.
+- Right-click one photo: Open, Quick Look, Open in Default App, Edit
+  Details…, Mark as Completed (or Mark as WIP), Set as Project Photo (or
+  Remove as Project Photo), Tags ▸, Export…, Delete….
+- Right-click several: Open Side by Side, Mark as Completed, Tags ▸, Export 3
+  Photos…, Delete 3 Photos….
+- Deleting asks "Delete This Photo?" or "Delete 3 Photos?", with
+  "This removes the photo, its notes and its saved copy from BenchBook. This
+  can't be undone."
+- **Export…** asks for a folder ("Choose a folder for the 3 exported
+  photos."), with a **Remove location data** checkbox, on by default.
+
+Adding: drop or paste onto the section, Add Photos… or Import from Photos….
+Anything that isn't an image: "“name” isn't a photo." The same photo twice:
+"Already in Build Photos" or "“name” is already in this project's build
+photos."
+
+Empty: "No Build Photos. Drop photos here, or choose Add Photos…. Keep
+progress shots and photos of the completed model here, apart from your
+references." with Add Photos… and Import from Photos….
+
+There's no screenshot yet.
+
+## Build photo details
+
+`Views/BuildPhotos/BuildPhotoDetailsView.swift`
+
+"Build Photo Details": the photo, Stage (WIP / Completed), Taken (date and
+time), Notes ("Notes (optional). The first line shows under the photo."),
+Tags ("Tags, separated with commas"). Cancel and Save. Error alert: "Couldn't
+Save Build Photo".
+
 ## Tags
 
 `Views/Tags/TagManagerView.swift`, `Views/Tags/TagNameSheet.swift`
 
-A table: Colour, Name, References, Projects. "12 tags" in the header.
-Toolbar: New Tag, Remove Unused Tags (disabled with "Every tag is in use").
+A table: Colour, Name, Used By ("12 references, 4 build photos", or "Not
+used"), Projects. "12 tags" in the header. Toolbar: New Tag, Remove Unused
+Tags (disabled with "Every tag is in use").
 
-- Right-click: Show References, Rename…, Colour ▸, Merge 3 Tags…, Delete Tag….
-- Merging asks which to keep ("Keep “cockpit”"), with "References with any of
-  these tags will have the one you keep. The others are deleted."
-- Renaming to an existing name asks "Merge the two tags? References tagged with
-  either will have “cockpit”."
+- Right-click: Show Tagged Items, Rename…, Colour ▸, Merge 3 Tags…, Delete Tag….
+- Merging asks which to keep ("Keep “cockpit”"), with "References and build
+  photos with any of these tags will have the one you keep. The others are
+  deleted."
+- Renaming to an existing name asks "Merge the two tags? References and build
+  photos tagged with either will have “cockpit”."
 - Deleting: "They'll be removed from 14 references. The references themselves
-  aren't deleted."
+  aren't deleted." With build photos too: "They'll be removed from 14
+  references and 3 build photos, which aren't deleted."
 
-Clicking a tag in the sidebar shows every reference with it, grouped by
-project, in the same layout as search results. If none: "Nothing has this tag
-yet. Drag references onto it in the sidebar."
+Clicking a tag in the sidebar shows every reference and build photo with it,
+grouped by project, in the same layout as search results. If none: "Nothing
+has this tag yet. Drag references or build photos onto it in the sidebar."
 
-Empty: "No Tags. Tags you add to references appear here, where you can rename,
-colour, merge and delete them."
+Empty: "No Tags. Tags you add to references and build photos appear here,
+where you can rename, colour, merge and delete them."
 
 ![Tags](screens/tags.png)
 
 ![References with a tag](screens/tag-references.png)
 
-Each group is headed "Project — 2 references" (see Counts at the top).
+Each group is headed "Project — 2 references" or "Project — 2 references,
+1 build photo" (see Counts at the top).
 
 ## Search
 
@@ -398,6 +453,11 @@ opens the image, PDF or video at that spot.
 
 Right-click: Open, Show in Project, Edit Details…, Export Marked-Up Copy…
 (PDFs). Paints: Edit Paint…, Show in Paints. Parts: Edit Part…, Show in Project.
+
+Build photos come after a project's references, each with its thumbnail,
+caption or date, "Build Photo · WIP" and its tags, and a line per matching
+box ("Box 1: Seat belts") that opens the photo at that box. Right-click:
+Open, Show in Project, Edit Details…. The subtitle adds "2 build photos".
 
 ## Image viewer
 

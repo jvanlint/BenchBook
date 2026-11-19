@@ -49,6 +49,7 @@ struct ReferenceTransfer {
         guard !result.transferred.isEmpty else { return result }
 
         do {
+            context.touchEditedProjects()
             try context.save()
         } catch {
             context.rollback()

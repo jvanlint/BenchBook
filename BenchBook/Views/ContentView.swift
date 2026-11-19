@@ -23,6 +23,7 @@ struct ContentView: View {
     @State private var revealReferenceID: UUID?
     @State private var revealPaintID: UUID?
     @State private var revealAftermarketID: UUID?
+    @State private var revealBuildPhotoID: UUID?
     @State private var projectPendingDeletion: Project?
     @State private var deletionError: String?
     @State private var transferNotice: ReferenceTransferNotice?
@@ -197,7 +198,8 @@ struct ContentView: View {
                 onEdit: { editorRequest = .edit(project) },
                 onAddFiles: { isAddingFiles = true },
                 revealReferenceID: $revealReferenceID,
-                revealAftermarketID: $revealAftermarketID
+                revealAftermarketID: $revealAftermarketID,
+                revealBuildPhotoID: $revealBuildPhotoID
             )
             // A fresh workspace per Project, so each one opens on References.
             .id(project.id)
@@ -243,6 +245,12 @@ struct ContentView: View {
                 endSearch()
                 selection = .project(projectID)
                 revealAftermarketID = item.id
+            },
+            onShowBuildPhoto: { photo in
+                guard let projectID = photo.project?.id else { return }
+                endSearch()
+                selection = .project(projectID)
+                revealBuildPhotoID = photo.id
             }
         )
     }
@@ -317,7 +325,10 @@ struct ContentView: View {
     private func delete(_ project: Project) {
         // Leave the project and close its image and PDF windows before its records go.
         if selectedProjectID == project.id { selection = nil }
-        ImageViewerRequests.shared.willDelete(project.references.map(\.id))
+        ImageViewerRequests.shared.willDelete(project.references.map(\.id) + project.buildPhotos.map(\.id))
+        for photo in project.buildPhotos {
+            dismissWindow(id: ImageViewerWindow.id, value: photo.id)
+        }
         for reference in project.references {
             switch reference.kind {
             case .image: dismissWindow(id: ImageViewerWindow.id, value: reference.id)

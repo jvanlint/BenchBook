@@ -62,7 +62,8 @@ app. Only `library.json` is shared.
 
 ## Screens
 
-The layout follows the Mac app, using Windows controls.
+The layout follows the Mac app, using Windows controls. Features added to
+the Mac since 1.0 are listed in [changes.md](changes.md).
 
 ```text
 ┌───────────────────────────────────────────────────────────────┐
@@ -70,7 +71,7 @@ The layout follows the Mac app, using Windows controls.
 ├──────────────┬────────────────────────────────────────────────┤
 │ Projects   ▾ │  F-16CJ 50th Anniversary                       │
 │  F-16CJ      │  Tamiya · 1:48 · F-16CJ Block 50   [Edit]      │
-│  Spitfire    │  ┌ References ┬ Paint ┬ Aftermarket ┐          │
+│  Spitfire    │  ┌References┬Paint┬Aftermarket┬Build Photos┐   │
 │  …           │  [All types ▾] [cockpit ×] [decals ×]  [+ Add] │
 │              │  ┌────┐ ┌────┐ ┌────┐ ┌────┐                   │
 │ Paints       │  │    │ │    │ │    │ │    │                   │
@@ -84,9 +85,10 @@ The layout follows the Mac app, using Windows controls.
 
 | Mac | Windows |
 |---|---|
-| Sidebar (`NavigationSplitView`) | `NavigationView` in left mode: projects with a status filter, Paints, Shopping List, Tags, and Settings at the foot |
-| Project tabs | `SelectorBar` or `TabView` without close buttons: References, Paint, Aftermarket |
-| Reference grid | `ItemsView` or `GridView` with tiles, multiple selection, a selection rectangle and keyboard navigation |
+| Sidebar (`NavigationSplitView`) | `NavigationView` in left mode: projects with a status filter and a sort (Name, Date Created, Last Updated), Paints, Shopping List, Tags, and Settings at the foot |
+| Project tabs | `SelectorBar` or `TabView` without close buttons: References, Paint, Aftermarket, Build Photos |
+| Reference grid, Build Photos grid | `ItemsView` or `GridView` with tiles, multiple selection, a selection rectangle and keyboard navigation. Build Photos groups tiles under headers (Completed, then one per day). |
+| Import from Photos | Add Photos only: Windows has no shared photo library to pick from. Explorer drops and the Photos app's Share work as they do for references. |
 | Sheets (editors) | `ContentDialog`, or a side pane for longer editors |
 | Image viewer, PDF viewer, Compare | Separate windows that remember their size and position |
 | Toolbar | `CommandBar` |
@@ -108,7 +110,7 @@ Mac shortcuts map ⌘ to Ctrl, with Windows conventions where they differ:
 | Find | Ctrl+F (also F3 for next match in the PDF viewer) |
 | Edit project | Ctrl+I |
 | Edit tags | Ctrl+T |
-| References / Paint / Aftermarket | Ctrl+1 / Ctrl+2 / Ctrl+3 |
+| References / Paint / Aftermarket / Build Photos | Ctrl+1 / Ctrl+2 / Ctrl+3 / Ctrl+4 |
 | Delete | Delete, with confirmation |
 | Previous / next image or PDF | Ctrl+[ / Ctrl+] |
 | Show or hide boxes and markups | Ctrl+B |
@@ -146,7 +148,8 @@ running, the envelope waits until it starts.
   the file. Mind the coordinate flip in
   [library-format.md](library-format.md#markups).
 - **Markdown**: rendered read-only, with links opening in the browser.
-- **Compare**: two to four images, row or grid, each zoomable.
+- **Compare**: two to four images, row or grid, each zoomable. Build photos
+  open in the image viewer and Compare as references do.
 - **Thumbnails**: images scaled down with Windows Imaging Component; PDFs from
   page 1. Saved to `Thumbnails`, 480 px at most, PNG.
 
@@ -195,8 +198,9 @@ works.
 3. **Core.** Projects with status; references: capture by drop, paste and Add
    Files; the gallery with filters; notes; tags and the tag manager; moving and
    copying; search; link details and posters.
-4. **Paint and parts.** The paint catalogue with CSV import and export, project
-   paints, the shopping list, and aftermarket items.
+4. **Paint, parts and build photos.** The paint catalogue with CSV import and
+   export, project paints, the shopping list, aftermarket items, and build
+   photos with export that leaves out location data.
 5. **Viewers.** Image viewer with notes, Compare, Markdown, and the PDF viewer
    with markups and marked-up export.
 6. **Getting things in.** The Share target and the browser extension.

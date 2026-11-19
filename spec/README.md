@@ -14,6 +14,7 @@ commit.
 | [behaviour.md](behaviour.md) | The rules every BenchBook follows: names and duplicates, file checks, deleting, search, link details, paint CSV, markup geometry. |
 | [windows-app.md](windows-app.md) | How the Windows app is built: technology, screens, what maps to what, phases, and decisions still to make. |
 | [screens.md](screens.md) | Every screen: what it shows, what it does and what it says, with screenshots in [screens/](screens/). |
+| [changes.md](changes.md) | What the Mac app has gained since 1.0, as a checklist for the Windows app. |
 | [windows-handoff.md](windows-handoff.md) | Start here. The brief for whoever builds the Windows app, with the working rules. Copy it into the Windows project as `CLAUDE.md`. |
 
 ## Terms
@@ -27,8 +28,10 @@ commit.
 - **Paint**: a commercial paint in the catalogue, such as Tamiya XF-54 Dark Sea Grey.
 - **Project paint**: a colour a project needs, and the paint chosen for it.
 - **Aftermarket item**: a part bought or considered for a project, such as decals or a resin cockpit.
+- **Build photo**: the user's own photo of a build, work in progress or completed. Not a reference.
 
 ## Versions
 
-- Data model: schema **1.0.0**, as shipped in BenchBook 1.0.0.
+- Data model: schema **2.0.0**, which adds build photos (#43) to the schema
+  1.0.0 that shipped in BenchBook 1.0.0.
 - Portable backup: format **2** (proposed here). The Mac app's current backups are format 1, which only a Mac can read.

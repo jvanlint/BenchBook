@@ -131,6 +131,7 @@ struct ReferenceImporter {
     private func saveReference(_ reference: Reference, tags: [String]) throws {
         do {
             try ReferenceService(context: context, library: library).setTags(tags, on: reference)
+            context.touchEditedProjects()
             try context.save()
         } catch {
             context.rollback()

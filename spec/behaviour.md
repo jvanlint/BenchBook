@@ -26,8 +26,13 @@ means any Unicode whitespace, including line breaks.
   other tag, which takes the new spelling, and the renamed tag is deleted.
 - Merging keeps the target's colour, or takes the first colour among the merged
   tags if it has none.
-- "Remove unused tags" deletes tags with no links.
-- Tags sort by how many references use them (most first), then by name.
+- Tags are shared by references and build photos. Renaming, merging,
+  colouring and deleting a tag affect both.
+- "Remove unused tags" deletes tags with no links, counting both reference
+  links and build photo links. A tag only build photos use is in use.
+- Tags sort by how many references and build photos use them (most first),
+  then by name. Counts read "12 references, 4 build photos", leaving out
+  zeros and using the singular for one.
 
 ### Paint identity (stored)
 
@@ -111,6 +116,40 @@ A note is a reference of kind `note` that the user writes in BenchBook. It
 needs a title or some text ("Write a title or some text for the note."). Its
 body keeps line breaks and indentation, trimmed only at the ends.
 
+## Build photos
+
+A project's Build Photos section holds the user's own photos of the build,
+apart from its references.
+
+- **Adding**: drop, paste, Add Photos… (file picker) or Import from Photos…
+  (the system photo picker, which needs no access to the whole library).
+  While Build Photos is showing, drops and pastes go there instead of
+  References. Each file is checked like a reference file, and only images are
+  accepted: anything else is reported as "“name” isn't a photo." The original
+  is copied byte for byte, location data included.
+- **Duplicates**: a file whose SHA-256 matches one of the project's build
+  photos is refused: "“name” is already in this project's build photos." The
+  same file can still be a reference too.
+- **Date taken**: EXIF `DateTimeOriginal`, else `DateTimeDigitized`, read as
+  local time; else when it was added.
+- **Stage**: new photos are `wip`. Mark as Completed and Mark as WIP change it
+  for every selected photo.
+- **Caption**: the first non-empty line of the notes. Without notes the photo
+  shows its date taken.
+- **Project photo**: one photo per project, shown small in the project's
+  window title area, and nowhere else. Deleting that photo clears it.
+- **Box notes**: drawn and numbered as on reference images.
+- **Opening**: the image viewer, whose previous and next step through the
+  project's build photos in grid order. Opening one of 2–4 selected photos
+  compares them.
+- **Export…**: asks for a folder and saves copies named
+  `YYYY-MM-DD caption.ext` (date in local time; `/ : \ ? % * | " < >` and line
+  breaks become spaces; at most 80 characters of caption), adding " 2", " 3"
+  and so on rather than overwriting. **Remove location data** is on by default:
+  the copy leaves out GPS metadata without re-compressing the pixels. The
+  originals in the library are never changed.
+- There's no moving or copying between References and Build Photos.
+
 ## Moving and copying references
 
 - **Move to project**: the reference changes project and keeps everything.
@@ -125,18 +164,20 @@ body keeps line breaks and indentation, trimmed only at the ends.
 
 | Deleting | Also deletes | Never deletes |
 |---|---|---|
-| Project | its references, project paints and aftermarket items | paints, tags |
+| Project | its references, project paints, aftermarket items and build photos | paints, tags |
 | Reference | its tag links, video moments, markups and poster file | the asset, unless nothing else uses it |
-| Tag | its links | references |
+| Build photo | its tag links and box notes; clears the project photo if it was that | the asset, unless nothing else uses it |
+| Tag | its links | references, build photos |
 | Paint | its ownership record | — refused while any project paint uses it |
 | Aftermarket item | — | its image asset, unless nothing else uses it |
 
-- An asset is unused when no reference and no aftermarket item points to it.
+- An asset is unused when no reference, aftermarket item or build photo
+  points to it.
   Deleting an unused asset deletes its original and thumbnail.
 - Refusing to delete a paint names the projects using it.
 - Deleting a project first shows what goes with it, e.g. "12 references,
-  3 image notes, 2 PDF markups, 8 paints from its paint list and 2 aftermarket
-  parts".
+  3 image notes, 2 PDF markups, 8 paints from its paint list, 2 aftermarket
+  parts and 5 build photos".
 
 **Clean up** (in Settings) removes leftovers from interrupted work: unused
 assets, files in `Originals` or `Thumbnails` with no asset, leftover partial
@@ -148,17 +189,22 @@ Text sorts use "natural" order, which ignores case and compares runs of digits
 as numbers, so XF-2 comes before XF-10 (Windows: `StrCmpLogicalW` or an
 equivalent comparer).
 
-- Projects: by name.
+- Projects in the sidebar: the user chooses Name (A to Z), Date Created
+  (newest first) or Last Updated (most recent first). Projects with the same
+  date are in name order. The choice is remembered, and starts as Name.
 - References in a project: by capture date, newest first.
 - Paints: by brand, then code.
 - Project paints: colours with no paint chosen first (by standard), then paints
   by brand and code.
 - Aftermarket items: by status in the order listed in the format, then by name.
+- Build photos: completed first, then work in progress; each newest taken
+  first. Work in progress is grouped by day.
 
 ## Search
 
 One search field covers the whole library. It finds projects, paints,
-aftermarket items and references, with references grouped by project.
+aftermarket items, references and build photos, with references and build
+photos grouped by project ("F-16 — 3 references, 2 build photos").
 
 - The query is split on whitespace. An item matches when **every** word is
   found in at least one of its fields.
@@ -166,8 +212,9 @@ aftermarket items and references, with references grouped by project.
   Folding ignores case, accents and full-width forms. If that fails, both are
   compared with everything except letters and digits removed, so "f16" finds
   "F-16" and "xf54" finds "XF-54".
-- Tags chosen as tokens in the field narrow the results to references with
-  every chosen tag, and hide projects, paints and aftermarket items.
+- Tags chosen as tokens in the field narrow the results to references and
+  build photos with every chosen tag, and hide projects, paints and
+  aftermarket items. Choosing a tag in the sidebar shows the same results.
 
 Fields searched:
 
@@ -177,6 +224,7 @@ Fields searched:
 | Paint | brand, range, code, name, standard, notes |
 | Aftermarket item | product name, manufacturer, product number, type name, scale, notes, product page host |
 | Reference | title (or the fallback title), kind name, tags, file name, source link, text, note, channel, site name, description, image note text, PDF markup text, video moment title and note |
+| Build photo | caption, "Build Photo", stage name, tags, file name, the whole notes, box note text |
 
 Each reference result lists the parts that matched, labelled ("Box 2",
 "Highlight 3", "1:23", "Description"), with a short excerpt and the matched
@@ -185,6 +233,25 @@ words in bold. Results with a title match come first, then newest first.
 A reference's fallback title, in order: its title; its file name; the first
 line of its text (up to 120 characters); its source page's host; its kind name.
 
+### When a project was last updated (stored)
+
+A project's `updatedAt` is when the user last changed the project or anything
+in it. Each save of the user's own edits sets it to now for every project
+touched, which includes:
+
+- editing the project's details or status, or choosing its project photo;
+- adding, editing, moving, copying or deleting its references, build photos,
+  notes, markups, paints or aftermarket items;
+- adding or removing tags on its references or build photos.
+
+Moving a reference updates both projects.
+
+These don't change it: fetching link or video details, suggested tags, and
+changes to tags themselves (creating, renaming, colouring, merging or deleting
+a tag). A new project's `updatedAt` equals its `createdAt`.
+
+Code: `Services/ProjectActivity.swift` (`touchEditedProjects`).
+
 ## Filters
 
 In a project's gallery, the filter bar picks one kind and any number of tags.
@@ -192,7 +259,7 @@ A reference shows when it has the kind (if one is chosen) and **every** chosen
 tag. Filters aren't saved.
 
 The sidebar can show projects of one status or all of them. That choice is
-remembered.
+remembered, as is the sort order (see Sorting).
 
 ## Link details
 
@@ -414,7 +481,9 @@ These are approximate sRGB values for matching the Mac's light appearance:
 ## Compare
 
 Two to four selected images open side by side: in one row for two or three,
-or a 2 × 2 grid for four. The user can switch between row and grid.
+or a 2 × 2 grid for four. The user can switch between row and grid. Build
+photos compare the same way, and can be dropped into a comparison next to
+reference images.
 
 ## Settings
 

@@ -59,7 +59,7 @@ struct TagNameSheet: View {
         ) { _ in
             Button("Merge Tags") { rename(merging: true) }
         } message: { target in
-            Text("Merge the two tags? References tagged with either will have “\(target.name)”.")
+            Text("Merge the two tags? References and build photos tagged with either will have “\(target.name)”.")
         }
         .alert(
             "Couldn't Save Tag",

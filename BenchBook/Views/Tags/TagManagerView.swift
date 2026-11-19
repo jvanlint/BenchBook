@@ -25,7 +25,7 @@ struct TagManagerView: View {
     }
 
     private var unusedCount: Int {
-        tags.filter { $0.referenceLinks.isEmpty }.count
+        tags.filter(\.isUnused).count
     }
 
     var body: some View {
@@ -36,7 +36,7 @@ struct TagManagerView: View {
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button("Remove Unused Tags", systemImage: "tag.slash") { perform { try service.removeUnused() } }
                         .disabled(unusedCount == 0)
-                        .help(unusedCount == 0 ? "Every tag is in use" : "Delete the \(unusedCount) tags no reference uses")
+                        .help(unusedCount == 0 ? "Every tag is in use" : "Delete the \(unusedCount) tags no reference or build photo uses")
                     Button("New Tag", systemImage: "plus") { nameSheet = .new }
                         .help("Add a tag, to drag onto references")
                 }
@@ -52,7 +52,7 @@ struct TagManagerView: View {
                     Button("Keep “\(tag.name)”") { merge(into: tag) }
                 }
             } message: {
-                Text("References with any of these tags will have the one you keep. The others are deleted.")
+                Text("References and build photos with any of these tags will have the one you keep. The others are deleted.")
             }
             .confirmationDialog(
                 pendingDeletion.count == 1
@@ -84,7 +84,7 @@ struct TagManagerView: View {
             ContentUnavailableView {
                 Label("No Tags", systemImage: "tag")
             } description: {
-                Text("Tags you add to references appear here, where you can rename, colour, merge and delete them.")
+                Text("Tags you add to references and build photos appear here, where you can rename, colour, merge and delete them.")
             } actions: {
                 Button("New Tag") { nameSheet = .new }
             }
@@ -101,12 +101,12 @@ struct TagManagerView: View {
             .width(50)
             TableColumn("Name", value: \.name, comparator: .localizedStandard)
                 .width(min: 120, ideal: 200)
-            TableColumn("References", value: \.usageCount) { tag in
-                Text(tag.usageCount, format: .number)
+            TableColumn("Used By", value: \.usageCount) { tag in
+                Text(tag.usageSummary)
                     .monospacedDigit()
                     .foregroundStyle(tag.usageCount == 0 ? .secondary : .primary)
             }
-            .width(min: 70, ideal: 90)
+            .width(min: 110, ideal: 190)
             TableColumn("Projects") { tag in
                 Text(tag.projectNames.joined(separator: ", "))
                     .foregroundStyle(.secondary)
@@ -115,7 +115,7 @@ struct TagManagerView: View {
         .contextMenu(forSelectionType: UUID.self) { ids in
             let chosen = tags.filter { ids.contains($0.id) }
             if chosen.count == 1, let tag = chosen.first {
-                Button("Show References") { onShowTag(tag) }
+                Button("Show Tagged Items") { onShowTag(tag) }
                 Button("Rename…") { nameSheet = .rename(tag) }
             }
             if !chosen.isEmpty {
@@ -139,9 +139,17 @@ struct TagManagerView: View {
 
     private var deletionMessage: String {
         let references = Set(pendingDeletion.flatMap { $0.references.map(\.id) }).count
-        return references == 0
-            ? String(localized: "No references use them.")
-            : String(localized: "They'll be removed from \(references) references. The references themselves aren't deleted.")
+        let photos = Set(pendingDeletion.flatMap { $0.buildPhotos.map(\.id) }).count
+        switch (references, photos) {
+        case (0, 0):
+            return String(localized: "No references or build photos use them.")
+        case (_, 0):
+            return String(localized: "They'll be removed from \(references) references. The references themselves aren't deleted.")
+        case (0, _):
+            return String(localized: "They'll be removed from \(photos) build photos. The photos themselves aren't deleted.")
+        default:
+            return String(localized: "They'll be removed from \(references) references and \(photos) build photos, which aren't deleted.")
+        }
     }
 
     private func merge(into target: Tag) {

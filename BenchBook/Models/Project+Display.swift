@@ -55,8 +55,8 @@ nonisolated enum ProjectStatusFilter: Hashable, Sendable {
 
 extension Project {
     /// What deleting this project removes, for the confirmation, e.g.
-    /// "12 references, 3 image notes, 8 paints from its paint list and
-    /// 2 aftermarket parts". Empty when the project holds nothing.
+    /// "12 references, 3 image notes, 8 paints from its paint list,
+    /// 2 aftermarket parts and 5 build photos". Empty when the project holds nothing.
     var deletionSummary: String {
         let noteCount = references.reduce(0) { $0 + $1.sortedImageNotes.count }
         let markupCount = references.reduce(0) { $0 + ($1.kind == .image ? 0 : $1.markups.count) }
@@ -68,6 +68,8 @@ extension Project {
                 localized: "^[\(paintRequirements.count) paint](inflect: true) from its paint list")),
             aftermarketItems.isEmpty ? nil : Self.counted(AttributedString(
                 localized: "^[\(aftermarketItems.count) aftermarket part](inflect: true)")),
+            buildPhotos.isEmpty ? nil : Self.counted(AttributedString(
+                localized: "^[\(buildPhotos.count) build photo](inflect: true)")),
         ].compactMap { $0 }
         return parts.formatted(.list(type: .and))
     }

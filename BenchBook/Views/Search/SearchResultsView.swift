@@ -13,6 +13,9 @@ enum SearchResultID: Hashable {
     /// A note, highlight or arrow on a PDF.
     case markup(reference: UUID, markup: UUID)
     case moment(reference: UUID, seconds: Double)
+    case buildPhoto(UUID)
+    /// A box drawn on a build photo.
+    case buildPhotoNote(photo: UUID, note: UUID)
 }
 
 /// Results for a search across every Project: projects, paints, aftermarket
@@ -26,6 +29,7 @@ struct SearchResultsView: View {
     var onShowReference: (Reference) -> Void
     var onShowPaint: (Paint) -> Void
     var onShowAftermarketItem: (AftermarketItem) -> Void
+    var onShowBuildPhoto: (BuildPhoto) -> Void
 
     @Environment(\.searchIndex) private var searchIndex
     @Environment(\.assetLibrary) private var assetLibrary
@@ -37,6 +41,7 @@ struct SearchResultsView: View {
     @State private var detailsReference: Reference?
     @State private var paintEditor: PaintEditorRequest?
     @State private var aftermarketEditor: AftermarketEditorView.Request?
+    @State private var detailsPhoto: BuildPhoto?
     @State private var errorMessage: String?
 
     var body: some View {
@@ -49,7 +54,7 @@ struct SearchResultsView: View {
                 ContentUnavailableView(
                     "No References",
                     systemImage: "tag",
-                    description: Text("Nothing has this tag yet. Drag references onto it in the sidebar.")
+                    description: Text("Nothing has this tag yet. Drag references or build photos onto it in the sidebar.")
                 )
             } else if results.isEmpty {
                 ContentUnavailableView.search(text: query.words.map(\.text).joined(separator: " "))
@@ -72,6 +77,9 @@ struct SearchResultsView: View {
         }
         .sheet(item: $aftermarketEditor) { request in
             NavigationStack { AftermarketEditorView(request: request) }
+        }
+        .sheet(item: $detailsPhoto) { photo in
+            BuildPhotoDetailsView(photo: photo)
         }
         .alert(
             "Something Went Wrong",
@@ -114,8 +122,18 @@ struct SearchResultsView: View {
                             childRow(match, in: hit.reference)
                         }
                     }
+                    ForEach(group.photoHits) { hit in
+                        photoRow(hit).tag(SearchResultID.buildPhoto(hit.photo.id))
+                        ForEach(Array(hit.matches.enumerated()), id: \.offset) { _, match in
+                            if case .imageNote(let noteID, _) = match.kind {
+                                matchRow(match, systemImage: "rectangle.dashed")
+                                    .tag(SearchResultID.buildPhotoNote(photo: hit.photo.id, note: noteID))
+                                    .help("Open the photo at this box")
+                            }
+                        }
+                    }
                 } header: {
-                    Text("\(group.project.name) — \(group.hits.count) references")
+                    Text("\(group.project.name) — \(Self.groupSummary(group))")
                 }
             }
         }
@@ -226,6 +244,53 @@ struct SearchResultsView: View {
         .padding(.vertical, 2)
     }
 
+    private func photoRow(_ hit: BuildPhotoSearchHit) -> some View {
+        let photo = hit.photo
+        let lines = hit.matches.filter { match in
+            if case .imageNote = match.kind { return false }
+            return match.kind.isShownAsLine
+        }
+        return HStack(alignment: .top, spacing: 10) {
+            BuildPhotoThumbnail(photo: photo)
+                .frame(width: 64, height: 48)
+                .background(.quaternary.opacity(0.6), in: RoundedRectangle(cornerRadius: 4))
+                .clipShape(RoundedRectangle(cornerRadius: 4))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(SearchSnippet.highlighted(photo.displayTitle, for: query))
+                    .lineLimit(1)
+                let tags = photo.tags.map(\.name).joined(separator: ", ")
+                Label {
+                    Text(SearchSnippet.highlighted(
+                        [String(localized: "Build Photo"), photo.stage.displayName, tags].filter { !$0.isEmpty }
+                            .joined(separator: " · "),
+                        for: query
+                    ))
+                } icon: {
+                    Image(systemName: "camera")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                ForEach(Array(lines.prefix(2).enumerated()), id: \.offset) { _, match in
+                    (Text("\(match.kind.label): ").foregroundStyle(.secondary)
+                        + Text(SearchSnippet.excerpt(of: match.text, for: query)))
+                        .font(.callout)
+                        .lineLimit(2)
+                }
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
+    /// e.g. "3 references, 2 build photos".
+    private static func groupSummary(_ group: ProjectSearchGroup) -> String {
+        [
+            group.hits.isEmpty ? nil : String(AttributedString(
+                localized: "^[\(group.hits.count) reference](inflect: true)").inflected().characters),
+            group.photoHits.isEmpty ? nil : String(AttributedString(
+                localized: "^[\(group.photoHits.count) build photo](inflect: true)").inflected().characters),
+        ].compactMap { $0 }.joined(separator: ", ")
+    }
+
     /// A matching box or moment, indented under its reference.
     @ViewBuilder
     private func childRow(_ match: SearchMatch, in reference: Reference) -> some View {
@@ -298,6 +363,13 @@ struct SearchResultsView: View {
                 Divider()
                 Button(reference.kind == .note ? "Edit Note…" : "Edit Details…") { detailsReference = reference }
             }
+        case .buildPhoto(let photoID), .buildPhotoNote(let photoID, _):
+            if let photo = photo(photoID, in: results) {
+                Button("Open") { activate(id, in: results) }
+                Button("Show in Project") { onShowBuildPhoto(photo) }
+                Divider()
+                Button("Edit Details…") { detailsPhoto = photo }
+            }
         }
     }
 
@@ -321,7 +393,19 @@ struct SearchResultsView: View {
             if let source = reference(referenceID, in: results)?.sourcePageURL {
                 openURL(VideoLink.playbackURL(for: source, at: seconds))
             }
+        case .buildPhoto(let photoID):
+            openWindow(id: ImageViewerWindow.id, value: photoID)
+        case .buildPhotoNote(let photoID, let noteID):
+            ImageViewerRequests.shared.noteToShow[photoID] = noteID
+            openWindow(id: ImageViewerWindow.id, value: photoID)
         }
+    }
+
+    private func photo(_ id: UUID, in results: SearchResults) -> BuildPhoto? {
+        for group in results.referenceGroups {
+            if let hit = group.photoHits.first(where: { $0.photo.id == id }) { return hit.photo }
+        }
+        return nil
     }
 
     /// Opens a reference the same way the gallery does.
@@ -366,6 +450,38 @@ struct SearchResultsView: View {
         if !results.paints.isEmpty { parts.append(String(localized: "\(results.paints.count) paints")) }
         if !results.aftermarketItems.isEmpty { parts.append(String(localized: "\(results.aftermarketItems.count) parts")) }
         if results.referenceCount > 0 { parts.append(String(localized: "\(results.referenceCount) references")) }
+        if results.buildPhotoCount > 0 {
+            parts.append(String(AttributedString(
+                localized: "^[\(results.buildPhotoCount) build photo](inflect: true)").inflected().characters))
+        }
         return parts.joined(separator: " · ")
+    }
+}
+
+/// A build photo's thumbnail, for small rows.
+struct BuildPhotoThumbnail: View {
+    let photo: BuildPhoto
+
+    @Environment(\.thumbnailStore) private var thumbnailStore
+    @State private var thumbnail: NSImage?
+
+    var body: some View {
+        Color.clear
+            .overlay {
+                if let thumbnail {
+                    Image(nsImage: thumbnail)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Image(systemName: "photo")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .accessibilityHidden(true)
+            .task(id: photo.asset?.id) {
+                if let thumbnailStore, let asset = photo.asset {
+                    thumbnail = await thumbnailStore.thumbnail(assetID: asset.id, originalRelativePath: asset.originalRelativePath)
+                }
+            }
     }
 }

@@ -52,9 +52,17 @@ struct ReferenceSearchHit: Identifiable {
     var id: UUID { reference.id }
 }
 
+struct BuildPhotoSearchHit: Identifiable {
+    let photo: BuildPhoto
+    /// Every part that contains a searched word, in reading order.
+    let matches: [SearchMatch]
+    var id: UUID { photo.id }
+}
+
 struct ProjectSearchGroup: Identifiable {
     let project: Project
     let hits: [ReferenceSearchHit]
+    var photoHits: [BuildPhotoSearchHit] = []
     var id: UUID { project.id }
 }
 
@@ -62,14 +70,16 @@ struct SearchResults {
     var projects: [Project] = []
     var paints: [Paint] = []
     var aftermarketItems: [AftermarketItem] = []
+    /// References and build photos, grouped by project.
     var referenceGroups: [ProjectSearchGroup] = []
 
     var referenceCount: Int { referenceGroups.reduce(0) { $0 + $1.hits.count } }
+    var buildPhotoCount: Int { referenceGroups.reduce(0) { $0 + $1.photoHits.count } }
     var isEmpty: Bool { projects.isEmpty && paints.isEmpty && aftermarketItems.isEmpty && referenceGroups.isEmpty }
 }
 
-/// Searches every Project, Paint and Reference, including the notes drawn
-/// on images and PDFs. The searchable text is prepared once and rebuilt after the
+/// Searches every Project, Paint, Reference and build photo, including the
+/// notes drawn on images, build photos and PDFs. The searchable text is prepared once and rebuilt after the
 /// library is saved, so typing stays fast.
 @Observable
 final class SearchIndex {
@@ -82,6 +92,7 @@ final class SearchIndex {
     @ObservationIgnored private var paintEntries: [(paint: Paint, fields: [SearchField])] = []
     @ObservationIgnored private var aftermarketEntries: [(item: AftermarketItem, fields: [SearchField])] = []
     @ObservationIgnored private var referenceEntries: [ReferenceEntry] = []
+    @ObservationIgnored private var photoEntries: [PhotoEntry] = []
     @ObservationIgnored private var saveObserver: NSObjectProtocol?
 
     private struct Part {
@@ -91,6 +102,13 @@ final class SearchIndex {
 
     private struct ReferenceEntry {
         let reference: Reference
+        let projectID: UUID?
+        let tags: Set<String>
+        let parts: [Part]
+    }
+
+    private struct PhotoEntry {
+        let photo: BuildPhoto
         let projectID: UUID?
         let tags: Set<String>
         let parts: [Part]
@@ -117,7 +135,7 @@ final class SearchIndex {
         rebuildIfNeeded()
         var results = SearchResults()
 
-        // Only References have tags, so a tag token leaves only References.
+        // Only References and build photos have tags, so a tag token leaves only them.
         if query.tags.isEmpty {
             results.projects = projectEntries
                 .filter { query.matchesEveryWord(in: $0.fields) }
@@ -141,8 +159,21 @@ final class SearchIndex {
                 .map { SearchMatch(kind: $0.kind, text: $0.field.text) }
             hitsByProject[projectID, default: []].append(ReferenceSearchHit(reference: entry.reference, matches: matches))
         }
+        var photosByProject: [UUID: [BuildPhotoSearchHit]] = [:]
+        for entry in photoEntries {
+            guard let projectID = entry.projectID,
+                  query.tags.isSubset(of: entry.tags),
+                  query.matchesEveryWord(in: entry.parts.map(\.field))
+            else { continue }
+            let matches = entry.parts
+                .filter { query.matchesAnyWord($0.field) }
+                .map { SearchMatch(kind: $0.kind, text: $0.field.text) }
+            photosByProject[projectID, default: []].append(BuildPhotoSearchHit(photo: entry.photo, matches: matches))
+        }
         results.referenceGroups = projectEntries.compactMap { entry in
-            guard let hits = hitsByProject[entry.project.id] else { return nil }
+            let hits = hitsByProject[entry.project.id] ?? []
+            let photoHits = photosByProject[entry.project.id] ?? []
+            guard !hits.isEmpty || !photoHits.isEmpty else { return nil }
             // Title matches first, then newest first, as in the gallery.
             let sorted = hits.sorted { lhs, rhs in
                 let lhsTitle = lhs.matches.contains { $0.kind == .title }
@@ -150,7 +181,11 @@ final class SearchIndex {
                 if lhsTitle != rhsTitle { return lhsTitle }
                 return lhs.reference.capturedAt > rhs.reference.capturedAt
             }
-            return ProjectSearchGroup(project: entry.project, hits: sorted)
+            return ProjectSearchGroup(
+                project: entry.project,
+                hits: sorted,
+                photoHits: photoHits.sorted { BuildPhoto.galleryOrder($0.photo, $1.photo) }
+            )
         }
         return results
     }
@@ -200,6 +235,34 @@ final class SearchIndex {
                 parts: Self.parts(of: reference)
             )
         }
+
+        let photos = (try? context.fetch(FetchDescriptor<BuildPhoto>())) ?? []
+        photoEntries = photos.map { photo in
+            PhotoEntry(
+                photo: photo,
+                projectID: photo.project?.id,
+                tags: Set(photo.tags.map(\.normalizedName)),
+                parts: Self.parts(of: photo)
+            )
+        }
+    }
+
+    private static func parts(of photo: BuildPhoto) -> [Part] {
+        var parts: [Part] = []
+        func add(_ kind: SearchMatchKind, _ text: String?) {
+            if let text = text?.trimmedOrNil { parts.append(Part(kind: kind, field: SearchField(text))) }
+        }
+        add(.title, photo.caption)
+        add(.type, String(localized: "Build Photo"))
+        add(.type, photo.stage.displayName)
+        for tag in photo.tags { add(.tag, tag.name) }
+        if let filename = photo.asset?.originalFilename { add(.fileName, filename) }
+        // The whole note, when it's more than the first line shown as the title.
+        if let notes = photo.notes, notes.trimmedOrNil != photo.caption { add(.note, notes) }
+        for (index, note) in photo.sortedImageNotes.enumerated() {
+            add(.imageNote(id: note.id, number: index + 1), note.text)
+        }
+        return parts
     }
 
     private static func parts(of reference: Reference) -> [Part] {

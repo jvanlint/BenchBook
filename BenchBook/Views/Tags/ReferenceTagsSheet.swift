@@ -7,10 +7,25 @@ struct TagEditingTarget: Identifiable {
     let references: [Reference]
 }
 
-/// Adds and removes tags on one or more References. Changes apply at once.
-/// A tag on only some of them is shown dashed; clicking it adds it to all.
+/// What a tags sheet edits: References, or build photos.
+enum TaggedItems {
+    case references([Reference])
+    case photos([BuildPhoto])
+}
+
+/// Adds and removes tags on one or more References or build photos.
+/// Changes apply at once. A tag on only some of them is shown dashed;
+/// clicking it adds it to all.
 struct ReferenceTagsSheet: View {
-    let references: [Reference]
+    let items: TaggedItems
+
+    init(references: [Reference]) {
+        items = .references(references)
+    }
+
+    init(photos: [BuildPhoto]) {
+        items = .photos(photos)
+    }
 
     @Query(sort: [SortDescriptor(\Tag.name, comparator: .localizedStandard)])
     private var tags: [Tag]
@@ -23,7 +38,7 @@ struct ReferenceTagsSheet: View {
     private var service: TagService { TagService(context: modelContext) }
 
     private var applied: [(tag: Tag, state: TagState)] {
-        tags.map { ($0, service.state(of: $0, on: references)) }.filter { $0.state != .none }
+        tags.map { ($0, state(of: $0)) }.filter { $0.state != .none }
     }
 
     /// Other tags to add with one click, most used first.
@@ -33,9 +48,46 @@ struct ReferenceTagsSheet: View {
     }
 
     private var title: String {
-        references.count == 1
-            ? String(localized: "Tags for “\(references[0].displayTitle)”")
-            : String(localized: "Tags for \(references.count) References")
+        switch items {
+        case .references(let references):
+            references.count == 1
+                ? String(localized: "Tags for “\(references[0].displayTitle)”")
+                : String(localized: "Tags for \(references.count) References")
+        case .photos(let photos):
+            photos.count == 1
+                ? String(localized: "Tags for “\(photos[0].displayTitle)”")
+                : String(localized: "Tags for \(photos.count) Build Photos")
+        }
+    }
+
+    // MARK: Applying to the items
+
+    private func state(of tag: Tag) -> TagState {
+        switch items {
+        case .references(let references): service.state(of: tag, on: references)
+        case .photos(let photos): service.state(of: tag, on: photos)
+        }
+    }
+
+    private func add(_ tag: Tag) throws {
+        switch items {
+        case .references(let references): try service.add(tag, to: references)
+        case .photos(let photos): try service.add(tag, to: photos)
+        }
+    }
+
+    private func remove(_ tag: Tag) throws {
+        switch items {
+        case .references(let references): try service.remove(tag, from: references)
+        case .photos(let photos): try service.remove(tag, from: photos)
+        }
+    }
+
+    private func addTags(named text: String) throws {
+        switch items {
+        case .references(let references): try service.addTags(named: text, to: references)
+        case .photos(let photos): try service.addTags(named: text, to: photos)
+        }
     }
 
     var body: some View {
@@ -73,7 +125,7 @@ struct ReferenceTagsSheet: View {
                     FlowLayout(spacing: 6) {
                         ForEach(suggestions) { tag in
                             Button {
-                                perform { try service.add(tag, to: references) }
+                                perform { try add(tag) }
                             } label: {
                                 TagChips.chip(tag.name, color: tag.displayColor)
                             }
@@ -113,17 +165,17 @@ struct ReferenceTagsSheet: View {
         HStack(spacing: 4) {
             if state == .some {
                 Button {
-                    perform { try service.add(tag, to: references) }
+                    perform { try add(tag) }
                 } label: {
                     Text(tag.name)
                 }
                 .buttonStyle(.plain)
-                .help("On some of these references. Click to add it to all of them.")
+                .help("On some of these. Click to add it to all of them.")
             } else {
                 Text(tag.name)
             }
             Button {
-                perform { try service.remove(tag, from: references) }
+                perform { try remove(tag) }
             } label: {
                 Image(systemName: "xmark")
                     .font(.caption2.weight(.bold))
@@ -154,7 +206,7 @@ struct ReferenceTagsSheet: View {
 
     private func addTyped() {
         guard !TagNames.parse(newTags).isEmpty else { return }
-        perform { try service.addTags(named: newTags, to: references) }
+        perform { try addTags(named: newTags) }
         newTags = ""
     }
 

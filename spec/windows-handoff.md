@@ -96,3 +96,6 @@ These are the user's rules for the Mac app, and they apply here too.
 The Mac app is the reference. If a change on the Mac affects the format or the
 rules, its commit updates `spec/`. Check `git log -- spec/` in the Mac repo for
 changes since the last time you looked.
+
+`spec/changes.md` lists each feature the Mac has gained since 1.0, with
+where the spec describes it.

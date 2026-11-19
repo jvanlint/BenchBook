@@ -188,6 +188,7 @@ struct PaintService {
 
     func save() throws {
         do {
+            context.touchEditedProjects()
             try context.save()
         } catch {
             context.rollback()

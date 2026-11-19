@@ -55,15 +55,31 @@ extension Tag {
         tagColor?.color ?? .accentColor
     }
 
-    /// How many References carry this tag.
-    var usageCount: Int { referenceLinks.count }
+    /// How many References and build photos carry this tag.
+    var usageCount: Int { referenceLinks.count + buildPhotoLinks.count }
+
+    /// No Reference or build photo carries this tag.
+    var isUnused: Bool { referenceLinks.isEmpty && buildPhotoLinks.isEmpty }
 
     var references: [Reference] { referenceLinks.compactMap(\.reference) }
 
-    /// Projects with a Reference carrying this tag, sorted.
+    var buildPhotos: [BuildPhoto] { buildPhotoLinks.compactMap(\.photo) }
+
+    /// Projects with a Reference or build photo carrying this tag, sorted.
     var projectNames: [String] {
-        Set(references.compactMap { $0.project?.name })
+        Set(references.compactMap { $0.project?.name } + buildPhotos.compactMap { $0.project?.name })
             .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
+    /// e.g. "12 references, 4 build photos", leaving out counts of zero.
+    var usageSummary: String {
+        let parts = [
+            referenceLinks.isEmpty ? nil : String(AttributedString(
+                localized: "^[\(referenceLinks.count) reference](inflect: true)").inflected().characters),
+            buildPhotoLinks.isEmpty ? nil : String(AttributedString(
+                localized: "^[\(buildPhotoLinks.count) build photo](inflect: true)").inflected().characters),
+        ].compactMap { $0 }
+        return parts.isEmpty ? String(localized: "Not used") : parts.joined(separator: ", ")
     }
 
     /// Most used first, then by name.
@@ -74,7 +90,7 @@ extension Tag {
     }
 }
 
-/// Whether a tag is on all, some or none of a set of References.
+/// Whether a tag is on all, some or none of a set of References or build photos.
 enum TagState {
     case all, some, none
 }
@@ -88,7 +104,7 @@ enum TagError: LocalizedError, Equatable {
 }
 
 /// Owns library-wide tag changes: renaming, merging, colours, deleting,
-/// and adding or removing a tag on many References at once.
+/// and adding or removing a tag on many References or build photos at once.
 struct TagService {
     let context: ModelContext
 
@@ -137,14 +153,21 @@ struct TagService {
         return tag
     }
 
-    /// Moves every Reference from `tags` onto `target`, then deletes them.
-    /// The target keeps its colour, or takes the first one it finds.
+    /// Moves every Reference and build photo from `tags` onto `target`,
+    /// then deletes them. The target keeps its colour, or takes the first one it finds.
     func merge(_ tags: [Tag], into target: Tag) throws {
         for source in tags where source.id != target.id {
             for link in Array(source.referenceLinks) {
                 if let reference = link.reference, !has(target, reference) {
                     context.insert(ReferenceTag(reference: reference, tag: target))
                     reference.updatedAt = .now
+                }
+                context.delete(link)
+            }
+            for link in Array(source.buildPhotoLinks) {
+                if let photo = link.photo, !has(target, photo) {
+                    context.insert(BuildPhotoTag(photo: photo, tag: target))
+                    photo.updatedAt = .now
                 }
                 context.delete(link)
             }
@@ -155,10 +178,12 @@ struct TagService {
         try save()
     }
 
-    /// Deletes tags and removes them from every Reference. References stay.
+    /// Deletes tags and removes them from every Reference and build photo,
+    /// which stay.
     func delete(_ tags: [Tag]) throws {
         for tag in tags {
             for reference in tag.references { reference.updatedAt = .now }
+            for photo in tag.buildPhotos { photo.updatedAt = .now }
             context.delete(tag)
         }
         try save()
@@ -172,10 +197,10 @@ struct TagService {
         try save()
     }
 
-    /// Deletes tags no Reference uses. Returns how many were removed.
+    /// Deletes tags no Reference or build photo uses. Returns how many were removed.
     @discardableResult
     func removeUnused() throws -> Int {
-        let unused = try context.fetch(FetchDescriptor<Tag>()).filter { $0.referenceLinks.isEmpty }
+        let unused = try context.fetch(FetchDescriptor<Tag>()).filter(\.isUnused)
         for tag in unused { context.delete(tag) }
         try save()
         return unused.count
@@ -194,7 +219,7 @@ struct TagService {
             context.insert(ReferenceTag(reference: reference, tag: tag))
             reference.updatedAt = .now
         }
-        try save()
+        try save(touchingProjects: true)
     }
 
     /// Adds tags by name (comma-separated text allowed), creating new ones.
@@ -206,7 +231,7 @@ struct TagService {
                 reference.updatedAt = .now
             }
         }
-        try save()
+        try save(touchingProjects: true)
     }
 
     func remove(_ tag: Tag, from references: [Reference]) throws {
@@ -217,7 +242,7 @@ struct TagService {
                 reference.updatedAt = .now
             }
         }
-        try save()
+        try save(touchingProjects: true)
     }
 
     /// Removes the tag if every Reference has it; otherwise adds it to all.
@@ -233,8 +258,63 @@ struct TagService {
         reference.tagLinks.contains { $0.tag?.id == tag.id }
     }
 
-    private func save() throws {
+    // MARK: Tagging build photos
+
+    func state(of tag: Tag, on photos: [BuildPhoto]) -> TagState {
+        let count = photos.filter { has(tag, $0) }.count
+        return count == 0 ? .none : count == photos.count ? .all : .some
+    }
+
+    /// Adds the tag to every build photo that doesn't have it.
+    func add(_ tag: Tag, to photos: [BuildPhoto]) throws {
+        for photo in photos where !has(tag, photo) {
+            context.insert(BuildPhotoTag(photo: photo, tag: tag))
+            photo.updatedAt = .now
+        }
+        try save(touchingProjects: true)
+    }
+
+    /// Adds tags by name (comma-separated text allowed), creating new ones.
+    func addTags(named text: String, to photos: [BuildPhoto]) throws {
+        for name in TagNames.parse(text) {
+            let tag = try tag(named: name)
+            for photo in photos where !has(tag, photo) {
+                context.insert(BuildPhotoTag(photo: photo, tag: tag))
+                photo.updatedAt = .now
+            }
+        }
+        try save(touchingProjects: true)
+    }
+
+    func remove(_ tag: Tag, from photos: [BuildPhoto]) throws {
+        let ids = Set(photos.map(\.id))
+        for link in Array(tag.buildPhotoLinks) {
+            if let photo = link.photo, ids.contains(photo.id) {
+                context.delete(link)
+                photo.updatedAt = .now
+            }
+        }
+        try save(touchingProjects: true)
+    }
+
+    /// Removes the tag if every build photo has it; otherwise adds it to all.
+    func toggle(_ tag: Tag, on photos: [BuildPhoto]) throws {
+        if state(of: tag, on: photos) == .all {
+            try remove(tag, from: photos)
+        } else {
+            try add(tag, to: photos)
+        }
+    }
+
+    private func has(_ tag: Tag, _ photo: BuildPhoto) -> Bool {
+        photo.tagLinks.contains { $0.tag?.id == tag.id }
+    }
+
+    /// Tagging References or build photos counts as working on their projects;
+    /// changing tags themselves, such as renaming one, doesn't.
+    private func save(touchingProjects: Bool = false) throws {
         do {
+            if touchingProjects { context.touchEditedProjects() }
             try context.save()
         } catch {
             context.rollback()
