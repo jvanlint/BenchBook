@@ -16,9 +16,15 @@ enum PersistenceController {
     }
 
     /// Opens the local library. Failure is reported to the caller; the store
-    /// is never deleted or recreated to recover from an error.
+    /// is never deleted or recreated to recover from an error. A library that
+    /// needs upgrading is copied first (`LibraryUpgradeCopy`).
     static func makeContainer() throws -> ModelContainer {
-        try makeContainer(configuration: defaultConfiguration)
+        let configuration = defaultConfiguration
+        if !configuration.isStoredInMemoryOnly {
+            try LibraryUpgradeCopy.makeIfNeeded(storeURL: configuration.url, models: CurrentSchema.models,
+                                                version: CurrentSchema.versionIdentifier)
+        }
+        return try makeContainer(configuration: configuration)
     }
 
     static func makeContainer(configuration: ModelConfiguration) throws -> ModelContainer {

@@ -7,8 +7,12 @@ import UniformTypeIdentifiers
 struct KitCatalogueView: View {
     /// A kit to scroll to and select, e.g. from search. Cleared once shown.
     @Binding var revealID: UUID?
+    var onShowProject: (Project) -> Void = { _ in }
+    /// Opens the new-project sheet with this kit chosen.
+    var onNewProject: (Kit) -> Void = { _ in }
 
     @Query private var kits: [Kit]
+    @Query(sort: [SortDescriptor(\Project.name, comparator: .localizedStandard)]) private var projects: [Project]
     @Environment(\.modelContext) private var modelContext
     @Environment(\.assetLibrary) private var assetLibrary
 
@@ -125,9 +129,7 @@ struct KitCatalogueView: View {
             ) {
                 Button("Delete", role: .destructive) { delete(pendingDeletion) }
             } message: {
-                Text(pendingDeletion.count == 1
-                     ? "This removes the kit and its picture from BenchBook. This can't be undone."
-                     : "This removes the kits and their pictures from BenchBook. This can't be undone.")
+                Text(Self.deletionMessage(pendingDeletion))
             }
             // Editing or deleting kits can leave a brand or scale nothing
             // has, which would hide everything.
@@ -170,70 +172,9 @@ struct KitCatalogueView: View {
     private var table: some View {
         ScrollViewReader { proxy in
         Table(visibleKits, selection: $selection, sortOrder: $sortOrder, columnCustomization: $columnCustomization) {
-            TableColumn("Picture") { kit in
-                KitThumbnail(kit: kit)
-            }
-            .width(40)
-            .customizationID("picture")
-            TableColumn("Brand", value: \.brand, comparator: .localizedStandard)
-                .width(min: 80, ideal: 120)
-                .customizationID("brand")
-                .disabledCustomizationBehavior(.visibility)
-            TableColumn("Name", value: \.name, comparator: .localizedStandard)
-                .width(min: 120, ideal: 200)
-                .customizationID("name")
-                .disabledCustomizationBehavior(.visibility)
-            TableColumn("Scale", value: \.scaleSortKey, comparator: .localizedStandard) { kit in
-                Text(kit.scale ?? "")
-            }
-            .width(min: 44, ideal: 56)
-            .customizationID("scale")
-            TableColumn("Number", value: \.numberSortKey, comparator: .localizedStandard) { kit in
-                Text(kit.number ?? "")
-            }
-            .width(min: 60, ideal: 80)
-            .customizationID("number")
-            TableColumn("Status", value: \.statusSortKey) { kit in
-                if kit.isOwned {
-                    Text(kit.status.displayName)
-                        .help(kit.status.longName)
-                } else {
-                    Text("Not Owned")
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .width(min: 60, ideal: 80)
-            .customizationID("status")
-            TableColumn("Rating", value: \.ratingSortKey) { kit in
-                StarRatingLabel(stars: kit.stars)
-            }
-            .width(min: 70, ideal: 80)
-            .customizationID("rating")
-            TableColumn("Price Paid", value: \.pricePaidSortKey) { kit in
-                price(kit.pricePaid)
-            }
-            .width(min: 60, ideal: 80)
-            .alignment(.trailing)
-            .customizationID("pricePaid")
-            TableColumn("For Sale", value: \.forSaleSortKey) { kit in
-                Toggle("For Sale", isOn: Binding(
-                    get: { kit.isForSale },
-                    set: { forSale in perform { try service.setForSale(forSale, for: [kit]) } }
-                ))
-                .toggleStyle(.checkbox)
-                .labelsHidden()
-                .accessibilityLabel("For Sale: \(kit.displayName)")
-            }
-            .width(56)
-            .alignment(.center)
-            .customizationID("forSale")
-            TableColumn("Sale Price", value: \.salePriceSortKey) { kit in
-                price(kit.salePrice)
-                    .foregroundStyle(kit.isForSale ? .primary : .secondary)
-            }
-            .width(min: 60, ideal: 80)
-            .alignment(.trailing)
-            .customizationID("salePrice")
+            identityColumns
+            stateColumns
+            priceColumns
         }
         .contextMenu(forSelectionType: UUID.self) { ids in
             menu(for: kits.filter { ids.contains($0.id) })
@@ -255,6 +196,94 @@ struct KitCatalogueView: View {
         }
     }
 
+    /// Picture, brand, name, scale and number. A table builder takes ten
+    /// columns at most, so they're in three groups.
+    @TableColumnBuilder<Kit, KeyPathComparator<Kit>>
+    private var identityColumns: some TableColumnContent<Kit, KeyPathComparator<Kit>> {
+        TableColumn("Picture") { kit in
+            KitThumbnail(kit: kit)
+        }
+        .width(40)
+        .customizationID("picture")
+        TableColumn("Brand", value: \.brand, comparator: .localizedStandard)
+            .width(min: 80, ideal: 120)
+            .customizationID("brand")
+            .disabledCustomizationBehavior(.visibility)
+        TableColumn("Name", value: \.name, comparator: .localizedStandard)
+            .width(min: 120, ideal: 200)
+            .customizationID("name")
+            .disabledCustomizationBehavior(.visibility)
+        TableColumn("Scale", value: \.scaleSortKey, comparator: .localizedStandard) { kit in
+            Text(kit.scale ?? "")
+        }
+        .width(min: 44, ideal: 56)
+        .customizationID("scale")
+        TableColumn("Number", value: \.numberSortKey, comparator: .localizedStandard) { kit in
+            Text(kit.number ?? "")
+        }
+        .width(min: 60, ideal: 80)
+        .customizationID("number")
+    }
+
+    /// Status, rating and project.
+    @TableColumnBuilder<Kit, KeyPathComparator<Kit>>
+    private var stateColumns: some TableColumnContent<Kit, KeyPathComparator<Kit>> {
+        TableColumn("Status", value: \.statusSortKey) { kit in
+            if kit.isOwned {
+                Text(kit.status.displayName)
+                    .help(kit.status.longName)
+            } else {
+                Text("Not Owned")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .width(min: 60, ideal: 80)
+        .customizationID("status")
+        TableColumn("Rating", value: \.ratingSortKey) { kit in
+            StarRatingLabel(stars: kit.stars)
+        }
+        .width(min: 70, ideal: 80)
+        .customizationID("rating")
+        TableColumn("Project", value: \.projectSortKey, comparator: .localizedStandard) { kit in
+            if let project = kit.project {
+                Text(project.name)
+                    .help(kit.isNeeded ? String(localized: "Needed for \(project.name)") : project.name)
+            }
+        }
+        .width(min: 80, ideal: 140)
+        .customizationID("project")
+    }
+
+    /// Price paid and sale details.
+    @TableColumnBuilder<Kit, KeyPathComparator<Kit>>
+    private var priceColumns: some TableColumnContent<Kit, KeyPathComparator<Kit>> {
+        TableColumn("Price Paid", value: \.pricePaidSortKey) { kit in
+            price(kit.pricePaid)
+        }
+        .width(min: 60, ideal: 80)
+        .alignment(.trailing)
+        .customizationID("pricePaid")
+        TableColumn("For Sale", value: \.forSaleSortKey) { kit in
+            Toggle("For Sale", isOn: Binding(
+                get: { kit.isForSale },
+                set: { forSale in perform { try service.setForSale(forSale, for: [kit]) } }
+            ))
+            .toggleStyle(.checkbox)
+            .labelsHidden()
+            .accessibilityLabel("For Sale: \(kit.displayName)")
+        }
+        .width(56)
+        .alignment(.center)
+        .customizationID("forSale")
+        TableColumn("Sale Price", value: \.salePriceSortKey) { kit in
+            price(kit.salePrice)
+                .foregroundStyle(kit.isForSale ? .primary : .secondary)
+        }
+        .width(min: 60, ideal: 80)
+        .alignment(.trailing)
+        .customizationID("salePrice")
+    }
+
     @ViewBuilder
     private func price(_ amount: Decimal?) -> some View {
         if let amount {
@@ -272,6 +301,11 @@ struct KitCatalogueView: View {
             }
             if let link = kit.link {
                 Link("Open Link", destination: link)
+            }
+            if let project = kit.project {
+                Button("Show Project") { onShowProject(project) }
+            } else {
+                Button("New Project from Kit…") { onNewProject(kit) }
             }
             Divider()
         }
@@ -297,10 +331,50 @@ struct KitCatalogueView: View {
                 Button("Mark as Not For Sale") { perform { try service.setForSale(false, for: chosen) } }
             }
             Divider()
+            moveMenu(for: chosen)
+            let allocated = chosen.filter { $0.project != nil }
+            if !allocated.isEmpty {
+                Button(allocated.count == 1 ? "Remove from Project" : "Remove \(allocated.count) Kits from Projects") {
+                    perform {
+                        for kit in allocated {
+                            if let project = kit.project { try service.remove([kit], from: project) }
+                        }
+                    }
+                }
+            }
+            Divider()
             Button(chosen.count == 1 ? "Delete Kit…" : "Delete \(chosen.count) Kits…", role: .destructive) {
                 pendingDeletion = chosen
             }
         }
+    }
+
+    /// Puts the kits in a project, moving any already in another one.
+    private func moveMenu(for chosen: [Kit]) -> some View {
+        Menu("Move to Project") {
+            ForEach(projects) { project in
+                let isHere = chosen.allSatisfy { $0.project?.persistentModelID == project.persistentModelID }
+                Button(project.name) {
+                    perform { try service.add(chosen, to: project) }
+                }
+                .disabled(isHere)
+            }
+        }
+        .disabled(projects.isEmpty)
+    }
+
+    /// Names the projects using the kits, as deleting takes the kits out of them.
+    static func deletionMessage(_ kits: [Kit]) -> String {
+        let removes = kits.count == 1
+            ? String(localized: "This removes the kit and its picture from BenchBook. This can't be undone.")
+            : String(localized: "This removes the kits and their pictures from BenchBook. This can't be undone.")
+        var names: [String] = []
+        for name in kits.compactMap(\.project?.name) where !names.contains(name) { names.append(name) }
+        guard !names.isEmpty else { return removes }
+        let used = names.count == 1
+            ? String(localized: "It's used by the project “\(names[0])”.")
+            : String(localized: "They're used by the projects \(names.map { "“\($0)”" }.formatted(.list(type: .and))).")
+        return used + " " + removes
     }
 
     /// e.g. "116 kits · 4 not owned", or "12 of 116 kits · 4 not owned".
@@ -368,7 +442,7 @@ struct KitCatalogueView: View {
             Text(filter.ownership.displayName)
         }
         .accessibilityLabel("Show")
-        .help("Show all kits, owned kits, kits you don't own yet, or kits for sale")
+        .help("Show all kits, owned kits, kits you don't own yet, kits for sale, kits not in a project, or kits needed for a build")
     }
 
     /// Drops a brand or scale no kit has any more.

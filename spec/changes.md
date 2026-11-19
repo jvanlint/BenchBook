@@ -8,6 +8,7 @@ The spec sections are the reference. This list is only a checklist.
 
 | Change | Issue | Format change | Spec |
 |---|---|---|---|
+| Projects use kits from the catalogue: a Kits tab in each project (⌘1, so the other tabs move to ⌘2–⌘5), kits chosen in the new-project sheet, Move to Project, status following the project, needed kits on the Shopping List, and a Project column and Not in a Project and Needed filters on the Kits screen. Project manufacturer, scale and kit number are removed; the upgrade adds them to the notes. The library is copied before an upgrade. | #44 | Yes: schema 4.0.0, `kits.projectId`; `projects.manufacturer`, `scale` and `kitNumber` removed | library-format.md › projects, kits, The library on disk, Compatibility; behaviour.md › Kits in projects, Upgrading from schema 3, Shopping list, Deleting; screens.md › Project Kits tab, Project editor, Kits catalogue, Shopping list |
 | Kits catalogue: one entry per physical kit, with status, rating, prices, box art, Scalemates and BenchBook CSV import and export, and search. | #41 | Yes: schema 3.0.0, `kits`, and the `decimal` value type | library-format.md › kits; behaviour.md › Kits; screens.md › Kits catalogue, Kit editor |
 | The aftermarket editor's picture well is shared with the kit editor. No change for the user. | #41 | No | screens.md › Aftermarket editor |
 | Sort projects in the sidebar by Name, Date Created or Last Updated. The choice is remembered. | – | No | behaviour.md › Sorting; screens.md › Sidebar |

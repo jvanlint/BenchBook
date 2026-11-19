@@ -27,3 +27,6 @@ fastlane/test_output
 
 # Local only: the website, its own repository
 /website/
+
+# Local only: paint files
+/paint/

@@ -16,6 +16,8 @@ struct KitEditorView: View {
     }
 
     let request: Request
+    /// A new kit is added to this project as well as the catalogue.
+    var project: Project?
     /// Called with the kit once it's saved, e.g. to select it.
     var onSave: (Kit) -> Void = { _ in }
 
@@ -37,8 +39,9 @@ struct KitEditorView: View {
     @State private var workFolder = FileManager.default.temporaryDirectory
         .appending(path: "BenchBook-Kit-\(UUID().uuidString)", directoryHint: .isDirectory)
 
-    init(request: Request, onSave: @escaping (Kit) -> Void = { _ in }) {
+    init(request: Request, project: Project? = nil, onSave: @escaping (Kit) -> Void = { _ in }) {
         self.request = request
+        self.project = project
         self.onSave = onSave
         switch request {
         case .new:
@@ -188,7 +191,7 @@ struct KitEditorView: View {
                     try service.update(savedKit, from: draft)
                     kit = savedKit
                 } else {
-                    kit = try service.create(from: draft)
+                    kit = try service.create(from: draft, in: project)
                     savedKit = kit
                 }
                 switch pictureChange {

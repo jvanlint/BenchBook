@@ -164,18 +164,21 @@ apart from its references.
 
 | Deleting | Also deletes | Never deletes |
 |---|---|---|
-| Project | its references, project paints, aftermarket items and build photos | paints, tags |
+| Project | its references, project paints, aftermarket items and build photos | kits (they stay in the catalogue, in no project, with their status), paints, tags |
 | Reference | its tag links, video moments, markups and poster file | the asset, unless nothing else uses it |
 | Build photo | its tag links and box notes; clears the project photo if it was that | the asset, unless nothing else uses it |
 | Tag | its links | references, build photos |
 | Paint | its ownership record | — refused while any project paint uses it |
 | Aftermarket item | — | its image asset, unless nothing else uses it |
-| Kit | — | its picture asset, unless another copy or anything else uses it; projects |
+| Kit | — | its picture asset, unless another copy or anything else uses it; projects (it leaves its project) |
 
 - An asset is unused when no reference, aftermarket item, build photo or kit
   points to it.
   Deleting an unused asset deletes its original and thumbnail.
 - Refusing to delete a paint names the projects using it.
+- Deleting kits a project uses still asks once, and names the projects:
+  "It's used by the project “Cobra”." Removing a kit from a project never
+  deletes it, so it doesn't ask.
 - Deleting a project first shows what goes with it, e.g. "12 references,
   3 image notes, 2 PDF markups, 8 paints from its paint list, 2 aftermarket
   parts and 5 build photos".
@@ -213,11 +216,14 @@ touched, which includes:
 - editing the project's details or status, or choosing its project photo;
 - adding, editing, moving, copying or deleting its references, build photos,
   notes, markups, paints or aftermarket items;
+- adding a kit to it or removing one (moving a kit updates both projects);
 - adding or removing tags on its references or build photos.
 
 Moving a reference updates both projects.
 
-These don't change it: fetching link or video details, suggested tags, and
+Editing a kit, including a status change that follows the project, doesn't
+change it by itself. These don't change it either: fetching link or video
+details, suggested tags, and
 changes to tags themselves (creating, renaming, colouring, merging or deleting
 a tag). A new project's `updatedAt` equals its `createdAt`.
 
@@ -243,7 +249,7 @@ Fields searched:
 
 | Item | Fields |
 |---|---|
-| Project | name, manufacturer, subject, scale, kit number, markings, notes |
+| Project | name, subject, its kits' brand, name, scale and number, markings, notes |
 | Kit | brand, name, number, notes. Each copy is listed. |
 | Paint | brand, range, code, name, standard, notes |
 | Aftermarket item | product name, manufacturer, product number, type name, scale, notes, product page host |
@@ -462,6 +468,46 @@ aren't kits.
   `BenchBook Kits YYYY-MM-DD.csv`.
 - Whether Scalemates can import this file is untested.
 
+### Kits in projects (stored)
+
+A project uses kits from the catalogue. A kit is in one project at most, since
+each entry is one box.
+
+- **Choosing**: Add from Kits… and the new-project sheet list only kits that
+  aren't in a project. Move to Project (on the Kits screen) moves a kit from
+  one project to another in one step. New Kit… adds a kit to the catalogue and
+  the project. In the new-project sheet it's added to the catalogue straight
+  away, even if the project is cancelled.
+- **Removing** a kit from a project leaves it in the catalogue, in no project,
+  with its status.
+- **Summary**: the line under a project's name, in the sidebar and its window,
+  is its one kit's brand and scale, or the number of kits, then its subject,
+  skipping empty parts: "Italeri · 1:72 · AH-1W", "2 kits · Normandy".
+- **Status follows the project**. Owned kits move forward, never back:
+
+| What happens | Kit status |
+|---|---|
+| Project set to In Progress, or a kit added to an In Progress project | BNIB or Opened → WIP |
+| Project set to Completed, or a kit added to a Completed project | anything but Built → Built |
+| Researching or Paused | No change |
+
+  Moving a project out of Completed leaves its kits Built. Kits that aren't
+  owned don't change. An unknown stored status only changes for Completed.
+  The user can set any kit's status by hand afterwards.
+- **Needed**: a kit is needed when it isn't owned and its project isn't
+  Completed. Needed kits are on the Shopping List.
+- The Kits screen's Show filter adds **Not in a Project** and **Needed**.
+
+### Upgrading from schema 3 (stored)
+
+Projects used to have their own manufacturer, scale and kit number. The
+upgrade to 4.0.0 adds whichever are filled in to the end of the project's
+notes, after a blank line, e.g. `Kit: Italeri · 1234 · 1:72` (manufacturer,
+number, scale; not localized). If that's already the last line, it isn't
+added again. No kits are created: the user imports or adds their kits, then
+adds them to projects. The library is copied first (`library-format.md` ›
+The library on disk).
+
 ## Paint CSV
 
 ### Import
@@ -506,6 +552,9 @@ aren't kits.
 
 ## Shopping list
 
+- **Kits**: needed kits (see Kits in projects), first, by project, then
+  brand and name. Each shows its project. Ticking one as bought makes it
+  owned and BNIB, and it leaves the list.
 - **To buy**: paints that aren't owned and are chosen in at least one project
   that isn't Completed. Grouped by brand (brands with the same folded name
   together, shown with the most common spelling), sorted by code. Each shows
@@ -513,11 +562,17 @@ aren't kits.
 - **No paint chosen**: project colours with a standard but no paint, in
   projects that aren't Completed, by standard, then project.
 - Ticking a paint as bought marks it owned, and it leaves the list.
-- Saved as a plain-text checklist, `Paint Shopping List YYYY-MM-DD.txt`:
+- The sidebar badge counts paints to buy and needed kits.
+- Saved as a plain-text checklist, `Paint Shopping List YYYY-MM-DD.txt`. With
+  needed kits, the first line is "Shopping List" and the kits come first:
 
 ```text
-Paint Shopping List
-13 November 2026 · 9 paints for 3 projects · 2 colours without paint
+Shopping List
+13 November 2026 · 1 kit · 9 paints for 3 projects · 2 colours without paint
+
+Kits
+☐ Italeri Super Cobra · 1:72 · 1234
+    Cobra
 
 Tamiya
 ☐ XF-54 Dark Sea Grey · Acrylic XF · BS 640

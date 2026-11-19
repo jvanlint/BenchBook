@@ -8,10 +8,7 @@ struct ProjectServiceTests {
     private static func f16Draft() -> ProjectDraft {
         var draft = ProjectDraft()
         draft.name = "  Tamiya F-16CJ 50th Anniversary  "
-        draft.manufacturer = "Tamiya"
-        draft.subject = "F-16CJ Block 50"
-        draft.scale = "1:48"
-        draft.kitNumber = "   "
+        draft.subject = "  F-16CJ Block 50"
         draft.markingsScheme = "Galaxy Models 50th Anniversary 2015"
         draft.notes = ""
         return draft
@@ -29,8 +26,7 @@ struct ProjectServiceTests {
         let project = try ProjectService(context: context).createProject(from: Self.f16Draft())
 
         #expect(project.name == "Tamiya F-16CJ 50th Anniversary")
-        #expect(project.summary == "Tamiya · 1:48 · F-16CJ Block 50")
-        #expect(project.kitNumber == nil)
+        #expect(project.summary == "F-16CJ Block 50")
         #expect(project.notes == nil)
         #expect(project.markingsScheme == "Galaxy Models 50th Anniversary 2015")
         #expect(project.createdAt == project.updatedAt)
@@ -58,12 +54,12 @@ struct ProjectServiceTests {
         let originalUpdatedAt = project.updatedAt
 
         var draft = ProjectDraft(project: project)
-        draft.kitNumber = "61098"
+        draft.subject = "F-16CJ Block 52"
         draft.markingsScheme = ""
         draft.notes = "Wheel wells need extra detail."
         try service.update(project, from: draft)
 
-        #expect(project.kitNumber == "61098")
+        #expect(project.subject == "F-16CJ Block 52")
         #expect(project.markingsScheme == nil)
         #expect(project.notes == "Wheel wells need extra detail.")
         #expect(project.updatedAt >= originalUpdatedAt)
@@ -77,13 +73,13 @@ struct ProjectServiceTests {
 
         var draft = ProjectDraft(project: project)
         draft.name = "  "
-        draft.scale = "1:72"
+        draft.subject = "F-16A"
 
         #expect(throws: ProjectServiceError.blankName) {
             try service.update(project, from: draft)
         }
         #expect(project.name == "Tamiya F-16CJ 50th Anniversary")
-        #expect(project.scale == "1:48")
+        #expect(project.subject == "F-16CJ Block 50")
     }
 
     /// Simulates quit and relaunch: close the container, open a new one on the same file.
@@ -103,8 +99,11 @@ struct ProjectServiceTests {
             let project = try service.createProject(from: Self.f16Draft())
             projectID = project.id
             var draft = ProjectDraft(project: project)
-            draft.kitNumber = "61098"
+            draft.notes = "Wheel wells"
             try service.update(project, from: draft)
+            container.mainContext.insert(Kit(brand: "Tamiya", name: "F-16CJ", scale: "1:48", number: "61098"))
+            try container.mainContext.fetch(FetchDescriptor<Kit>()).first?.project = project
+            try container.mainContext.save()
 
             var second = ProjectDraft()
             second.name = "Second Build"
@@ -119,7 +118,8 @@ struct ProjectServiceTests {
 
         #expect(projects.map(\.name) == ["Second Build", "Tamiya F-16CJ 50th Anniversary"])
         let f16 = try #require(projects.first { $0.id == projectID })
-        #expect(f16.kitNumber == "61098")
+        #expect(f16.notes == "Wheel wells")
+        #expect(f16.kits.map(\.number) == ["61098"])
         #expect(f16.summary == "Tamiya · 1:48 · F-16CJ Block 50")
     }
 }

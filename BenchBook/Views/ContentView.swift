@@ -187,19 +187,34 @@ struct ContentView: View {
         } else if selection == .tags {
             TagManagerView { tag in selection = .tag(tag.id) }
         } else if selection == .kits {
-            KitCatalogueView(revealID: $revealKitID)
+            KitCatalogueView(
+                revealID: $revealKitID,
+                onShowProject: { project in selection = .project(project.id) },
+                onNewProject: { kit in editorRequest = .newFromKit(kit) }
+            )
         } else if selection == .paints {
             PaintCatalogueView(revealID: $revealPaintID)
         } else if selection == .shoppingList {
-            ShoppingListView { paintID in
-                selection = .paints
-                revealPaintID = paintID
-            }
+            ShoppingListView(
+                onShowInPaints: { paintID in
+                    selection = .paints
+                    revealPaintID = paintID
+                },
+                onShowKit: { kit in
+                    selection = .kits
+                    revealKitID = kit.id
+                },
+                onShowProject: { project in selection = .project(project.id) }
+            )
         } else if let project = selectedProject {
             ProjectWorkspaceView(
                 project: project,
                 onEdit: { editorRequest = .edit(project) },
                 onAddFiles: { isAddingFiles = true },
+                onShowKit: { kit in
+                    selection = .kits
+                    revealKitID = kit.id
+                },
                 revealReferenceID: $revealReferenceID,
                 revealAftermarketID: $revealAftermarketID,
                 revealBuildPhotoID: $revealBuildPhotoID
@@ -295,7 +310,9 @@ struct ContentView: View {
 
     private func deletionMessage(for project: Project) -> String {
         let contents = project.deletionSummary
-        let kept = String(localized: "Paints in your catalogue and your tags are kept. This can't be undone.")
+        let kept = project.kits.isEmpty
+            ? String(localized: "Paints in your catalogue and your tags are kept. This can't be undone.")
+            : String(localized: "Its kits stay in your Kits catalogue, not in a project. Paints in your catalogue and your tags are kept. This can't be undone.")
         return contents.isEmpty
             ? String(localized: "The project is empty. \(kept)")
             : String(localized: "Its \(contents) will be deleted. \(kept)")

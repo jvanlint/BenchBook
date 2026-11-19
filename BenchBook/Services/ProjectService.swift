@@ -5,10 +5,7 @@ import SwiftData
 /// the store until the user saves.
 struct ProjectDraft: Equatable {
     var name = ""
-    var manufacturer = ""
     var subject = ""
-    var scale = ""
-    var kitNumber = ""
     var markingsScheme = ""
     var notes = ""
     var status = ProjectStatus.researching
@@ -17,10 +14,7 @@ struct ProjectDraft: Equatable {
 
     init(project: Project) {
         name = project.name
-        manufacturer = project.manufacturer
         subject = project.subject
-        scale = project.scale
-        kitNumber = project.kitNumber ?? ""
         markingsScheme = project.markingsScheme ?? ""
         notes = project.notes ?? ""
         status = project.status
@@ -46,13 +40,20 @@ enum ProjectServiceError: LocalizedError {
 struct ProjectService {
     let context: ModelContext
 
+    /// A new project using `kits` from the catalogue. A kit in another
+    /// project moves to this one.
     @discardableResult
-    func createProject(from draft: ProjectDraft) throws -> Project {
+    func createProject(from draft: ProjectDraft, kits: [Kit] = []) throws -> Project {
         guard draft.hasValidName else { throw ProjectServiceError.blankName }
 
         let project = Project(name: draft.name.trimmed)
         apply(draft, to: project)
         context.insert(project)
+        for kit in kits {
+            if let previous = kit.project { previous.updatedAt = .now }
+            kit.project = project
+            kit.follow(project.status)
+        }
         try save()
         return project
     }
@@ -61,7 +62,9 @@ struct ProjectService {
         guard draft.hasValidName else { throw ProjectServiceError.blankName }
         guard draft != ProjectDraft(project: project) else { return }
 
+        let statusChanged = draft.status != project.status
         apply(draft, to: project)
+        if statusChanged { kitsFollow(project) }
         project.updatedAt = .now
         try save()
     }
@@ -69,8 +72,15 @@ struct ProjectService {
     func setStatus(_ status: ProjectStatus, for project: Project) throws {
         guard project.statusRaw != status.rawValue else { return }
         project.statusRaw = status.rawValue
+        kitsFollow(project)
         project.updatedAt = .now
         try save()
+    }
+
+    /// In Progress makes the project's BNIB and Opened kits WIP; Completed
+    /// makes its kits Built (`Kit.follow`).
+    private func kitsFollow(_ project: Project) {
+        for kit in project.kits { kit.follow(project.status) }
     }
 
     /// Deletes the project with its references, image notes, paint list and
@@ -95,10 +105,7 @@ struct ProjectService {
 
     private func apply(_ draft: ProjectDraft, to project: Project) {
         project.name = draft.name.trimmed
-        project.manufacturer = draft.manufacturer.trimmed
         project.subject = draft.subject.trimmed
-        project.scale = draft.scale.trimmed
-        project.kitNumber = draft.kitNumber.trimmedOrNil
         project.markingsScheme = draft.markingsScheme.trimmedOrNil
         project.notes = draft.notes.trimmedOrNil
         project.statusRaw = draft.status.rawValue

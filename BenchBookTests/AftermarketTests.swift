@@ -22,7 +22,10 @@ struct AftermarketDraftTests {
     @Test func newPartsStartWithTheProjectScale() throws {
         let container = try Fixtures.makeInMemoryContainer()
         let project = Fixtures.makeProject("F-16", in: container.mainContext)
-        project.scale = "1:48"
+        #expect(AftermarketDraft(project: project).scaleCompatibility == "")
+        let kit = Kit(brand: "Tamiya", name: "F-16CJ", scale: "1:48")
+        container.mainContext.insert(kit)
+        kit.project = project
         #expect(AftermarketDraft(project: project).scaleCompatibility == "1:48")
         #expect(AftermarketDraft(project: project).status == .considering)
     }

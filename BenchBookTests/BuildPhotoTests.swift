@@ -452,7 +452,7 @@ struct BuildPhotoMigrationTests {
         let context = container.mainContext
         let project = try #require(try context.fetch(FetchDescriptor<Project>()).first)
         #expect(project.name == "Spitfire")
-        #expect(project.manufacturer == "Airfix")
+        #expect(project.notes == "Kit: Airfix · 1:48")
         #expect(project.references.first?.text == "Cockpit green")
         #expect(project.references.first?.tags.map(\.name) == ["Cockpit"])
         #expect(project.buildPhotos.isEmpty)

@@ -78,11 +78,22 @@ extension Project {
         String(text.inflected().characters)
     }
 
-    /// A short line such as "Tamiya · 1:48 · F-16CJ Block 50", skipping blank fields.
+    /// A short line such as "Tamiya · 1:48 · F-16CJ Block 50" for a project
+    /// with one kit, or "2 kits · F-16CJ Block 50", skipping blank fields.
     var summary: String {
-        [manufacturer, scale, subject]
+        let kitPart: [String] = switch kits.count {
+        case 0: []
+        case 1: [kits[0].brand, kits[0].scale ?? ""]
+        default: [Self.counted(AttributedString(localized: "^[\(kits.count) kit](inflect: true)"))]
+        }
+        return (kitPart + [subject])
             .filter { !$0.isEmpty }
             .joined(separator: " · ")
+    }
+
+    /// The project's kits in the order they were added.
+    var sortedKits: [Kit] {
+        kits.sorted { $0.createdAt == $1.createdAt ? $0.id.uuidString < $1.id.uuidString : $0.createdAt < $1.createdAt }
     }
 
     /// Projects without a stored status, such as those from before statuses

@@ -20,20 +20,22 @@ enum KitError: LocalizedError, Equatable {
 /// Owns the Kits catalogue: adding and editing kits, copies, status and sale
 /// changes, pictures and deleting, including cleanup of stored files.
 ///
-/// Kits belong to the library, so changing one doesn't change any project's
-/// last updated date.
+/// Changing a kit doesn't change its project's last updated date; adding
+/// a kit to a project, or removing it, does.
 struct KitService {
     let context: ModelContext
     let library: AssetLibrary
 
     // MARK: Adding and editing
 
+    /// A new kit in the catalogue, and in `project` if one is given.
     @discardableResult
-    func create(from draft: KitDraft) throws -> Kit {
+    func create(from draft: KitDraft, in project: Project? = nil) throws -> Kit {
         try validate(draft)
         let kit = Kit(brand: "", name: "")
         context.insert(kit)
         apply(draft, to: kit)
+        if let project { assign(kit, to: project) }
         try save()
         return kit
     }
@@ -85,6 +87,16 @@ struct KitService {
         try save()
     }
 
+    /// A needed kit has been bought: it's owned, and BNIB.
+    func markBought(_ kits: [Kit]) throws {
+        for kit in kits where !kit.isOwned {
+            kit.isOwned = true
+            kit.status = .bnib
+            kit.updatedAt = .now
+        }
+        try save()
+    }
+
     /// Turning For Sale off keeps the sale price.
     func setForSale(_ forSale: Bool, for kits: [Kit]) throws {
         for kit in kits where kit.isForSale != forSale {
@@ -92,6 +104,42 @@ struct KitService {
             kit.updatedAt = .now
         }
         try save()
+    }
+
+    // MARK: Projects
+
+    /// Kits that aren't in any project, which a project can use.
+    func unallocated() throws -> [Kit] {
+        try context.fetch(FetchDescriptor<Kit>(predicate: #Predicate { $0.project == nil }))
+    }
+
+    /// Adds the kits to `project`. A kit in another project moves to this one.
+    func add(_ kits: [Kit], to project: Project) throws {
+        for kit in kits { assign(kit, to: project) }
+        try save()
+    }
+
+    /// Takes the kits out of `project`. They stay in the catalogue, unallocated.
+    func remove(_ kits: [Kit], from project: Project) throws {
+        for kit in kits where kit.project?.persistentModelID == project.persistentModelID {
+            kit.project = nil
+            touch(project)
+        }
+        try save()
+    }
+
+    private func assign(_ kit: Kit, to project: Project) {
+        guard kit.project?.persistentModelID != project.persistentModelID else { return }
+        if let previous = kit.project { touch(previous) }
+        kit.project = project
+        kit.follow(project.status)
+        touch(project)
+    }
+
+    /// A project that's just been created keeps its last updated date.
+    private func touch(_ project: Project) {
+        guard !context.insertedModelsArray.contains(where: { $0.persistentModelID == project.persistentModelID }) else { return }
+        project.updatedAt = .now
     }
 
     /// Deletes the kits, then their pictures if nothing else uses them.

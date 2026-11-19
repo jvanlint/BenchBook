@@ -50,6 +50,13 @@ Rules:
   saved with a `.jpg` name. Its bytes may be PNG when the image is transparent,
   so read posters by content, not by extension.
 - Thumbnails are 480 × 480 pixels at most, PNG, and never backed up.
+- **Before an upgrade**, when the store is in an older schema, copy it (with
+  any companion files, such as SQLite's `-wal` and `-shm`) beside it as
+  `<store name> Before <new schemaVersion>.<ext>`, e.g.
+  `BenchBook Before 4.0.0.store`. Copy into a hidden folder first and move
+  the files into place, so a failed copy never leaves part of one. Keep an
+  existing copy: it's from before the first try. If the copy fails, don't
+  upgrade, and say so. The library root isn't copied; upgrades don't touch it.
 
 ## Format 2 backup file
 
@@ -83,7 +90,7 @@ Describes the backup, so a restore can check it before touching the library.
   "createdAt": "2026-11-13T09:41:07Z",
   "appVersion": "1.1.0",
   "platform": "windows",
-  "schemaVersion": "3.0.0",
+  "schemaVersion": "4.0.0",
   "counts": { "projects": 4, "references": 212, "paints": 1267 },
   "files": [
     { "path": "library.json", "size": 482113, "sha256": "9f2c…" },
@@ -106,7 +113,7 @@ breaking an older one.
 
 ```json
 {
-  "schemaVersion": "3.0.0",
+  "schemaVersion": "4.0.0",
   "projects": [ … ],
   "references": [ … ],
   "assets": [ … ],
@@ -144,14 +151,14 @@ the tables below. A project's `updatedAt` follows the rule in `behaviour.md`
 | Field | Type | Notes |
 |---|---|---|
 | name | text | Required, not empty. |
-| manufacturer | text | Required; empty allowed. The kit's maker, e.g. "Tamiya". |
-| subject | text | Required; empty allowed. e.g. "F-16CJ Block 50". |
-| scale | text | Required; empty allowed. e.g. "1:48". |
-| kitNumber | text? | |
+| subject | text | Required; empty allowed. What the model shows, e.g. "F-16CJ Block 50". |
 | markingsScheme | text? | |
 | notes | text? | |
 | status | text? | `researching`, `inProgress`, `paused` or `completed`. Missing means `researching`. |
 | projectPhotoId | id? | A build photo of this project, shown in its header. Missing, or the id of a photo that no longer exists, shows none. Schema 2. |
+
+A project's kits are the `kits` records whose `projectId` is its id. Schema 4
+removed `manufacturer`, `scale` and `kitNumber` (see Compatibility).
 
 #### references
 
@@ -325,9 +332,9 @@ project's build photos is refused as a duplicate.
 
 #### kits
 
-Model kits the user owns or wants. They belong to the library, not to a
-project. Each record is one physical kit: two boxes of the same kit are two
-records, each with its own status and price. Schema 3.
+Model kits the user owns or wants, in the library's catalogue. Each record
+is one physical kit: two boxes of the same kit are two records, each with its
+own status and price. A kit can be in one project at most. Schema 3.
 
 | Field | Type | Notes |
 |---|---|---|
@@ -344,6 +351,7 @@ records, each with its own status and price. Schema 3.
 | salePrice | decimal? | Kept when `forSale` is `false`. |
 | notes | text? | |
 | pictureAssetId | id? | Box art. An asset, not a reference. Copies of a kit can share one asset. |
+| projectId | id? | The project building this kit. Missing means it's in no project. Deleting the project leaves the kit, with this missing. Schema 4. |
 
 ## Writing a backup
 
@@ -402,6 +410,7 @@ half-restored library or lose their current one.
 | 1.0.0 | BenchBook 1.0. |
 | 2.0.0 | Build photos (#43): `buildPhotos`, `buildPhotoTags`, `projects.projectPhotoId`, `markups.buildPhotoId`; `markups.referenceId` becomes optional. Additive: a 1.0.0 library reads as 2.0.0 with no build photos. |
 | 3.0.0 | Kits (#41): `kits`, and the `decimal` value type. Additive: a 2.0.0 library reads as 3.0.0 with no kits. |
+| 4.0.0 | Projects use kits (#44): `kits.projectId`; `projects.manufacturer`, `projects.scale` and `projects.kitNumber` are removed. Upgrading a 3.0.0 library (or reading an older backup) adds a line to the end of each project's notes with whichever of those three are filled in, `Kit: <manufacturer> · <kitNumber> · <scale>`, after a blank line, unless it's already the last line. Not localized. No kits are created. |
 
 ## Mac app changes
 

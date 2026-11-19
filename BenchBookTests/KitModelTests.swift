@@ -141,7 +141,8 @@ struct KitMigrationTests {
         let context = container.mainContext
         let project = try #require(try context.fetch(FetchDescriptor<Project>()).first)
         #expect(project.name == "Spitfire")
-        #expect(project.manufacturer == "Airfix")
+        #expect(project.notes == "Kit: Airfix · 1:48")
+        #expect(project.kits.isEmpty)
         #expect(project.references.first?.text == "Cockpit green")
         #expect(project.buildPhotos.first?.notes == "Cockpit done")
         #expect(project.projectPhoto?.asset?.originalFilename == "photo.jpg")

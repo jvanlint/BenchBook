@@ -30,6 +30,7 @@ struct ProjectSidebar: View {
 
     @Query private var tags: [Tag]
     @Query private var paintSelections: [ProjectPaint]
+    @Query(filter: #Predicate<Kit> { !$0.isOwned && $0.project != nil }) private var kitsNotOwned: [Kit]
     @AppStorage("sidebar.showsAllTags") private var showsAllTags = false
     @AppStorage("sidebar.projectStatusFilter") private var statusFilterValue = ProjectStatusFilter.all.storageValue
     @AppStorage("sidebar.projectSort") private var projectSort = ProjectSort.name
@@ -50,9 +51,10 @@ struct ProjectSidebar: View {
         nonmutating set { statusFilterValue = newValue.storageValue }
     }
 
-    /// How many paints are on the shopping list.
-    private var paintsToBuy: Int {
+    /// How many paints and kits are on the shopping list.
+    private var itemsToBuy: Int {
         Set(paintSelections.compactMap(\.selectedPaint).filter(\.isToBuy).map(\.id)).count
+            + kitsNotOwned.filter(\.isNeeded).count
     }
 
     private var visibleProjects: [Project] {
@@ -91,7 +93,7 @@ struct ProjectSidebar: View {
                 Label("Paints", systemImage: "paintpalette")
                     .tag(SidebarItem.paints)
                 Label("Shopping List", systemImage: "cart")
-                    .badge(paintsToBuy)
+                    .badge(itemsToBuy)
                     .tag(SidebarItem.shoppingList)
                 Label("Tags", systemImage: "tag")
                     .tag(SidebarItem.tags)

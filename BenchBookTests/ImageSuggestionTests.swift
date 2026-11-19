@@ -37,8 +37,9 @@ struct ImageSuggestionRulesTests {
         let container = try Fixtures.makeInMemoryContainer()
         let project = Fixtures.makeProject("F-16C", in: container.mainContext)
         #expect(ImageSuggestionRules.projectHint(for: project) == "F-16C")
-        project.manufacturer = "Tamiya"
-        project.scale = "1:48"
+        let kit = Kit(brand: "Tamiya", name: "F-16CJ", scale: "1:48")
+        container.mainContext.insert(kit)
+        kit.project = project
         project.subject = "F-16CJ Block 50"
         project.markingsScheme = "52nd FW, Spangdahlem"
         let hint = try #require(ImageSuggestionRules.projectHint(for: project))

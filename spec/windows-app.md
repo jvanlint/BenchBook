@@ -71,9 +71,10 @@ the Mac since 1.0 are listed in [changes.md](changes.md).
 ├──────────────┬────────────────────────────────────────────────┤
 │ Projects   ▾ │  F-16CJ 50th Anniversary                       │
 │  F-16CJ      │  Tamiya · 1:48 · F-16CJ Block 50   [Edit]      │
-│  Spitfire    │  ┌References┬Paint┬Aftermarket┬Build Photos┐   │
+│  Spitfire    │  ┌Kits┬References┬Paint┬Aftermarket┬Build Photos┐│
 │  …           │  [All types ▾] [cockpit ×] [decals ×]  [+ Add] │
 │              │  ┌────┐ ┌────┐ ┌────┐ ┌────┐                   │
+│ Kits         │  │    │ │    │ │    │ │    │                   │
 │ Paints       │  │    │ │    │ │    │ │    │                   │
 │ Shopping List│  └────┘ └────┘ └────┘ └────┘                   │
 │ Tags         │                                                │
@@ -111,7 +112,7 @@ Mac shortcuts map ⌘ to Ctrl, with Windows conventions where they differ:
 | Find | Ctrl+F (also F3 for next match in the PDF viewer) |
 | Edit project | Ctrl+I |
 | Edit tags | Ctrl+T |
-| References / Paint / Aftermarket / Build Photos | Ctrl+1 / Ctrl+2 / Ctrl+3 / Ctrl+4 |
+| Kits / References / Paint / Aftermarket / Build Photos | Ctrl+1 / Ctrl+2 / Ctrl+3 / Ctrl+4 / Ctrl+5 |
 | Delete | Delete, with confirmation |
 | Previous / next image or PDF | Ctrl+[ / Ctrl+] |
 | Show or hide boxes and markups | Ctrl+B |
@@ -200,7 +201,7 @@ works.
    Files; the gallery with filters; notes; tags and the tag manager; moving and
    copying; search; link details and posters.
 4. **Kits, paint, parts and build photos.** The Kits catalogue with Scalemates
-   and BenchBook CSV import and export, the paint catalogue with CSV import and
+   and BenchBook CSV import and export, kits in projects, the paint catalogue with CSV import and
    export, project paints, the shopping list, aftermarket items, and build
    photos with export that leaves out location data.
 5. **Viewers.** Image viewer with notes, Compare, Markdown, and the PDF viewer

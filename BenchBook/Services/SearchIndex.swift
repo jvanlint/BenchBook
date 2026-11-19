@@ -205,8 +205,10 @@ final class SearchIndex {
         projectEntries = projects
             .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
             .map { project in
-                let texts = [project.name, project.manufacturer, project.subject, project.scale,
-                             project.kitNumber ?? "", project.markingsScheme ?? "", project.notes ?? ""]
+                // A project's kits are found through it, as its references are.
+                let kitTexts = project.sortedKits.flatMap { [$0.brand, $0.name, $0.scale ?? "", $0.number ?? ""] }
+                let texts = [project.name, project.subject] + kitTexts
+                    + [project.markingsScheme ?? "", project.notes ?? ""]
                 return (project, texts.filter { !$0.isEmpty }.map(SearchField.init))
             }
 

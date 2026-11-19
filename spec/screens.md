@@ -28,14 +28,14 @@ VoiceOver. Those are Mac bugs, not wording to copy.
 **Sidebar**, from top:
 
 - **Projects**: each project's name, with its summary underneath
-  ("Tamiya · 1:48 · F-16CJ Block 50"), and its status as a small icon on the
+  ("Tamiya · 1:48 · F-16CJ Block 50", or "2 kits · Normandy"), and its status as a small icon on the
   right: magnifying glass for Researching, hammer for In Progress, pause for
   Paused, tick for Completed. A filter button in the header shows one status
   ("Projects · In Progress") or all of them, and below that, Sort By: Name,
   Date Created, Last Updated. If none match: "No In Progress
   Projects", with "Show All Projects".
 - **Library**: Kits (a box icon), Paints, Shopping List (with the number of
-  paints to buy), Tags.
+  paints and kits to buy), Tags.
 - **Tags**: the ten most used tags with their colour and count, then
   "Show More (6)" or "Show Less".
 - A + button above the list adds a project.
@@ -52,10 +52,11 @@ Show Tagged Items, Rename…, Colour, Manage Tags…, Delete Tag….
   onto references or build photos in their grid tags them.
 
 **Project header**: the project photo, if one is set (a small thumbnail that
-opens it), then name and summary, then the References / Paint / Aftermarket /
-Build Photos switch (⌘1–⌘4), then Add Files, New Note and Edit Project
+opens it), then name and summary, then the Kits / References / Paint /
+Aftermarket / Build Photos switch (⌘1–⌘5), then Add Files, New Note and Edit Project
 buttons, then the search field ("Search All Projects"). In Build Photos, Add
-Files and New Note are replaced by Add Photos and Import from Photos.
+Files and New Note are replaced by Add Photos and Import from Photos. A
+project opens on References.
 
 **Empty states**:
 
@@ -188,11 +189,17 @@ until there's a title or some text. If the save still fails for that reason,
 
 `Views/ProjectEditorView.swift`
 
-"New Project" or "Edit Project": Name ("Required"), Manufacturer ("e.g.
-Tamiya"), Subject ("e.g. F-16CJ Block 50"), Scale ("e.g. 1:48"), Kit Number
-("Optional"), Markings Scheme ("Optional"), Status (a menu, each status with
-its icon), and Notes ("Optional", several lines). The default status for new
-projects is set in Settings. Create (or Save) stays disabled until there's a
+"New Project" or "Edit Project": Name ("Required"), Subject ("e.g. F-16CJ
+Block 50"), Markings Scheme ("Optional"), Status (a menu, each status with its
+icon), and Notes ("Optional", several lines). The default status for new
+projects is set in Settings.
+
+A new project also has **Kits**: the chosen kits (picture, name, then brand,
+scale and number, and a remove button), then Add from Kits… and New Kit….
+Footer: "New kits go into your Kits catalogue straight away, even if you
+cancel." New Project from Kit… (on the Kits screen) opens this sheet named
+after the kit, with the kit chosen. An existing project changes its kits in
+its Kits tab. Create (or Save) stays disabled until there's a
 name: "Enter a name to save the project."
 
 ![Edit Project](screens/project-editor.png)
@@ -271,22 +278,28 @@ project."
 `Views/Kits/KitCatalogueView.swift`
 
 One row per physical kit: Picture (box art, or a box icon), Brand, Name,
-Scale, Number, Status, Rating (stars), Price Paid, For Sale (a tick box) and
-Sale Price. Kits that aren't owned show "Not Owned" in Status. Prices are in
+Scale, Number, Status, Rating (stars), Project (the project using it, with
+"Needed for Cobra" as its tooltip when it's needed), Price Paid, For Sale (a
+tick box) and Sale Price. Kits that aren't owned show "Not Owned" in Status. Prices are in
 the device's currency format. Every column sorts; right-click a heading to
 hide columns, except Brand and Name. The title bar counts entries: "116 kits ·
 4 not owned", or "12 of 116 kits · 4 not owned" while filtered.
 
 Toolbar: Brand ▸ ("All Brands", "Italeri (12)"), Scale ▸, Status ▸ ("Any
 Status", "WIP (3)", counting owned kits only), a Show menu (All Kits, Owned,
-Not Owned, For Sale), Import CSV…, Export CSV…, Add Kit.
+Not Owned, For Sale, Not in a Project, Needed), Import CSV…, Export CSV…, Add Kit.
 
 - Double-click to edit. Right-click one kit: Edit Kit…, Add Another Copy,
-  Open Link (when it has one), Status ▸, Mark as Owned or Not Owned, Mark as
-  For Sale or Not For Sale, Delete Kit…. With several selected, the status,
-  owned, sale and delete commands apply to all of them ("Delete 3 Kits…").
+  Open Link (when it has one), Show Project (in a project) or New Project
+  from Kit… (in none), Status ▸, Mark as Owned or Not Owned, Mark as For Sale
+  or Not For Sale, Move to Project ▸ (every project by name; the kit's own is
+  dimmed), Remove from Project (in a project), Delete Kit…. With several
+  selected, the status, owned, sale, move, remove and delete commands apply to
+  all of them ("Delete 3 Kits…", "Remove 2 Kits from Projects").
 - Delete asks "Delete “Italeri 1:72 Super Cobra (1234)”?" or "Delete 3 Kits?":
   "This removes the kit and its picture from BenchBook. This can't be undone."
+  For kits in a project, that starts with "It's used by the project “Cobra”."
+  or "They're used by the projects “Cobra” and “Spitfire”."
 - Import shows "Added 3 Kits and Updated 1" (or "Added 3 Kits", "Updated 1
   Kit", "No Kits Added"), then "Already in your catalogue: 110.", "27 rows
   skipped that aren't kits: Markings (Decals) 22, Detail and Conversion sets
@@ -324,6 +337,32 @@ with "Use Image from Product Page" using Link; and Notes.
   as scalemates.com/kits/…"; a bad price shows "Enter prices as numbers, such
   as 18.50.".
 - Dropping a link on the picture fills in Link if it's empty.
+
+## Project Kits tab
+
+`Views/Kits/ProjectKitsView.swift`
+
+The kits this build uses. A header: "2 kits · 1 not owned", Add from Kits…
+("Choose kits for this build from your Kits catalogue") and New Kit… ("Add a
+kit to your catalogue and to this build"). A table: Picture, Kit (name, with
+brand and number underneath; notes as a tooltip), Scale, Status (a menu for
+owned kits, "Not Owned" otherwise) and Link.
+
+- Double-click to edit. Right-click: Edit Kit…, Show in Kits, Open Link,
+  Status ▸ (owned kits), Remove from Project ("Remove 2 Kits from Project").
+  Delete removes from the project without asking; the kits stay in the
+  catalogue.
+- **Add from Kits…** opens "Add Kits to Cobra": a search field ("Search
+  brand, name, scale or number") and kits that aren't in a project, by brand
+  and name, each with a tick box, picture, name, brand · scale · number, and
+  its status or "Not Owned". New Kit… adds one to the catalogue and ticks it.
+  "Add Kit" or "Add 3 Kits". With none: "No Kits to Add. Every kit in your
+  catalogue is already in a project. Add a new one here, or import your stash
+  from Kits in the sidebar." With no match: "No Matching Kits. No kit that
+  isn't already in a project matches “…”."
+
+Empty: "No Kits. Choose the kits for this build from your Kits catalogue, or
+add a new one.", with Add from Kits… and New Kit….
 
 ## Paints catalogue
 
@@ -369,8 +408,11 @@ isn't an accurate colour match."
 
 `Views/Paint/ShoppingListView.swift`
 
-The header counts what's left, such as "2 paints for 1 project · 4 colours
-without paint". Grouped by brand. Each paint shows its swatch, code and name, range and
+The header counts what's left, such as "1 kit · 2 paints for 1 project ·
+4 colours without paint". First, **Kits**: each needed kit with a Bought tick
+box ("Mark as bought: it's owned, BNIB, and off the list"), its picture, name,
+brand · scale · number, and its project. Right-click: Mark as Bought, Show in
+Kits, Show Project. Then paints, grouped by brand. Each paint shows its swatch, code and name, range and
 standard, and the projects that need it, with an Owned tick box that takes it
 off the list ("Mark as owned and take it off the list"). Right-click: Mark as
 Owned, Show in Paints. Then "No Paint Chosen": each colour without a paint,
@@ -379,9 +421,9 @@ colour's "used for" text in brackets when it has one). These rows have no button
 the tooltip "Choose a paint for this colour on the project's Paint tab". The
 toolbar has Export Shopping List… ("Save the shopping list as a text file").
 
-Empty: "Nothing to Buy. Paints you don't own that a project needs appear here,
-with colours that have no paint chosen yet. Completed projects aren't
-included."
+Empty: "Nothing to Buy. Kits and paints you don't own that a project needs
+appear here, with colours that have no paint chosen yet. Completed projects
+aren't included."
 
 ![Shopping List](screens/shopping-list.png)
 

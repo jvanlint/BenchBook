@@ -128,16 +128,40 @@ nonisolated struct PaintShoppingList: Equatable {
         String(localized: "Paint Shopping List \(date.formatted(.iso8601.year().month().day()))")
     }
 
-    /// A checklist grouped by brand, e.g.
+    /// A kit on the shopping list, as text.
+    struct KitLine: Equatable {
+        /// e.g. "Italeri Super Cobra · 1:72 · 1234".
+        var title: String
+        var project: String
+    }
+
+    /// A checklist with needed kits first, then paints grouped by brand, e.g.
+    ///
+    ///     Kits
+    ///     ☐ Italeri Super Cobra · 1:72 · 1234
+    ///         Cobra
     ///
     ///     Tamiya
     ///     ☐ XF-54 Dark Sea Grey · Acrylic XF · BS 640
     ///         F-16C (upper surfaces), Spitfire
-    func text(on date: Date = .now) -> String {
+    func text(on date: Date = .now, kits: [KitLine] = []) -> String {
+        var summaries: [String] = []
+        if !kits.isEmpty {
+            summaries.append(String(AttributedString(localized: "^[\(kits.count) kit](inflect: true)").inflected().characters))
+        }
+        if !isEmpty { summaries.append(summary) }
         var lines = [
-            String(localized: "Paint Shopping List"),
-            "\(date.formatted(date: .long, time: .omitted)) · \(summary)",
+            kits.isEmpty ? String(localized: "Paint Shopping List") : String(localized: "Shopping List"),
+            "\(date.formatted(date: .long, time: .omitted)) · \(summaries.joined(separator: " · "))",
         ]
+        if !kits.isEmpty {
+            lines.append("")
+            lines.append(String(localized: "Kits"))
+            for kit in kits {
+                lines.append("☐ \(kit.title)")
+                lines.append("    \(kit.project)")
+            }
+        }
         for group in groups {
             lines.append("")
             lines.append(group.name)

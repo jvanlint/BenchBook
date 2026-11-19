@@ -100,9 +100,9 @@ struct AftermarketDraft: Equatable {
 
     init() {}
 
-    /// A new item for `project`, starting with the project's scale.
+    /// A new item for `project`, starting with the scale of its first kit.
     init(project: Project) {
-        scaleCompatibility = project.scale
+        scaleCompatibility = project.sortedKits.lazy.compactMap(\.scale).first ?? ""
     }
 
     init(item: AftermarketItem) {

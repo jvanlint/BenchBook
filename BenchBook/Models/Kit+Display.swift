@@ -47,6 +47,28 @@ extension Kit {
     }
 
     static let ratingRange = 1...5
+
+    /// Moves an owned kit forward to match its project: In Progress makes a
+    /// BNIB or Opened kit WIP, and Completed makes it Built. It never moves a
+    /// kit back, and leaves an unknown stored status alone. True if it changed.
+    @discardableResult
+    func follow(_ projectStatus: ProjectStatus, now: Date = .now) -> Bool {
+        guard isOwned else { return false }
+        let target: KitStatus
+        switch projectStatus {
+        case .inProgress:
+            guard statusRaw == KitStatus.bnib.rawValue || statusRaw == KitStatus.opened.rawValue else { return false }
+            target = .wip
+        case .completed:
+            guard statusRaw != KitStatus.built.rawValue else { return false }
+            target = .built
+        case .researching, .paused:
+            return false
+        }
+        status = target
+        updatedAt = now
+        return true
+    }
 }
 
 extension Kit {
@@ -67,6 +89,14 @@ extension Kit {
     var pricePaidSortKey: Decimal { pricePaid ?? .greatestFiniteMagnitude }
     var salePriceSortKey: Decimal { salePrice ?? .greatestFiniteMagnitude }
     var forSaleSortKey: Int { isForSale ? 0 : 1 }
+    /// Kits in a project first, by project name.
+    var projectSortKey: String { project.map { "0" + $0.name } ?? "1" }
+
+    /// Still to buy for a build: not owned, and in a project that isn't Completed.
+    var isNeeded: Bool {
+        guard !isOwned, let project else { return false }
+        return project.status != .completed
+    }
 }
 
 /// When two kit entries are copies of the same kit.
@@ -202,7 +232,7 @@ struct KitDraft: Equatable {
 /// Which kits the Kits screen shows.
 struct KitFilter: Equatable {
     enum Ownership: String, CaseIterable, Identifiable {
-        case all, owned, notOwned, forSale
+        case all, owned, notOwned, forSale, unallocated, needed
         var id: String { rawValue }
 
         var displayName: String {
@@ -211,6 +241,8 @@ struct KitFilter: Equatable {
             case .owned: String(localized: "Owned")
             case .notOwned: String(localized: "Not Owned")
             case .forSale: String(localized: "For Sale")
+            case .unallocated: String(localized: "Not in a Project")
+            case .needed: String(localized: "Needed")
             }
         }
     }
@@ -238,6 +270,8 @@ struct KitFilter: Equatable {
         case .owned: kit.isOwned
         case .notOwned: !kit.isOwned
         case .forSale: kit.isForSale
+        case .unallocated: kit.project == nil
+        case .needed: kit.isNeeded
         }
     }
 }

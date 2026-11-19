@@ -4,6 +4,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 enum WorkspaceSection: String, CaseIterable, Identifiable {
+    case kits
     case references
     case paint
     case aftermarket
@@ -13,6 +14,7 @@ enum WorkspaceSection: String, CaseIterable, Identifiable {
 
     var title: LocalizedStringKey {
         switch self {
+        case .kits: "Kits"
         case .references: "References"
         case .paint: "Paint"
         case .aftermarket: "Aftermarket"
@@ -22,10 +24,11 @@ enum WorkspaceSection: String, CaseIterable, Identifiable {
 
     var keyEquivalent: KeyEquivalent {
         switch self {
-        case .references: "1"
-        case .paint: "2"
-        case .aftermarket: "3"
-        case .buildPhotos: "4"
+        case .kits: "1"
+        case .references: "2"
+        case .paint: "3"
+        case .aftermarket: "4"
+        case .buildPhotos: "5"
         }
     }
 }
@@ -34,6 +37,8 @@ struct ProjectWorkspaceView: View {
     let project: Project
     let onEdit: () -> Void
     let onAddFiles: () -> Void
+    /// Shows a kit in the Kits catalogue.
+    let onShowKit: (Kit) -> Void
     /// A Reference to scroll to and select, e.g. from search. Cleared once shown.
     @Binding var revealReferenceID: UUID?
     /// An aftermarket part to select, e.g. from search. Cleared once shown.
@@ -147,7 +152,7 @@ struct ProjectWorkspaceView: View {
                     }
                     .pickerStyle(.segmented)
                     .fixedSize()
-                    .help("Switch between References, Paint, Aftermarket and Build Photos")
+                    .help("Switch between Kits, References, Paint, Aftermarket and Build Photos")
                 }
                 ToolbarItemGroup(placement: .primaryAction) {
                     if section == .buildPhotos {
@@ -170,6 +175,8 @@ struct ProjectWorkspaceView: View {
     @ViewBuilder
     private var content: some View {
         switch section {
+        case .kits:
+            ProjectKitsView(project: project, onShowKit: onShowKit)
         case .references:
             ReferencesView(project: project, filter: $referenceFilter, revealID: $revealReferenceID,
                            onAddFiles: addFiles, onNewNote: newNote)
