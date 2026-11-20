@@ -83,7 +83,7 @@ nonisolated struct PaintShoppingList: Equatable {
         var seen = Set<UUID>()
         let paints = selections.compactMap(\.selectedPaint).filter { seen.insert($0.id).inserted }
         let unchosen = selections.compactMap { selection -> Colour? in
-            guard selection.selectedPaint == nil, let standard = selection.standard?.trimmedOrNil,
+            guard selection.selectedPaint == nil, let standard = selection.standardText.trimmedOrNil,
                   let project = selection.project, project.status != .completed else { return nil }
             return Colour(id: selection.id, standard: standard,
                           use: Use(project: project.name, usedFor: selection.usedFor?.trimmedOrNil))
@@ -95,7 +95,7 @@ nonisolated struct PaintShoppingList: Equatable {
                 }
                 .sorted { $0.project.localizedStandardCompare($1.project) == .orderedAscending }
             return Item(id: paint.id, brand: paint.brand, range: paint.range, code: paint.code, name: paint.name,
-                        standard: paint.standardCode, swatchHex: paint.swatchHex, uses: uses)
+                        standard: paint.standardText, swatchHex: paint.swatchHex, uses: uses)
         }
         self.init(items: items, unchosen: unchosen)
     }

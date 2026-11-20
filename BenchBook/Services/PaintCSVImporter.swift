@@ -59,8 +59,10 @@ nonisolated enum CSVParser {
 
 /// Imports paints from a CSV file with a header row. Recognised columns
 /// (any order, any case): Brand, Range, Code, Name, Colour/Color/Hex/Swatch,
-/// Owned, Notes, and colour standards: one "FS/RLM" (or "Standard") column,
-/// or separate FS, RLM, BS, RAL or ANA columns. Brand and Code are required.
+/// Owned, Notes, Match, Type, and the colour standard: BenchBook's own
+/// Standard and Standard Code columns, or one column of text such as
+/// "FS 36270" ("FS/RLM", or "Standard" with no Standard Code column), or
+/// separate FS, RLM, BS, RAL or ANA columns. Brand and Code are required.
 struct PaintCSVImporter {
     struct Summary: Equatable {
         var added = 0
@@ -85,7 +87,7 @@ struct PaintCSVImporter {
     }
 
     private enum Column: CaseIterable {
-        case brand, range, code, name, swatch, owned, notes
+        case brand, range, code, name, swatch, owned, notes, standardCode, match, type
 
         var headers: Set<String> {
             switch self {
@@ -96,6 +98,9 @@ struct PaintCSVImporter {
             case .swatch: ["colour", "color", "hex", "swatch", "rgb"]
             case .owned: ["owned", "own", "have", "in stock"]
             case .notes: ["notes", "note", "comments"]
+            case .standardCode: ["standard code"]
+            case .match: ["match", "standard match"]
+            case .type: ["type", "paint type"]
             }
         }
     }
@@ -117,8 +122,11 @@ struct PaintCSVImporter {
 
         var columns: [Column: Int] = [:]
         var standardColumns: [(index: Int, prefix: String?)] = []
-        for (index, title) in header.fields.enumerated() {
-            let key = title.trimmingCharacters(in: .whitespaces).lowercased()
+        // With a Standard Code column, Standard names the system.
+        let keys = header.fields.map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+        let systemIndex = keys.contains("standard code") ? keys.firstIndex(of: "standard") : nil
+        for (index, key) in keys.enumerated() {
+            if index == systemIndex { continue }
             if let prefix = Self.standardHeaders[key] {
                 standardColumns.append((index, prefix))
                 continue
@@ -146,13 +154,32 @@ struct PaintCSVImporter {
             draft.code = value(.code)
             draft.name = value(.name)
             draft.notes = value(.notes)
-            draft.standardCode = standardColumns.compactMap { column -> String? in
+            let systemText = systemIndex.flatMap { row.fields.indices.contains($0) ? row.fields[$0].trimmedOrNil : nil }
+            let standardText = standardColumns.compactMap { column -> String? in
                 guard row.fields.indices.contains(column.index),
                       let text = row.fields[column.index].trimmedOrNil
                 else { return nil }
                 guard let prefix = column.prefix, text.first?.isNumber == true else { return text }
                 return "\(prefix) \(text)"
             }.joined(separator: " / ")
+            let standard = systemText.map { Self.standard(system: $0, code: value(.standardCode)) }
+                ?? PaintStandardParser.parse(standardText)
+            draft.standardSystem = standard?.system
+            draft.standardCode = standard?.code ?? ""
+            if let text = value(.match).trimmedOrNil, standard != nil {
+                if let match = PaintMatch(text: text) {
+                    draft.match = match
+                } else {
+                    summary.problems.append(String(localized: "Line \(row.line): “\(text)” isn't No match, Closest match or Exact match, so no match was set."))
+                }
+            }
+            if let text = value(.type).trimmedOrNil {
+                if let type = PaintType(text: text) {
+                    draft.type = type
+                } else {
+                    summary.problems.append(String(localized: "Line \(row.line): “\(text)” isn't a paint type BenchBook knows, so no type was set."))
+                }
+            }
             draft.isOwned = ["yes", "y", "true", "1", "x", "✓", "✔"].contains(value(.owned).lowercased())
 
             let swatch = value(.swatch)
@@ -184,5 +211,23 @@ struct PaintCSVImporter {
         // One save for the whole file: it all imports, or nothing does.
         try service.save()
         return summary
+    }
+
+    /// A Standard column naming the system, e.g. "FS 595", "fs595" or "FS",
+    /// with its code. A name BenchBook doesn't know becomes Custom, with the
+    /// name kept in front of the code.
+    static func standard(system name: String, code: String) -> PaintStandard {
+        let code = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        let key = name.lowercased()
+        if let system = PaintStandardSystem.allCases.first(where: {
+            [$0.rawValue.lowercased(), $0.displayName.lowercased(), $0.englishName.lowercased()].contains(key)
+        }) {
+            return PaintStandard(system: system, code: code)
+        }
+        if let parsed = PaintStandardParser.parse(name), parsed.system != .custom, parsed.system != .multiple,
+           parsed.code.isEmpty {
+            return PaintStandard(system: parsed.system, code: code)
+        }
+        return PaintStandard(system: .custom, code: [name, code].filter { !$0.isEmpty }.joined(separator: " "))
     }
 }

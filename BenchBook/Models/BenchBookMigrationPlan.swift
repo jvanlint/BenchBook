@@ -9,9 +9,11 @@ import SwiftData
 /// Schema 2 adds build photos and schema 3 adds kits; both upgrades only
 /// add, so they're lightweight. Schema 4 links kits to projects and removes
 /// the project's own kit fields, after copying them into its notes.
+/// Schema 5 splits paint standards into a system and a code.
 enum BenchBookMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
-        [BenchBookSchemaV1.self, BenchBookSchemaV2.self, BenchBookSchemaV3.self, BenchBookSchemaV4.self]
+        [BenchBookSchemaV1.self, BenchBookSchemaV2.self, BenchBookSchemaV3.self, BenchBookSchemaV4.self,
+         BenchBookSchemaV5.self]
     }
 
     static var stages: [MigrationStage] {
@@ -23,6 +25,12 @@ enum BenchBookMigrationPlan: SchemaMigrationPlan {
                 toVersion: BenchBookSchemaV4.self,
                 willMigrate: moveKitDetailsToNotes,
                 didMigrate: nil
+            ),
+            .custom(
+                fromVersion: BenchBookSchemaV4.self,
+                toVersion: BenchBookSchemaV5.self,
+                willMigrate: nil,
+                didMigrate: splitPaintStandards
             ),
         ]
     }
@@ -38,6 +46,32 @@ enum BenchBookMigrationPlan: SchemaMigrationPlan {
                                             number: project.kitNumber, scale: project.scale)
             )
             if notes != project.notes { project.notes = notes }
+        }
+        try context.save()
+    }
+
+    /// The new fields start empty, then each paint's and project paint's
+    /// standard text is split into a system and a code. Text that isn't
+    /// recognised is kept whole as Multiple or Custom, so nothing is lost.
+    /// Only rows with no system yet are changed, so running it again is safe.
+    private static func splitPaintStandards(_ context: ModelContext) throws {
+        for paint in try context.fetch(FetchDescriptor<BenchBookSchemaV5.Paint>())
+        where paint.standardSystemRaw.isEmpty {
+            guard let standard = PaintStandardParser.parse(paint.standardCode) else {
+                if !paint.standardCode.isEmpty { paint.standardCode = "" }
+                continue
+            }
+            paint.standardSystemRaw = standard.system.rawValue
+            paint.standardCode = standard.code
+        }
+        for row in try context.fetch(FetchDescriptor<BenchBookSchemaV5.ProjectPaint>())
+        where row.standardSystemRaw.isEmpty {
+            guard let standard = PaintStandardParser.parse(row.standard ?? "") else {
+                if row.standard != nil { row.standard = nil }
+                continue
+            }
+            row.standardSystemRaw = standard.system.rawValue
+            row.standard = standard.code.isEmpty ? nil : standard.code
         }
         try context.save()
     }
@@ -67,7 +101,7 @@ nonisolated enum KitDetailsNote {
 }
 
 /// The current version of each model. Update these when a new schema ships.
-typealias CurrentSchema = BenchBookSchemaV4
+typealias CurrentSchema = BenchBookSchemaV5
 typealias Project = CurrentSchema.Project
 typealias Reference = CurrentSchema.Reference
 typealias ManagedAsset = CurrentSchema.ManagedAsset

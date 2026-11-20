@@ -7,8 +7,12 @@ struct PaintDraft: Equatable {
     var range = ""
     var code = ""
     var name = ""
-    /// e.g. "FS 36270" or "RLM 76".
+    /// Nil for no standard. Then the code and match are ignored.
+    var standardSystem: PaintStandardSystem?
+    /// e.g. "36270" for FS 595, or "FS 36375 / BS 637" for Multiple.
     var standardCode = ""
+    var match: PaintMatch?
+    var type: PaintType?
     var notes = ""
     /// "#RRGGBB" or nil for no swatch.
     var swatchHex: String?
@@ -21,7 +25,10 @@ struct PaintDraft: Equatable {
         range = paint.range
         code = paint.code
         name = paint.name
-        standardCode = paint.standardCode
+        standardSystem = paint.standard?.system
+        standardCode = paint.standard?.code ?? ""
+        match = paint.match
+        type = paint.type
         notes = paint.notes ?? ""
         swatchHex = paint.swatchHex
         isOwned = paint.isOwned
@@ -114,8 +121,9 @@ struct PaintService {
 
     /// Adds a colour the Project needs, before a paint is chosen for it.
     @discardableResult
-    func addColour(standard: String, usedFor: String = "", to project: Project) throws -> ProjectPaint {
-        let row = ProjectPaint(project: project, standard: standard.trimmedOrNil, usedFor: usedFor.trimmedOrNil)
+    func addColour(_ standard: PaintStandard, usedFor: String = "", to project: Project) throws -> ProjectPaint {
+        let row = ProjectPaint(project: project, standard: standard.code.trimmedOrNil, usedFor: usedFor.trimmedOrNil)
+        row.standardSystemRaw = standard.system.rawValue
         context.insert(row)
         try save()
         return row
@@ -129,8 +137,19 @@ struct PaintService {
         try save()
     }
 
-    /// Updates the colour standard without saving; call `commit()` when editing ends.
-    func setStandard(_ text: String, on projectPaint: ProjectPaint) {
+    /// Sets the guide standard's system and saves. No system clears the code.
+    func setStandardSystem(_ system: PaintStandardSystem?, on projectPaint: ProjectPaint) throws {
+        let raw = system?.rawValue ?? ""
+        guard projectPaint.standardSystemRaw != raw else { return }
+        projectPaint.standardSystemRaw = raw
+        if system == nil { projectPaint.standard = nil }
+        projectPaint.updatedAt = .now
+        try save()
+    }
+
+    /// Updates the guide standard's code without saving; call `commit()`
+    /// when editing ends.
+    func setStandardCode(_ text: String, on projectPaint: ProjectPaint) {
         let value = text.isEmpty ? nil : text
         guard projectPaint.standard != value else { return }
         projectPaint.standard = value
@@ -170,7 +189,15 @@ struct PaintService {
         paint.range = draft.range.trimmedOrNil ?? ""
         paint.code = draft.code.trimmedOrNil ?? ""
         paint.name = draft.name.trimmedOrNil ?? ""
-        paint.standardCode = draft.standardCode.trimmedOrNil ?? ""
+        // Values are only written when they change, so one this version
+        // doesn't know (read as Custom or Not Set) is kept as it was.
+        let system = draft.standardSystem
+        if paint.standard?.system != system { paint.standardSystemRaw = system?.rawValue ?? "" }
+        if paint.match != draft.match { paint.matchRaw = draft.match?.rawValue ?? "" }
+        if paint.type != draft.type { paint.typeRaw = draft.type?.rawValue ?? "" }
+        // A paint with no standard has no code or match.
+        paint.standardCode = system == nil ? "" : draft.standardCode.trimmedOrNil ?? ""
+        if system == nil { paint.matchRaw = "" }
         paint.notes = draft.notes.trimmedOrNil
         paint.swatchHex = draft.swatchHex.flatMap(SwatchColor.normalized)
         paint.identityKey = draft.identityKey
@@ -206,7 +233,7 @@ extension Project {
             case (nil, .some): return true
             case (.some, nil): return false
             case (nil, nil):
-                return (first.standard ?? "").localizedStandardCompare(second.standard ?? "") == .orderedAscending
+                return first.standardText.localizedStandardCompare(second.standardText) == .orderedAscending
             case let (a?, b?):
                 let brand = a.brand.localizedStandardCompare(b.brand)
                 if brand != .orderedSame { return brand == .orderedAscending }

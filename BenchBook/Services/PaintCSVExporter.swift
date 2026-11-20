@@ -8,7 +8,11 @@ nonisolated enum PaintCSVExporter {
         var range: String
         var code: String
         var name: String
-        var standard: String
+        /// `PaintStandardSystem.englishName`, e.g. "FS 595", or empty.
+        var standardSystem: String
+        var standardCode: String
+        var match: String
+        var type: String
         var swatchHex: String?
         var isOwned: Bool
         var notes: String?
@@ -24,14 +28,16 @@ nonisolated enum PaintCSVExporter {
     static func rows(for paints: [Paint]) -> [Row] {
         paints.map { paint in
             Row(brand: paint.brand, range: paint.range, code: paint.code, name: paint.name,
-                standard: paint.standardCode, swatchHex: paint.swatchHex, isOwned: paint.isOwned, notes: paint.notes)
+                standardSystem: paint.standard?.system.englishName ?? "",
+                standardCode: paint.standard?.code ?? "", match: paint.match?.englishName ?? "",
+                type: paint.type?.englishName ?? "", swatchHex: paint.swatchHex, isOwned: paint.isOwned, notes: paint.notes)
         }
     }
 
     /// Sorted by brand, range and code, with a header row of the importer's
     /// column names. Lines end in CRLF, as spreadsheets expect.
     static func csv(_ rows: [Row], options: Options = Options()) -> String {
-        var header = ["Brand", "Range", "Code", "Name", "FS/RLM", "Colour"]
+        var header = ["Brand", "Range", "Code", "Name", "Standard", "Standard Code", "Match", "Type", "Colour"]
         if options.includesOwnership { header.append("Owned") }
         if options.includesNotes { header.append("Notes") }
 
@@ -43,7 +49,8 @@ nonisolated enum PaintCSVExporter {
             return false
         }
         let lines = [header] + sorted.map { row in
-            var fields = [row.brand, row.range, row.code, row.name, row.standard, row.swatchHex ?? ""]
+            var fields = [row.brand, row.range, row.code, row.name, row.standardSystem, row.standardCode,
+                          row.match, row.type, row.swatchHex ?? ""]
             if options.includesOwnership { fields.append(row.isOwned ? "yes" : "") }
             if options.includesNotes { fields.append(row.notes ?? "") }
             return fields

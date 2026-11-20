@@ -226,7 +226,9 @@ Escape) adds anything still typed in the field, then closes. Errors show
 ![A project's Paint tab](screens/paints.png)
 
 A table, in this order: Swatch, Paint (name, with range and standard
-underneath), Colour (the standard from the painting guide), Used For, and Owned
+underneath), Standard (a menu of None and the standard systems, for the colour
+in the painting guide), Code (the guide colour's code, shown only when a system
+is chosen, with the system's prompt such as "e.g. 36270"), Used For, and Owned
 (a tick box: "You own this paint" or "You don't own this paint yet").
 
 The line above it, with Add Colour… and Add Paint… on the right, reads "4 paints
@@ -234,14 +236,17 @@ The line above it, with Add Colour… and Add Paint… on the right, reads "4 pa
 appears only when it's more than zero. So does "without paint", which has a
 dashed circle. Counts use the singular for one.
 
-- **Add Colour…** asks for a Colour ("e.g. FS 36270 or RLM 74") and Used For
-  ("e.g. upper surfaces"), with Cancel and Add Colour.
+- **Add Colour…** asks for a Standard (a menu, starting on FS 595, each item
+  with its subjects as a hint), a Code (the system's prompt, e.g. "e.g.
+  36270") and Used For ("e.g. upper
+  surfaces"), with Cancel and Add Colour. Add Colour is disabled until there's
+  a code.
 - A colour with no paint has an empty, dashed swatch, a "Choose Paint…" button
   in the Paint column ("Choose a paint from your catalogue for this colour"),
   and no Owned tick box.
 - **Add Paint…** opens the paint picker.
-- Colour ("e.g. FS 36270") and Used For ("e.g. upper surfaces") are edited in
-  place.
+- Standard is changed from its menu, and Code ("e.g. 36270") and Used For
+  ("e.g. upper surfaces") are edited in place. Choosing None clears the code.
 - Right-click: Choose Paint… or Change Paint…, Remove from Project (or
   "Remove 3 Rows from Project").
 
@@ -256,20 +261,25 @@ with Add Colour… and Add Paint… buttons.
 `Views/Paint/PaintPickerView.swift`
 
 "Add Paint to F-16C" (or "Choose Paint for FS 36270" when choosing for a
-colour): a search field ("Search brand, code, name or FS/RLM"), then a list of
-catalogue paints, each with a tick box, swatch, name, and range and standard
-underneath. Paints you own say "Owned" on the right. Paints already in the
-project are left out.
+colour): a search field ("Search brand, code, name or standard") and a Type
+menu (All Types, each type, Not Set; "Show one type of paint, such as
+lacquers"), then a list of catalogue paints, each with a tick box, swatch,
+name, and range and standard underneath. Paints you own say "Owned" on the
+right. Paints already in the project are left out.
 
 - Adding: tick any number of paints. The button reads "Add Paint", or "Add 3
   Paints", and is disabled until one is ticked.
-- Choosing for a colour: only one can be ticked, paints you own are listed
-  first, and the button reads "Choose Paint".
+- Choosing for a colour: the search starts with the colour's standard, only
+  one paint can be ticked, and the button reads "Choose Paint". Paints with
+  the colour's standard come first, best match first, then paints you own.
+  Those paints show their match on the right ("Exact Match", or "Same
+  Standard" when it isn't set). New Paint… starts with the colour's standard.
 - New Paint… (bottom left) opens the paint editor. Cancel closes.
 
 Empty: "No Paints in Catalogue. Create a paint here, or add many at once from
 Paints in the sidebar.", or "No Paints to Add. Every paint is already in this
-project."
+project.", or "No paint in your catalogue matches the search and type, or
+every match is already in this project."
 
 ![Add Paint to a project](screens/paint-picker.png)
 
@@ -368,8 +378,12 @@ add a new one.", with Add from Kits… and New Kit….
 
 `Views/Paint/PaintCatalogueView.swift`
 
-A table: Swatch, Brand, Range, Code, Name, FS / RLM, Owned, Projects. The text
-columns sort, in natural order. Above it: Brand ▸ and Range ▸ menus ("Tamiya (286)"), Owned Only,
+A table: Swatch, Brand, Range, Code, Name, Standard ("FS 36270"), Match, Type
+(with the type's hint as help), Owned, Projects. The text columns sort, in
+natural order; Match sorts Exact, Closest, No Match, then Not Set; Type sorts in
+menu order with Not Set last. Above it: Brand ▸, Range ▸ and Type ▸ menus
+("Tamiya (286)", "Lacquer (40)", "Not Set (900)"; the label reads "Type Not
+Set" when that's chosen), Owned Only,
 and the count ("286 of 1,267 paints · 40 owned"). Toolbar: Import CSV…,
 Export CSV…, Add Paint.
 
@@ -380,12 +394,14 @@ Export CSV…, Add Paint.
 - Import shows "Imported 120 Paints", with "6 were already in your catalogue
   and were skipped." and up to ten problems ("…and 4 more problems.").
 - Export asks first: "All 1,267 paints are saved with their brand, range, code,
-  name, FS / RLM and colour, in a CSV file another BenchBook can import. Leave
+  name, standard, match, type and colour, in a CSV file another BenchBook can import. Leave
   ownership and notes out when sharing.", with "Include whether you own each
   paint" and "Include notes", both off.
 
 Empty: "No Paints. Add the paints you use, or import a CSV file with Brand,
-Range, Code, Name, FS/RLM, Colour and Owned columns."
+Range, Code, Name, Standard, Type, Colour and Owned columns." With filters
+that hide everything: "No Matching Paints. No paints match the chosen brand,
+range, type and ownership.", with Show All Paints.
 
 ![Paints catalogue](screens/paints-catalogue.png)
 
@@ -397,7 +413,19 @@ Range, Code, Name, FS/RLM, Colour and Owned columns."
 
 "New Paint" or "Edit Paint": Brand ("Required, e.g. Tamiya"), Range
 ("e.g. Acrylic XF"), Code ("Required, e.g. XF-54"), Name ("e.g. Dark Sea
-Grey"), FS / RLM ("e.g. FS 36270 or RLM 76"), Show a Swatch with a "Swatch Colour"
+Grey"), Type (Not Set, then the types, each with its hint; the menu's help is
+the chosen type's hint, or "What the paint is made with, so you use the right
+thinner").
+
+Colour Standard section: Standard (None, then the systems, each with its
+subjects as a hint). With a system chosen, Standard Code with the
+system's prompt, such as "e.g. 36270" or "e.g.
+FS 36375 / BS 637", and Match (Not Set, No Match, Closest Match, Exact Match;
+"How closely this paint matches the standard"). With None, the footer reads
+"Most paints don't follow a standard. Choose one when you use this paint for
+a standard colour, such as FS 36270."
+
+Then Show a Swatch with a "Swatch Colour"
 picker and a preview of the swatch (glass for clears), "I Own This Paint", and Notes ("Optional, e.g. thin 1:1 with X-20A").
 Under the swatch: "The swatch only helps you recognise the paint on screen; it
 isn't an accurate colour match."

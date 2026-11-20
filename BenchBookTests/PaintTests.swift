@@ -61,11 +61,20 @@ struct PaintServiceTests {
         }
         var renamed = PaintDraft(paint: paint)
         renamed.name = "Dark Sea Gray"
-        renamed.standardCode = "  BS 640 "
+        renamed.standardSystem = .bs381c
+        renamed.standardCode = "  640 "
+        renamed.match = .closest
         try service.update(paint, from: renamed)
         #expect(paint.name == "Dark Sea Gray")
-        #expect(paint.standardCode == "BS 640")
-        #expect(PaintDraft(paint: paint).standardCode == "BS 640")
+        #expect(paint.standardCode == "640")
+        #expect(paint.standardText == "BS 640")
+        #expect(paint.match == .closest)
+        #expect(PaintDraft(paint: paint).standardCode == "640")
+
+        // No standard: the code and match go too.
+        renamed.standardSystem = nil
+        try service.update(paint, from: renamed)
+        #expect(paint.standardSystemRaw.isEmpty && paint.standardCode.isEmpty && paint.matchRaw.isEmpty)
     }
 
     @Test func removingOwnershipKeepsThePaint() throws {
@@ -193,7 +202,7 @@ struct PaintCSVImporterTests {
         #expect(summary.added == 3)
 
         let paints = try context.fetch(FetchDescriptor<Paint>())
-        func standard(_ code: String) -> String? { paints.first { $0.code == code }?.standardCode }
+        func standard(_ code: String) -> String? { paints.first { $0.code == code }?.standardText }
         #expect(standard("XF-54") == "BS 640")
         #expect(standard("H-417") == "RLM 76")
         #expect(standard("C117") == "FS 34102")

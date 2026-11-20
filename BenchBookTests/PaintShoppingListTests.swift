@@ -20,7 +20,7 @@ struct PaintShoppingListTests {
         draft.range = range
         draft.code = code
         draft.name = name
-        draft.standardCode = standard
+        draft.setStandard(standard)
         draft.isOwned = owned
         return try paints.createPaint(from: draft)
     }

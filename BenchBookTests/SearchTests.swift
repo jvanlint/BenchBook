@@ -78,7 +78,7 @@ struct SearchIndexTests {
             var draft = PaintDraft()
             draft.brand = "Mr. Color"
             draft.code = "C307"
-            draft.standardCode = "FS 36320"
+            draft.setStandard("FS 36320")
             return draft
         }())
         try context.save()

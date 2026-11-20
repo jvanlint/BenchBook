@@ -38,7 +38,7 @@ struct ProjectColourTests {
         var draft = PaintDraft()
         draft.brand = brand
         draft.code = code
-        draft.standardCode = standard
+        draft.setStandard(standard)
         draft.isOwned = owned
         return try service.createPaint(from: draft)
     }
@@ -47,10 +47,11 @@ struct ProjectColourTests {
         let f16 = Fixtures.makeProject("F-16C", in: context)
         let black = try paint("Tamiya", "XF-1")
         try service.add([black], to: f16)
-        let lower = try service.addColour(standard: " FS 36375 ", usedFor: "lower surfaces", to: f16)
-        let upper = try service.addColour(standard: "FS 36270", to: f16)
+        let lower = try service.addColour(.fs(" 36375 "), usedFor: "lower surfaces", to: f16)
+        let upper = try service.addColour(.fs("36270"), to: f16)
 
-        #expect(lower.standard == "FS 36375")
+        #expect(lower.standard == "36375")
+        #expect(lower.standardText == "FS 36375")
         #expect(upper.usedFor == nil)
         #expect(Set(f16.unchosenColours.map(\.id)) == [lower.id, upper.id])
         // Colours without a paint come first, by standard.
@@ -60,7 +61,7 @@ struct ProjectColourTests {
         let grey = try paint("Mr. Color", "C307", standard: "FS 36270")
         try service.choose(grey, for: upper)
         #expect(upper.selectedPaint?.id == grey.id)
-        #expect(upper.standard == "FS 36270")
+        #expect(upper.standardText == "FS 36270")
         #expect(grey.projectNames == ["F-16C"])
         #expect(f16.unchosenColours.map(\.id) == [lower.id])
 
@@ -76,19 +77,26 @@ struct ProjectColourTests {
         let grey = try paint("Mr. Color", "C307")
         try service.add([grey], to: f16)
         let row = try #require(f16.paintRequirements.first)
-        service.setStandard("FS 36270", on: row)
+        try service.setStandardSystem(.fs595, on: row)
+        service.setStandardCode("36270", on: row)
         try service.commit()
-        #expect(row.standard == "FS 36270")
-        service.setStandard("", on: row)
+        #expect(row.standardText == "FS 36270")
+        service.setStandardCode("", on: row)
         #expect(row.standard == nil)
+        #expect(row.standardText == "FS 595")
+        // No system clears the code.
+        service.setStandardCode("36270", on: row)
+        try service.setStandardSystem(nil, on: row)
+        #expect(row.standard == nil)
+        #expect(row.guideStandard == nil)
     }
 
     @Test func shoppingListShowsColoursWithoutPaint() throws {
         let f16 = Fixtures.makeProject("F-16C", in: context)
         let done = Fixtures.makeProject("Mustang", in: context)
         try ProjectService(context: context).setStatus(.completed, for: done)
-        try service.addColour(standard: "FS 36270", usedFor: "upper surfaces", to: f16)
-        try service.addColour(standard: "FS 34092", to: done)
+        try service.addColour(.fs("36270"), usedFor: "upper surfaces", to: f16)
+        try service.addColour(.fs("34092"), to: done)
 
         let list = PaintShoppingList(selections: try context.fetch(FetchDescriptor<ProjectPaint>()))
         #expect(!list.isEmpty)

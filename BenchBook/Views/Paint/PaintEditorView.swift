@@ -31,12 +31,15 @@ struct PaintEditorView: View {
     @State private var errorMessage: String?
     @FocusState private var brandFocused: Bool
 
-    /// `standardCode` fills in a new paint's colour standard.
-    init(request: PaintEditorRequest, standardCode: String = "", onSaved: @escaping (Paint) -> Void = { _ in }) {
+    /// `standard` fills in a new paint's colour standard.
+    init(request: PaintEditorRequest, standard: PaintStandard? = nil, onSaved: @escaping (Paint) -> Void = { _ in }) {
         self.request = request
         self.onSaved = onSaved
         var draft = request.paint.map { PaintDraft(paint: $0) } ?? PaintDraft()
-        if request.paint == nil { draft.standardCode = standardCode }
+        if request.paint == nil, let standard {
+            draft.standardSystem = standard.system
+            draft.standardCode = standard.code
+        }
         _draft = State(initialValue: draft)
         _swatch = State(initialValue: SwatchColor.color(draft.swatchHex) ?? .gray)
     }
@@ -67,14 +70,52 @@ struct PaintEditorView: View {
                     }
                 TextField("Code", text: $draft.code, prompt: Text("Required, e.g. XF-54"))
                 TextField("Name", text: $draft.name, prompt: Text("e.g. Dark Sea Grey"))
-                TextField("FS / RLM", text: $draft.standardCode, prompt: Text("e.g. FS 36270 or RLM 76"))
-                    .help("The colour standard this paint matches. Separate several with a slash.")
+                Picker("Type", selection: $draft.type) {
+                    Text("Not Set").tag(PaintType?.none)
+                    Divider()
+                    ForEach(PaintType.allCases) { type in
+                        Text(type.displayName).tag(Optional(type))
+                            .help(type.hint)
+                    }
+                }
+                .help(draft.type?.hint ?? String(localized: "What the paint is made with, so you use the right thinner"))
             } header: {
                 Text(isNew ? "New Paint" : "Edit Paint")
                     .font(.headline)
             } footer: {
                 if draft.missingRequiredField {
                     Text("Enter a brand and a code to save the paint.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section {
+                Picker("Standard", selection: $draft.standardSystem) {
+                    Text("None").tag(PaintStandardSystem?.none)
+                    Divider()
+                    ForEach(PaintStandardSystem.allCases) { system in
+                        Text(system.displayName).tag(Optional(system))
+                            .help(system.subjects)
+                    }
+                }
+                .help(draft.standardSystem?.subjects ?? String(localized: "The colour standard you plan to use with this paint"))
+                if let system = draft.standardSystem {
+                    TextField("Standard Code",
+                              text: $draft.standardCode, prompt: Text(system.codePrompt))
+                    Picker("Match", selection: $draft.match) {
+                        Text("Not Set").tag(PaintMatch?.none)
+                        Divider()
+                        ForEach(PaintMatch.allCases) { match in
+                            Text(match.displayName).tag(Optional(match))
+                        }
+                    }
+                    .help("How closely this paint matches the standard")
+                }
+            } header: {
+                Text("Colour Standard")
+            } footer: {
+                if draft.standardSystem == nil {
+                    Text("Most paints don't follow a standard. Choose one when you use this paint for a standard colour, such as FS 36270.")
                         .foregroundStyle(.secondary)
                 }
             }

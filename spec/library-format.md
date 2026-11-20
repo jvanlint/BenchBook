@@ -53,7 +53,7 @@ Rules:
 - **Before an upgrade**, when the store is in an older schema, copy it (with
   any companion files, such as SQLite's `-wal` and `-shm`) beside it as
   `<store name> Before <new schemaVersion>.<ext>`, e.g.
-  `BenchBook Before 4.0.0.store`. Copy into a hidden folder first and move
+  `BenchBook Before 5.0.0.store`. Copy into a hidden folder first and move
   the files into place, so a failed copy never leaves part of one. Keep an
   existing copy: it's from before the first try. If the copy fails, don't
   upgrade, and say so. The library root isn't copied; upgrades don't touch it.
@@ -90,7 +90,7 @@ Describes the backup, so a restore can check it before touching the library.
   "createdAt": "2026-11-13T09:41:07Z",
   "appVersion": "1.1.0",
   "platform": "windows",
-  "schemaVersion": "4.0.0",
+  "schemaVersion": "5.0.0",
   "counts": { "projects": 4, "references": 212, "paints": 1267 },
   "files": [
     { "path": "library.json", "size": 482113, "sha256": "9f2c…" },
@@ -113,7 +113,7 @@ breaking an older one.
 
 ```json
 {
-  "schemaVersion": "4.0.0",
+  "schemaVersion": "5.0.0",
   "projects": [ … ],
   "references": [ … ],
   "assets": [ … ],
@@ -273,7 +273,10 @@ The first is 1.
 | name | text | Required; empty allowed. e.g. "Dark Sea Grey". |
 | notes | text? | |
 | swatchHex | text? | `#RRGGBB`, uppercase, sRGB. For recognition only. |
-| standardCode | text | Required; empty allowed. Colour standards as written, e.g. "FS 36270 / BS 637". |
+| standardSystem | text | Required; empty for none. A [standard system](behaviour.md#paint-standards) raw value, e.g. "fs595". |
+| standardCode | text | Required; empty allowed, and empty when there's no system. The code within the system, e.g. "36270"; for Multiple and Custom, the whole text, e.g. "FS 36270 / BS 637". |
+| match | text | Required; empty for not set, and empty when there's no system. "none", "closest" or "exact". |
+| type | text | Required; empty for not set. A [paint type](behaviour.md#paint-types) raw value, e.g. "lacquer". |
 | identityKey | text | See [Paint identity](behaviour.md#paint-identity-stored). Unique in the library. |
 
 #### ownedPaints
@@ -290,7 +293,8 @@ A colour a project needs and the paint chosen for it. Either can be missing.
 |---|---|---|
 | projectId | id | |
 | paintId | id? | The chosen paint, if any. |
-| standard | text? | The colour from the painting guide, e.g. "FS 36270". |
+| standardSystem | text | Required; empty for none. The guide colour's standard system, as for paints. |
+| standard | text? | The guide colour's code, e.g. "36270", split as for paints. Nil when there's no system. |
 | usedFor | text? | e.g. "Upper surfaces, pylons". |
 | notes | text? | |
 
@@ -411,6 +415,7 @@ half-restored library or lose their current one.
 | 2.0.0 | Build photos (#43): `buildPhotos`, `buildPhotoTags`, `projects.projectPhotoId`, `markups.buildPhotoId`; `markups.referenceId` becomes optional. Additive: a 1.0.0 library reads as 2.0.0 with no build photos. |
 | 3.0.0 | Kits (#41): `kits`, and the `decimal` value type. Additive: a 2.0.0 library reads as 3.0.0 with no kits. |
 | 4.0.0 | Projects use kits (#44): `kits.projectId`; `projects.manufacturer`, `projects.scale` and `projects.kitNumber` are removed. Upgrading a 3.0.0 library (or reading an older backup) adds a line to the end of each project's notes with whichever of those three are filled in, `Kit: <manufacturer> · <kitNumber> · <scale>`, after a blank line, unless it's already the last line. Not localized. No kits are created. |
+| 5.0.0 | Paint standards, match and type (#42): `paints.standardSystem`, `paints.match`, `paints.type`, `projectPaints.standardSystem`. Upgrading a 4.0.0 library (or reading an older backup) splits each `paints.standardCode` and `projectPaints.standard` into a system and a code, following [Reading standard text](behaviour.md#reading-standard-text). Nothing is lost: text that isn't recognised is kept whole as Multiple or Custom. Match and type start empty. |
 
 ## Mac app changes
 

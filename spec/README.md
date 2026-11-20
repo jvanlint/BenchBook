@@ -33,7 +33,8 @@ commit.
 
 ## Versions
 
-- Data model: schema **4.0.0**. Schema 2.0.0 added build photos (#43),
-  3.0.0 added kits (#41) and 4.0.0 puts kits in projects (#44), on top of the
+- Data model: schema **5.0.0**. Schema 2.0.0 added build photos (#43),
+  3.0.0 added kits (#41), 4.0.0 puts kits in projects (#44) and 5.0.0 splits
+  paint standards and adds paint match and type (#42), on top of the
   schema 1.0.0 that shipped in BenchBook 1.0.0.
 - Portable backup: format **2** (proposed here). The Mac app's current backups are format 1, which only a Mac can read.

@@ -147,9 +147,9 @@ Double-click a PDF to open it in its own window, with page thumbnails in the sid
 
 ## Paints
 
-Library › Paints is one catalogue shared by every project. Each paint has a brand, range, code, name, FS / RLM standard, swatch colour, notes and whether you own it.
+Library › Paints is one catalogue shared by every project. Each paint has a brand, range, code, name, type (such as lacquer or water-based acrylic), swatch colour, notes and whether you own it. A paint can also follow a colour standard: a system such as FS 595, RAL, RLM or BS 381C, a code such as 36270, and how closely it matches (no, closest or exact match).
 
-- **Filtering:** the Brand and Range menus in the toolbar show one brand or range, with a count for each. Range lists only the chosen brand's ranges. They combine with Owned Only, and the subtitle shows how many paints match. Brands and ranges that differ only in case or spacing count as one.
+- **Filtering:** the Brand, Range and Type menus in the toolbar show one brand, range or type, with a count for each. Range lists only the chosen brand's ranges. They combine with Owned Only, and the subtitle shows how many paints match. Brands and ranges that differ only in case or spacing count as one.
 - **Owned:** tick the Owned box in the table, or select several paints and right-click › Mark as Owned or Mark as Not Owned.
 - **Shopping List:** Library › Shopping List shows the paints you don't own that a project needs, grouped by brand, with the projects (and what for) under each. Completed projects aren't included. The sidebar shows how many there are. Tick a paint to mark it owned and take it off the list, or right-click › Show in Paints. Export Shopping List… saves it as a plain-text checklist.
 - **Editing:** Add Paint adds one paint; double-click a paint to edit it. Delete (or right-click) removes paints, except those still used in a project.
@@ -157,13 +157,13 @@ Library › Paints is one catalogue shared by every project. Each paint has a br
 
 ## Importing and exporting paints
 
-Paints → Import CSV… reads a CSV file whose first row names the columns. Brand and Code are required; Range, Name, FS/RLM, Colour (`#RRGGBB`), Owned (`yes`, `x`, `1`…) and Notes are optional. Colour standards can be one `FS/RLM` column, or separate `FS`, `RLM`, `BS`, `RAL` or `ANA` columns; a bare number there gets its prefix (`36270` in an `FS` column becomes `FS 36270`). Paints already in the catalogue are skipped.
+Paints → Import CSV… reads a CSV file whose first row names the columns. Brand and Code are required; Range, Name, Standard and Standard Code, Match, Type, Colour (`#RRGGBB`), Owned (`yes`, `x`, `1`…) and Notes are optional. A standard can also be one column of text such as `FS 36270` (`FS/RLM`, or `Standard` without a `Standard Code` column), or separate `FS`, `RLM`, `BS`, `RAL` or `ANA` columns; a bare number there gets its prefix (`36270` in an `FS` column becomes `FS 36270`). Paints already in the catalogue are skipped.
 
 ```csv
-Brand,Range,Code,Name,FS/RLM,Colour,Owned
-Tamiya,Acrylic XF,XF-54,Dark Sea Grey,BS 640,#5B6066,yes
-Mr. Color,Lacquer,C307,Gray,FS 36320,#6E7377,
-Gunze,Aqueous,H-417,RLM76 Light Blue,RLM 76,,
+Brand,Range,Code,Name,Standard,Standard Code,Match,Type,Colour,Owned
+Tamiya,Acrylic XF,XF-54,Dark Sea Grey,BS 381C,640,Closest match,Alcohol-compatible acrylic,#5B6066,yes
+Mr. Color,Lacquer,C307,Gray,FS 595,36320,Exact match,Lacquer,#6E7377,
+Gunze,Aqueous,H-417,RLM76 Light Blue,RLM,76,,,,
 ```
 
 Paints → Export CSV… saves the whole catalogue in this format, sorted by brand, range and code, so another BenchBook can import it. Ownership and notes are personal, so they're only included if you tick them in the export sheet.
@@ -218,7 +218,7 @@ Each project's Aftermarket tab (⌘3) lists the parts for that build: name, manu
 
 ## Search
 
-The search field in the main window's toolbar (Edit › Find…, ⌘F) searches every project at once: project details, paints (including FS / RLM codes), aftermarket parts, and references' titles, text, notes, tags, file names, links, video channels, descriptions and moments, the notes on boxes drawn on images, and the text of PDF markups. Every word must match, ignoring case, accents and punctuation ("f16" finds "F-16"). Typing part of a tag name suggests it as a token, which limits results to references with that tag. Results are grouped by project; a matching image box, PDF markup or video moment has its own row that opens the image zoomed to the box, the PDF at the markup, or the video at that time. Right-click for Show in Project or Show in Paints.
+The search field in the main window's toolbar (Edit › Find…, ⌘F) searches every project at once: project details, paints (including their colour standards), aftermarket parts, and references' titles, text, notes, tags, file names, links, video channels, descriptions and moments, the notes on boxes drawn on images, and the text of PDF markups. Every word must match, ignoring case, accents and punctuation ("f16" finds "F-16"). Typing part of a tag name suggests it as a token, which limits results to references with that tag. Results are grouped by project; a matching image box, PDF markup or video moment has its own row that opens the image zoomed to the box, the PDF at the markup, or the video at that time. Right-click for Show in Project or Show in Paints.
 
 Searchable text is prepared in memory (`SearchIndex`) and rebuilt after each save. Text inside PDFs and Markdown files, and text in images, isn't searched yet.
 

@@ -30,7 +30,7 @@ struct PaintCatalogueView: View {
 
     private var visiblePaints: [Paint] {
         paints
-            .filter { filter.includes(brand: $0.brand, range: $0.range, isOwned: $0.isOwned) }
+            .filter { filter.includes(brand: $0.brand, range: $0.range, type: $0.type, isOwned: $0.isOwned) }
             .sorted(using: sortOrder)
     }
 
@@ -44,6 +44,16 @@ struct PaintCatalogueView: View {
         return PaintFilterOption.options(for: paints
             .filter { brandFilter.includes(brand: $0.brand, range: $0.range, isOwned: $0.isOwned) }
             .map(\.range))
+    }
+
+    /// Each type with its count, in menu order, and how many have none.
+    private var typeCounts: (types: [(type: PaintType, count: Int)], notSet: Int) {
+        var counts: [PaintType: Int] = [:]
+        var notSet = 0
+        for paint in paints {
+            if let type = paint.type { counts[type, default: 0] += 1 } else { notSet += 1 }
+        }
+        return (PaintType.allCases.compactMap { type in counts[type].map { (type, $0) } }, notSet)
     }
 
     private var selectedPaints: [Paint] {
@@ -62,6 +72,8 @@ struct PaintCatalogueView: View {
                         filterMenu("Range", allTitle: "All Ranges", options: rangeOptions, selection: $filter.range)
                             .disabled(rangeOptions.isEmpty)
                             .help("Show one range's paints")
+                        typeMenu
+                            .help("Show one type of paint, such as lacquers")
                     }
 
                     Toggle(isOn: $filter.ownedOnly) {
@@ -139,7 +151,7 @@ struct PaintCatalogueView: View {
             ContentUnavailableView {
                 Label("No Paints", systemImage: "paintpalette")
             } description: {
-                Text("Add the paints you use, or import a CSV file with Brand, Range, Code, Name, FS/RLM, Colour and Owned columns.")
+                Text("Add the paints you use, or import a CSV file with Brand, Range, Code, Name, Standard, Type, Colour and Owned columns.")
             } actions: {
                 Button("Add Paint") { editorRequest = .new }
                     .buttonStyle(.borderedProminent)
@@ -157,7 +169,7 @@ struct PaintCatalogueView: View {
             ContentUnavailableView {
                 Label("No Matching Paints", systemImage: "line.3.horizontal.decrease.circle")
             } description: {
-                Text("No paints match the chosen brand, range and ownership.")
+                Text("No paints match the chosen brand, range, type and ownership.")
             } actions: {
                 Button("Show All Paints") { filter = PaintFilter() }
             }
@@ -179,8 +191,17 @@ struct PaintCatalogueView: View {
                 .width(min: 60, ideal: 80)
             TableColumn("Name", value: \.name, comparator: .localizedStandard)
                 .width(min: 120, ideal: 200)
-            TableColumn("FS / RLM", value: \.standardCode, comparator: .localizedStandard)
+            TableColumn("Standard", value: \.standardText, comparator: .localizedStandard)
                 .width(min: 70, ideal: 100)
+            TableColumn("Match", value: \.matchSortKey) { paint in
+                Text(paint.match?.displayName ?? "")
+            }
+            .width(min: 70, ideal: 100)
+            TableColumn("Type", value: \.typeSortKey) { paint in
+                Text(paint.type?.displayName ?? "")
+                    .help(paint.type?.hint ?? "")
+            }
+            .width(min: 80, ideal: 150)
             TableColumn("Owned") { paint in
                 Toggle("Owned", isOn: Binding(
                     get: { paint.isOwned },
@@ -223,7 +244,7 @@ struct PaintCatalogueView: View {
         }
         .onChange(of: revealID, initial: true) { _, id in
             guard let id, let paint = paints.first(where: { $0.id == id }) else { return }
-            if !filter.includes(brand: paint.brand, range: paint.range, isOwned: paint.isOwned) {
+            if !filter.includes(brand: paint.brand, range: paint.range, type: paint.type, isOwned: paint.isOwned) {
                 filter = PaintFilter()
             }
             selection = [id]
@@ -263,6 +284,32 @@ struct PaintCatalogueView: View {
             }
         }
         .accessibilityLabel(Text(title))
+    }
+
+    /// A toolbar menu naming the chosen type, with paint counts.
+    private var typeMenu: some View {
+        let counts = typeCounts
+        return Menu {
+            Picker("Type", selection: $filter.type) {
+                Text("All Types").tag(PaintFilter.TypeChoice?.none)
+                Divider()
+                ForEach(counts.types, id: \.type) { entry in
+                    Text("\(entry.type.displayName) (\(entry.count))").tag(Optional(PaintFilter.TypeChoice.type(entry.type)))
+                }
+                if counts.notSet > 0 {
+                    Divider()
+                    Text("Not Set (\(counts.notSet))").tag(Optional(PaintFilter.TypeChoice.notSet))
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            switch filter.type {
+            case .type(let type)?: Text(type.displayName)
+            case .notSet?: Text("Type Not Set")
+            case nil: Text("All Types")
+            }
+        }
+        .accessibilityLabel(Text("Type"))
     }
 
     /// Drops a brand or range no paint has any more.
@@ -340,7 +387,7 @@ private struct PaintExportSheet: View {
                 Toggle("Include whether you own each paint", isOn: $options.includesOwnership)
                 Toggle("Include notes", isOn: $options.includesNotes)
             } footer: {
-                Text("All \(paintCount) paints are saved with their brand, range, code, name, FS / RLM and colour, in a CSV file another BenchBook can import. Leave ownership and notes out when sharing.")
+                Text("All \(paintCount) paints are saved with their brand, range, code, name, standard, match, type and colour, in a CSV file another BenchBook can import. Leave ownership and notes out when sharing.")
                     .foregroundStyle(.secondary)
             }
         }

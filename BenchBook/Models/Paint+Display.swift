@@ -63,19 +63,29 @@ nonisolated struct PaintFilterOption: Identifiable, Hashable {
     }
 }
 
-/// Which paints the catalogue shows.
+/// Which paints the catalogue and the paint picker show.
 nonisolated struct PaintFilter: Equatable {
+    /// One type, or paints with no type set.
+    enum TypeChoice: Hashable {
+        case type(PaintType)
+        case notSet
+    }
+
     /// A `PaintFilterOption.key`; nil shows every brand.
     var brand: String?
     /// A `PaintFilterOption.key`; nil shows every range.
     var range: String?
+    /// Nil shows every type.
+    var type: TypeChoice?
     var ownedOnly = false
 
-    var isActive: Bool { brand != nil || range != nil || ownedOnly }
+    var isActive: Bool { brand != nil || range != nil || type != nil || ownedOnly }
 
-    func includes(brand paintBrand: String, range paintRange: String, isOwned: Bool) -> Bool {
+    func includes(brand paintBrand: String, range paintRange: String, type paintType: PaintType? = nil,
+                  isOwned: Bool) -> Bool {
         (brand == nil || PaintIdentity.words(paintBrand) == brand)
             && (range == nil || PaintIdentity.words(paintRange) == range)
+            && (type == nil || type == (paintType.map(TypeChoice.type) ?? .notSet))
             && (!ownedOnly || isOwned)
     }
 }
@@ -120,9 +130,37 @@ extension Paint {
         [brand, code, name].filter { !$0.isEmpty }.joined(separator: " ")
     }
 
+    /// Nil when no standard system is set.
+    var standard: PaintStandard? {
+        PaintStandard(systemRaw: standardSystemRaw, code: standardCode)
+    }
+
+    /// e.g. "FS 36270", or empty.
+    var standardText: String { standard?.displayText ?? "" }
+
+    /// Only set when the paint has a standard.
+    var match: PaintMatch? { standard == nil ? nil : PaintMatch(rawValue: matchRaw) }
+
+    var type: PaintType? { PaintType(rawValue: typeRaw) }
+
     /// Range and colour standard, e.g. "Acrylic XF · FS 36270".
     var secondaryLine: String {
-        [range, standardCode].filter { !$0.isEmpty }.joined(separator: " · ")
+        [range, standardText].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
+    /// For sorting the Match column: exact first, then closest, no match, not set.
+    var matchSortKey: Int {
+        switch match {
+        case .exact: 0
+        case .closest: 1
+        case .noMatch: 2
+        case nil: 3
+        }
+    }
+
+    /// For sorting the Type column: in menu order, with Not Set last.
+    var typeSortKey: Int {
+        type.flatMap { PaintType.allCases.firstIndex(of: $0) } ?? PaintType.allCases.count
     }
 
     /// Uses of this paint in projects that aren't Completed.
@@ -134,7 +172,14 @@ extension Paint {
     var isToBuy: Bool { !isOwned && !unfinishedProjectSelections.isEmpty }
 
     func matches(_ query: String) -> Bool {
-        PaintIdentity.matches(query, brand: brand, range: range, code: code, name: name, standard: standardCode)
+        PaintIdentity.matches(query, brand: brand, range: range, code: code, name: name, standard: searchableStandard)
+    }
+
+    /// The standard as shown, plus its system's name, so "FS 595" and
+    /// "BS 381C" find their paints too.
+    var searchableStandard: String {
+        guard let standard else { return "" }
+        return [standard.displayText, standard.system.displayName].joined(separator: " ")
     }
 
     /// Names of Projects using this paint, sorted.
@@ -143,8 +188,23 @@ extension Paint {
             .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
 
+    /// Whether the paint follows `standard`, whatever the spelling.
+    func hasStandard(_ standard: PaintStandard) -> Bool {
+        self.standard?.matchKey == standard.matchKey
+    }
+
     /// A clear, such as X-22 Clear or X-27 Clear Red (`PaintClarity`).
     var isClear: Bool { PaintClarity.isClear(name: name) }
+}
+
+extension ProjectPaint {
+    /// The colour from the painting guide. Nil when no system is set.
+    var guideStandard: PaintStandard? {
+        PaintStandard(systemRaw: standardSystemRaw, code: standard ?? "")
+    }
+
+    /// e.g. "FS 36270", or empty.
+    var standardText: String { guideStandard?.displayText ?? "" }
 }
 
 /// Which paints are clears, drawn as glass. Worked out from the name, so

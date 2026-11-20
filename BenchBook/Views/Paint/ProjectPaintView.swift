@@ -108,16 +108,36 @@ struct ProjectPaintView: View {
                 }
             }
             .width(min: 160, ideal: 240)
-            TableColumn("Colour") { row in
-                TextField(
-                    "Colour",
-                    text: Binding(get: { row.standard ?? "" }, set: { service.setStandard($0, on: row) }),
-                    prompt: Text("e.g. FS 36270")
-                )
-                .textFieldStyle(.plain)
-                .onSubmit { commit() }
+            TableColumn("Standard") { row in
+                Picker("Standard", selection: Binding(
+                    get: { row.guideStandard?.system },
+                    set: { system in perform { try service.setStandardSystem(system, on: row) } }
+                )) {
+                    Text("None").tag(PaintStandardSystem?.none)
+                    Divider()
+                    ForEach(PaintStandardSystem.allCases) { system in
+                        Text(system.displayName).tag(Optional(system))
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .buttonStyle(.borderless)
+                .help(row.guideStandard?.system.subjects ?? String(localized: "The colour standard in the painting guide"))
+                .accessibilityLabel("Standard")
             }
-            .width(min: 90, ideal: 120)
+            .width(min: 80, ideal: 100)
+            TableColumn("Code") { row in
+                if let system = row.guideStandard?.system {
+                    TextField(
+                        "Code",
+                        text: Binding(get: { row.standard ?? "" }, set: { service.setStandardCode($0, on: row) }),
+                        prompt: Text(system.codePrompt)
+                    )
+                    .textFieldStyle(.plain)
+                    .onSubmit { commit() }
+                }
+            }
+            .width(min: 70, ideal: 100)
             TableColumn("Used For") { row in
                 TextField(
                     "Used For",
@@ -192,14 +212,23 @@ private struct AddColourSheet: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
-    @State private var standard = ""
+    @State private var system: PaintStandardSystem = .fs595
+    @State private var code = ""
     @State private var usedFor = ""
     @State private var errorMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
             Form {
-                TextField("Colour", text: $standard, prompt: Text("e.g. FS 36270 or RLM 74"))
+                Picker("Standard", selection: $system) {
+                    ForEach(PaintStandardSystem.allCases) { system in
+                        Text(system.displayName).tag(system)
+                            .help(system.subjects)
+                    }
+                }
+                .help(system.subjects)
+                TextField("Code",
+                          text: $code, prompt: Text(system.codePrompt))
                 TextField("Used For", text: $usedFor, prompt: Text("e.g. upper surfaces"))
             }
             .formStyle(.grouped)
@@ -209,7 +238,7 @@ private struct AddColourSheet: View {
                     .keyboardShortcut(.cancelAction)
                 Button("Add Colour", action: add)
                     .keyboardShortcut(.defaultAction)
-                    .disabled(standard.trimmedOrNil == nil)
+                    .disabled(code.trimmedOrNil == nil)
             }
             .padding([.horizontal, .bottom], 20)
         }
@@ -227,7 +256,8 @@ private struct AddColourSheet: View {
 
     private func add() {
         do {
-            try PaintService(context: modelContext).addColour(standard: standard, usedFor: usedFor, to: project)
+            try PaintService(context: modelContext)
+                .addColour(PaintStandard(system: system, code: code), usedFor: usedFor, to: project)
             dismiss()
         } catch {
             errorMessage = error.localizedDescription

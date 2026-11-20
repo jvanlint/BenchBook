@@ -235,7 +235,7 @@ final class SearchIndex {
                 return lhs.code.localizedStandardCompare(rhs.code) == .orderedAscending
             }
             .map { paint in
-                let texts = [paint.brand, paint.range, paint.code, paint.name, paint.standardCode, paint.notes ?? ""]
+                let texts = [paint.brand, paint.range, paint.code, paint.name, paint.searchableStandard, paint.notes ?? ""]
                 return (paint, texts.filter { !$0.isEmpty }.map(SearchField.init))
             }
 

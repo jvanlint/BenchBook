@@ -83,3 +83,16 @@ enum Fixtures {
         return rep
     }
 }
+
+extension PaintDraft {
+    /// Sets the standard from text such as "FS 36270", as the upgrade reads it.
+    mutating func setStandard(_ text: String) {
+        let standard = PaintStandardParser.parse(text)
+        standardSystem = standard?.system
+        standardCode = standard?.code ?? ""
+    }
+}
+
+extension PaintStandard {
+    static func fs(_ code: String) -> PaintStandard { PaintStandard(system: .fs595, code: code) }
+}

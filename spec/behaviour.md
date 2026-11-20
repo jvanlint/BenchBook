@@ -49,8 +49,92 @@ Creating or editing a paint whose key belongs to another paint is refused:
 ### Paint search
 
 A paint matches a query when brand, range, code, name or standard contains it,
-ignoring case. A standard also matches with spaces and punctuation removed from
-both, so "FS 36270" finds "FS36270" and "FS-36270 / BS 637".
+ignoring case. The standard is its shown text plus the system's name, e.g.
+"FS 36270 FS 595", so "FS 595" finds every FS paint. A standard also matches
+with spaces and punctuation removed from both, so "FS 36270" finds "FS36270"
+and "FS-36270 / BS 637".
+
+### Paint standards (stored)
+
+A paint, and a colour in a project's painting guide, can follow a colour
+standard: a **system** and a **code** within it. Most paints have none.
+Systems are stored by raw value, in this menu order:
+
+| Raw value | Menu name | Shown prefix | Reference system: main subjects |
+|---|---|---|---|
+| `fs595` | FS 595 | FS | FS 595 / AMS-STD-595: modern military aviation |
+| `ral` | RAL | RAL | RAL Classic: German armour and military vehicles |
+| `rlm` | RLM | RLM | RLM: WWII Luftwaffe |
+| `bs381c` | BS 381C | BS | BS 381C: British military aircraft |
+| `ana` | ANA | ANA | ANA: WWII US aviation |
+| `map` | MAP | MAP | MAP: WWII RAF and Fleet Air Arm |
+| `bulletin41` | Bulletin 41 | Bulletin 41 | USAAF Bulletin 41: WWII US Army aircraft |
+| `amt` | AMT / A-series | none | AMT / AII / A-series: Soviet WWII aviation |
+| `ijn` | IJN / IJA | none | IJN / IJA: Japanese WWII aviation |
+| `tavola10` | Tavola 10 | Tavola 10 | Tavola 10: Italian WWII aviation |
+| `raafK3` | RAAF K3 | K3 | RAAF K3: Australian WWII aircraft |
+| `ships2` | SHIPS-2 | none | US Navy SHIPS-2: WWII American warships |
+| `multiple` | Multiple | none | More than one standard, written out |
+| `custom` | Custom | none | Any other standard, written out |
+
+- No system (empty) means no standard. Then the code and match are empty.
+- **Shown** as the prefix, a space and the code: "FS 36270", "RLM 76",
+  "BS 640". Systems without a prefix show the code alone ("J3", "5-N",
+  "FS 36375 / BS 637"). A system with no code shows its menu name ("RLM").
+  Prefixes and system names aren't localized, except Multiple and Custom.
+- An unknown system shows as Custom, with its code, and is kept.
+- **Matching** a paint to a guide colour: both shown texts are lowercased with
+  everything but letters and digits removed, and the systems must be the same,
+  so "FS 36270" and "FS36270" match. Multiple and Custom match on the text
+  alone. When choosing a paint for a colour, paints with its standard come
+  first, best match first.
+
+**Match** says how closely a paint follows its standard: `none` (No Match),
+`closest` (Closest Match) or `exact` (Exact Match). Empty is Not Set. It's
+only shown, and only kept, when the paint has a standard. A guide colour has
+no match.
+
+### Reading standard text (stored)
+
+Used by the 5.0.0 upgrade, and by CSV columns that hold a whole standard such
+as "FS 36270". Trim the text; empty means no standard. Then, in order:
+
+1. If it contains any of `/ , ; & +`, it's several: Multiple, with the whole
+   text as the code.
+2. If it starts with `IJN` or `IJA`: IJN / IJA, with the whole text as the
+   code, as the prefix says which service.
+3. If it starts with one of these prefixes, ignoring case, longest first:
+   `AMS-STD-595`, `AMS STD 595`, `FS 595`, `FS-595`, `FS595` (FS 595);
+   `BS 381C`, `BS-381C`, `BS381C`, `BS 381`, `BS381`, `BSC` (BS 381C);
+   `FS` (FS 595); `RAL`; `RLM`; `BS` (BS 381C); `ANA`; `MAP`. A letter can't
+   follow the prefix ("Maple" isn't MAP). A digit can ("FS36270"), except
+   after a prefix ending in a digit or `381C`. The code is the rest, without
+   leading spaces or `- : # .`.
+4. Anything else: Custom, with the whole text as the code.
+
+So nothing is lost: "FS 36375 / BS 637" becomes Multiple, and "Humbrol 28"
+becomes Custom.
+
+### Paint types (stored)
+
+What a paint is made with, so the user picks the right thinner. Optional;
+BenchBook never guesses it from the brand or range. In menu order:
+
+| Raw value | Shown | CSV name | Hint |
+|---|---|---|---|
+| `waterAcrylic` | Water-Based Acrylic | Water-based acrylic | Low odour, fast drying, water cleanup. Vallejo Model Color, AK 3rd Gen, Ammo MIG, Citadel, Mr. Hobby Acrysion. |
+| `alcoholAcrylic` | Alcohol-Compatible Acrylic | Alcohol-compatible acrylic | Fast drying, excellent for airbrushing. Tamiya X/XF, Mr. Hobby Aqueous. |
+| `lacquer` | Lacquer | Lacquer | Solvent-based, hard finish. Mr. Color, Tamiya LP, MRP, AK Real Colors. |
+| `enamel` | Enamel | Enamel | Solvent-based, slower drying. Humbrol Enamel, Tamiya Enamel, Revell Email Color. |
+| `oil` | Oil Paint | Oil paint | Very slow drying, for weathering. Abteilung 502, Winsor & Newton. |
+| `polyurethane` | Polyurethane-Based Paint | Polyurethane-based paint | Primers and coatings. Vallejo Surface Primer. |
+| `other` | Other | Other | Metallic powders, inks and so on. |
+
+Empty is Not Set. An unknown type shows as Not Set and is kept. The hint is
+the menu item's help text.
+
+Editing a paint writes its system, match and type only when the user changes
+them, so values this version doesn't know are kept.
 
 ### Swatches
 
@@ -209,7 +293,7 @@ equivalent comparer).
   stay together. Status sorts BNIB, Opened, WIP, Built, then kits that aren't
   owned. Ratings sort highest first; empty ratings and prices sort last.
 - Paints: by brand, then code.
-- Project paints: colours with no paint chosen first (by standard), then paints
+- Project paints: colours with no paint chosen first (by shown standard), then paints
   by brand and code.
 - Aftermarket items: by status in the order listed in the format, then by name.
 - Build photos: completed first, then work in progress; each newest taken
@@ -276,6 +360,11 @@ line of its text (up to 120 characters); its source page's host; its kind name.
 In a project's gallery, the filter bar picks one kind and any number of tags.
 A reference shows when it has the kind (if one is chosen) and **every** chosen
 tag. Filters aren't saved.
+
+The Paints screen filters by brand, range, type and Owned Only, together.
+The Type menu lists All Types, each type that some paint has with its count,
+then Not Set with its count. The paint picker has the same Type menu, without
+counts. Filters aren't saved.
 
 The sidebar can show projects of one status or all of them. That choice is
 remembered, as is the sort order (see Sorting).
@@ -516,6 +605,14 @@ added again. No kits are created: the user imports or adds their kits, then
 adds them to projects. The library is copied first (`library-format.md` ›
 The library on disk).
 
+### Upgrading from schema 4 (stored)
+
+Paint standards used to be free text, such as "FS 36270". The upgrade to
+5.0.0 splits each paint's and each guide colour's text into a system and a
+code, following Reading standard text. Rows that already have a system are
+left alone, so running it again changes nothing. Match and type start as Not
+Set. The library is copied first.
+
 ## Paint CSV
 
 ### Import
@@ -533,12 +630,26 @@ The library on disk).
 | Swatch | colour, color, hex, swatch, rgb |
 | Owned | owned, own, have, in stock |
 | Notes | notes, note, comments |
-| Standard, as written | fs/rlm, fs / rlm, standard, colour standard, color standard, standards, equivalent |
+| Standard system | standard, when there's also a Standard Code column |
+| Standard code | standard code |
+| Match | match, standard match |
+| Type | type, paint type |
+| Standard, as written | fs/rlm, fs / rlm, standard (with no Standard Code column), colour standard, color standard, standards, equivalent |
 | Standard, one system | fs, fs code, federal standard, fs595, fs 595 (FS); rlm, rlm code (RLM); bs, bs381c (BS); ral (RAL); ana (ANA) |
 
-- In a one-system column, a value starting with a digit gets the system's
-  prefix: `36270` in an FS column becomes `FS 36270`. Several standard columns
-  are joined with ` / `.
+- **Standard and Standard Code** (BenchBook's own export): Standard names the
+  system by its raw value, menu name or CSV name, ignoring case, or by a
+  prefix such as `FS`. A name BenchBook doesn't know becomes Custom, with the
+  name and code joined by a space ("Humbrol 28").
+- **Otherwise**, standard columns are read as text: in a one-system column, a
+  value starting with a digit gets the system's prefix (`36270` in an FS
+  column becomes `FS 36270`), several columns are joined with ` / `, and the
+  result is split following Reading standard text.
+- Match accepts No match, Closest match, Exact match or the raw values,
+  ignoring case, and is only kept when the paint has a standard. Type accepts
+  the shown names, CSV names or raw values, ignoring case. Anything else is
+  reported ("Line 7: “Gouache” isn't a paint type BenchBook knows, so no type
+  was set.") and the paint is still added.
 - Owned is true for `yes`, `y`, `true`, `1`, `x`, `✓` or `✔`, in any case.
 - A bad swatch is reported ("Line 7: “bluish” isn't a colour like #4A5A6B, so
   no swatch was set.") and the paint is still added.
@@ -550,9 +661,13 @@ The library on disk).
 
 ### Export
 
-- Columns: `Brand,Range,Code,Name,FS/RLM,Colour`, plus `Owned` (`yes` or empty)
-  and `Notes` only if the user asks. Those two are personal, so they're off by
-  default.
+- Columns: `Brand,Range,Code,Name,Standard,Standard Code,Match,Type,Colour`,
+  plus `Owned` (`yes` or empty) and `Notes` only if the user asks. Those two
+  are personal, so they're off by default.
+- Standard is the system's menu name (`FS 595`, `Multiple`), in English
+  whatever the Mac's language. Match is `No match`, `Closest match` or `Exact
+  match`, and Type is the type's CSV name. An unknown system, match or type is
+  written as empty.
 - Sorted by brand, range, then code. CRLF line endings.
 - A field is quoted when it contains a comma, quote or line break, or starts or
   ends with a space. Quotes inside are doubled.
@@ -568,7 +683,7 @@ The library on disk).
   together, shown with the most common spelling), sorted by code. Each shows
   its projects, with what they're used for: "F-16C (upper surfaces), Spitfire".
 - **No paint chosen**: project colours with a standard but no paint, in
-  projects that aren't Completed, by standard, then project.
+  projects that aren't Completed, by shown standard, then project.
 - Ticking a paint as bought marks it owned, and it leaves the list.
 - The sidebar badge counts paints to buy and needed kits.
 - Saved as a plain-text checklist, `Paint Shopping List YYYY-MM-DD.txt`. With

@@ -20,22 +20,46 @@ struct PaintPickerView: View {
 
     @State private var chosen = Set<UUID>()
     @State private var searchText = ""
+    @State private var typeChoice: PaintFilter.TypeChoice?
     @State private var isCreating = false
     @State private var errorMessage: String?
 
-    /// Paints not already in the project, matching the search. When
-    /// choosing for a colour, paints you own come first.
+    /// Paints not already in the project, matching the search and type.
+    /// When choosing for a colour, paints with its standard come first,
+    /// best match first, then paints you own.
     private var candidates: [Paint] {
         let inProject = Set(project.paintRequirements.compactMap { $0.selectedPaint?.id })
-        let matching = paints.filter { !inProject.contains($0.id) && $0.matches(searchText) }
-        guard row != nil else { return matching }
-        return matching.filter(\.isOwned) + matching.filter { !$0.isOwned }
+        let filter = PaintFilter(type: typeChoice)
+        let matching = paints.filter {
+            !inProject.contains($0.id) && $0.matches(searchText)
+                && filter.includes(brand: $0.brand, range: $0.range, type: $0.type, isOwned: $0.isOwned)
+        }
+        guard let row else { return matching }
+        let standard = row.guideStandard
+        func rank(_ paint: Paint) -> (Int, Int) {
+            let follows = standard.map(paint.hasStandard) ?? false
+            return (follows ? paint.matchSortKey : 4, paint.isOwned ? 0 : 1)
+        }
+        // Sorting by rank keeps the brand and code order within each rank.
+        return matching.enumerated()
+            .sorted { a, b in
+                let (x, y) = (rank(a.element), rank(b.element))
+                return x != y ? x < y : a.offset < b.offset
+            }
+            .map(\.element)
+    }
+
+    /// Shown when choosing for a colour: e.g. "Exact Match" for a paint
+    /// with the colour's standard.
+    private func matchText(for paint: Paint) -> String? {
+        guard let standard = row?.guideStandard, paint.hasStandard(standard) else { return nil }
+        return paint.match?.displayName ?? String(localized: "Same Standard")
     }
 
     private var title: String {
         guard let row else { return String(localized: "Add Paint to \(project.name)") }
-        if let standard = row.standard {
-            return String(localized: "Choose Paint for \(standard)")
+        if let standard = row.guideStandard {
+            return String(localized: "Choose Paint for \(standard.displayText)")
         }
         return String(localized: "Choose Paint")
     }
@@ -50,9 +74,23 @@ struct PaintPickerView: View {
             Text(title)
                 .font(.headline)
                 .padding(.top, 16)
-            TextField("Search", text: $searchText, prompt: Text("Search brand, code, name or FS/RLM"))
-                .textFieldStyle(.roundedBorder)
-                .padding(12)
+            HStack {
+                TextField("Search", text: $searchText, prompt: Text("Search brand, code, name or standard"))
+                    .textFieldStyle(.roundedBorder)
+                Picker("Type", selection: $typeChoice) {
+                    Text("All Types").tag(PaintFilter.TypeChoice?.none)
+                    Divider()
+                    ForEach(PaintType.allCases) { type in
+                        Text(type.displayName).tag(Optional(PaintFilter.TypeChoice.type(type)))
+                    }
+                    Divider()
+                    Text("Not Set").tag(Optional(PaintFilter.TypeChoice.notSet))
+                }
+                .labelsHidden()
+                .fixedSize()
+                .help("Show one type of paint, such as lacquers")
+            }
+            .padding(12)
 
             if candidates.isEmpty {
                 ContentUnavailableView {
@@ -60,9 +98,9 @@ struct PaintPickerView: View {
                 } description: {
                     Text(paints.isEmpty
                          ? "Create a paint here, or add many at once from Paints in the sidebar."
-                         : searchText.isEmpty
+                         : searchText.isEmpty && typeChoice == nil
                          ? "Every paint is already in this project."
-                         : "No paint in your catalogue matches “\(searchText)”, or every match is already in this project.")
+                         : "No paint in your catalogue matches the search and type, or every match is already in this project.")
                 } actions: {
                     Button("New Paint…") { isCreating = true }
                 }
@@ -84,6 +122,11 @@ struct PaintPickerView: View {
                                 }
                             }
                             Spacer()
+                            if let match = matchText(for: paint) {
+                                Text(match)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                             if paint.isOwned {
                                 Text("Owned")
                                     .font(.caption)
@@ -109,10 +152,10 @@ struct PaintPickerView: View {
         }
         .frame(width: 460, height: 520)
         .sheet(isPresented: $isCreating) {
-            PaintEditorView(request: .new, standardCode: row?.standard ?? "") { paint in toggle(paint.id, on: true) }
+            PaintEditorView(request: .new, standard: row?.guideStandard) { paint in toggle(paint.id, on: true) }
         }
         .onAppear {
-            if let standard = row?.standard { searchText = standard }
+            if let standard = row?.guideStandard { searchText = standard.displayText }
         }
         .alert(
             "Couldn't Add Paint",
