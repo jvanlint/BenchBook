@@ -88,6 +88,9 @@ struct PaintCatalogueView: View {
                         .disabled(paints.isEmpty)
                         .help("Save the catalogue as a CSV file that another BenchBook can import")
 
+                    Button("Add Mix", systemImage: "flask") { editorRequest = .newMix }
+                        .help("Add a custom mix, with a recipe of paints from the catalogue")
+
                     Button("Add Paint", systemImage: "plus") { editorRequest = .new }
                         .help("Add a paint to the catalogue")
                 }
@@ -100,7 +103,7 @@ struct PaintCatalogueView: View {
                 pendingExport = nil
             }) {
                 NavigationStack {
-                    PaintExportSheet(paintCount: paints.count) { options in
+                    PaintExportSheet(paintCount: paints.filter { !$0.isMix }.count) { options in
                         let csv = PaintCSVExporter.csv(PaintCSVExporter.rows(for: paints), options: options)
                         pendingExport = TextFileDocument(text: csv)
                     }
@@ -130,7 +133,7 @@ struct PaintCatalogueView: View {
             ) {
                 Button("Delete", role: .destructive) { delete(pendingDeletion) }
             } message: {
-                Text("Paints used in a project can't be deleted until they're removed from it.")
+                Text("Paints used in a project or a mix's recipe can't be deleted until they're removed from it.")
             }
             // Choosing another brand, or editing or deleting paints, can
             // leave a brand or range nothing has, which would hide everything.
@@ -189,8 +192,18 @@ struct PaintCatalogueView: View {
             TableColumn("Range", value: \.range, comparator: .localizedStandard)
             TableColumn("Code", value: \.code, comparator: .localizedStandard)
                 .width(min: 60, ideal: 80)
-            TableColumn("Name", value: \.name, comparator: .localizedStandard)
-                .width(min: 120, ideal: 200)
+            TableColumn("Name", value: \.name, comparator: .localizedStandard) { paint in
+                HStack(spacing: 6) {
+                    Text(paint.name)
+                    if paint.isMix {
+                        Text("Mix")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .help(MixAmount.recipeLine(paint.recipeSummary))
+                    }
+                }
+            }
+            .width(min: 120, ideal: 200)
             TableColumn("Standard", value: \.standardText, comparator: .localizedStandard)
                 .width(min: 70, ideal: 100)
             TableColumn("Match", value: \.matchSortKey) { paint in
@@ -209,6 +222,9 @@ struct PaintCatalogueView: View {
                 ))
                 .toggleStyle(.checkbox)
                 .labelsHidden()
+                // A mix is owned when you own its recipe's paints.
+                .disabled(paint.isMix)
+                .help(paint.isMix ? MixOwnership.help(for: paint) : "")
                 .accessibilityLabel("Owned: \(paint.displayName)")
             }
             .width(50)
@@ -220,14 +236,15 @@ struct PaintCatalogueView: View {
         .contextMenu(forSelectionType: UUID.self) { ids in
             let chosen = paints.filter { ids.contains($0.id) }
             if chosen.count == 1, let paint = chosen.first {
-                Button("Edit Paint…") { editorRequest = .edit(paint) }
+                Button(paint.isMix ? "Edit Mix…" : "Edit Paint…") { editorRequest = .edit(paint) }
             }
             if !chosen.isEmpty {
-                if chosen.contains(where: { !$0.isOwned }) {
-                    Button("Mark as Owned") { setOwned(true, chosen) }
+                let paints = chosen.filter { !$0.isMix }
+                if paints.contains(where: { !$0.isOwned }) {
+                    Button("Mark as Owned") { setOwned(true, paints) }
                 }
-                if chosen.contains(where: \.isOwned) {
-                    Button("Mark as Not Owned") { setOwned(false, chosen) }
+                if paints.contains(where: \.isOwned) {
+                    Button("Mark as Not Owned") { setOwned(false, paints) }
                 }
                 Divider()
                 Button(chosen.count == 1 ? "Delete Paint…" : "Delete \(chosen.count) Paints…", role: .destructive) {
@@ -387,7 +404,7 @@ private struct PaintExportSheet: View {
                 Toggle("Include whether you own each paint", isOn: $options.includesOwnership)
                 Toggle("Include notes", isOn: $options.includesNotes)
             } footer: {
-                Text("All \(paintCount) paints are saved with their brand, range, code, name, standard, match, type and colour, in a CSV file another BenchBook can import. Leave ownership and notes out when sharing.")
+                Text("All \(paintCount) paints are saved with their brand, range, code, name, standard, match, type and colour, in a CSV file another BenchBook can import. Mixes aren't included. Leave ownership and notes out when sharing.")
                     .foregroundStyle(.secondary)
             }
         }

@@ -26,7 +26,8 @@ nonisolated enum PaintCSVExporter {
 
     @MainActor
     static func rows(for paints: [Paint]) -> [Row] {
-        paints.map { paint in
+        // Mixes aren't in the CSV; backups keep them.
+        paints.filter { !$0.isMix }.map { paint in
             Row(brand: paint.brand, range: paint.range, code: paint.code, name: paint.name,
                 standardSystem: paint.standard?.system.englishName ?? "",
                 standardCode: paint.standard?.code ?? "", match: paint.match?.englishName ?? "",

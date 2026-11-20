@@ -53,7 +53,7 @@ struct ProjectSidebar: View {
 
     /// How many paints and kits are on the shopping list.
     private var itemsToBuy: Int {
-        Set(paintSelections.compactMap(\.selectedPaint).filter(\.isToBuy).map(\.id)).count
+        Set(paintSelections.compactMap(\.selectedPaint).flatMap(\.shoppingPaints).filter(\.isToBuy).map(\.id)).count
             + kitsNotOwned.filter(\.isNeeded).count
     }
 

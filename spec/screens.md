@@ -228,11 +228,15 @@ Escape) adds anything still typed in the field, then closes. Errors show
 A table, in this order: Swatch, Paint (name, with range and standard
 underneath), Standard (a menu of None and the standard systems, for the colour
 in the painting guide), Code (the guide colour's code, shown only when a system
-is chosen, with the system's prompt such as "e.g. 36270"), Used For, and Owned
-(a tick box: "You own this paint" or "You don't own this paint yet").
+is chosen, with the system's prompt such as "e.g. 36270"), Used For, Notes
+("e.g. lightened 20%"; "Changes for this project only, such as a lighter mix
+for faded paint"), and Owned (a tick box: "You own this paint" or "You don't
+own this paint yet"). A mix's Owned box can't be ticked; its help says whether
+you own every paint in its recipe, or which you don't.
 
 The line above it, with Add Colour… and Add Paint… on the right, reads "4 paints
-· 2 to buy · 1 colour without paint". "To buy" is orange with a cart icon and
+· 2 to buy · 1 colour without paint". "To buy" counts paints you don't own,
+including those in a chosen mix's recipe, not the mix. "To buy" is orange with a cart icon and
 appears only when it's more than zero. So does "without paint", which has a
 dashed circle. Counts use the singular for one.
 
@@ -245,8 +249,8 @@ dashed circle. Counts use the singular for one.
   in the Paint column ("Choose a paint from your catalogue for this colour"),
   and no Owned tick box.
 - **Add Paint…** opens the paint picker.
-- Standard is changed from its menu, and Code ("e.g. 36270") and Used For
-  ("e.g. upper surfaces") are edited in place. Choosing None clears the code.
+- Standard is changed from its menu, and Code ("e.g. 36270"), Used For
+  ("e.g. upper surfaces") and Notes are edited in place. Choosing None clears the code.
 - Right-click: Choose Paint… or Change Paint…, Remove from Project (or
   "Remove 3 Rows from Project").
 
@@ -381,20 +385,24 @@ add a new one.", with Add from Kits… and New Kit….
 A table: Swatch, Brand, Range, Code, Name, Standard ("FS 36270"), Match, Type
 (with the type's hint as help), Owned, Projects. The text columns sort, in
 natural order; Match sorts Exact, Closest, No Match, then Not Set; Type sorts in
-menu order with Not Set last. Above it: Brand ▸, Range ▸ and Type ▸ menus
+menu order with Not Set last. A mix's Name has "Mix" after it, with its recipe
+as help, and its Owned box can't be ticked. Above it: Brand ▸, Range ▸ and Type ▸ menus
 ("Tamiya (286)", "Lacquer (40)", "Not Set (900)"; the label reads "Type Not
 Set" when that's chosen), Owned Only,
 and the count ("286 of 1,267 paints · 40 owned"). Toolbar: Import CSV…,
-Export CSV…, Add Paint.
+Export CSV…, Add Mix (a flask; "Add a custom mix, with a recipe of paints from
+the catalogue"), Add Paint.
 
-- Double-click to edit. Right-click: Edit Paint…, Mark as Owned or Not Owned,
+- Double-click to edit. Right-click: Edit Paint… (Edit Mix… for a mix), Mark
+  as Owned or Not Owned (for the selected paints that aren't mixes),
   Delete Paint… (or "Delete 3 Paints…").
-- Deleting a paint used in a project is refused: "Paints used in a project
-  can't be deleted until they're removed from it."
+- Deleting a paint used in a project or a recipe is refused: "Paints used in a
+  project or a mix's recipe can't be deleted until they're removed from it."
 - Import shows "Imported 120 Paints", with "6 were already in your catalogue
   and were skipped." and up to ten problems ("…and 4 more problems.").
 - Export asks first: "All 1,267 paints are saved with their brand, range, code,
-  name, standard, match, type and colour, in a CSV file another BenchBook can import. Leave
+  name, standard, match, type and colour, in a CSV file another BenchBook can
+  import. Mixes aren't included. Leave
   ownership and notes out when sharing.", with "Include whether you own each
   paint" and "Include notes", both off.
 
@@ -429,6 +437,33 @@ Then Show a Swatch with a "Swatch Colour"
 picker and a preview of the swatch (glass for clears), "I Own This Paint", and Notes ("Optional, e.g. thin 1:1 with X-20A").
 Under the swatch: "The swatch only helps you recognise the paint on screen; it
 isn't an accurate colour match."
+
+**Mixes**: "New Mix" or "Edit Mix". Brand ("Required, e.g. Custom or your
+name"), Code ("Optional"), Name ("Required, e.g. Faded Sky Grey") and Type;
+there's no Range. Then a Recipe section: one row per paint, with its swatch,
+name, a parts field and "part" or "parts", and a remove button ("Take Tamiya
+XF-2 Flat White out of the recipe"). Rows can be dragged into order. Add
+Paints… ("Choose catalogue paints for this mix") opens Add Paints to Recipe.
+The footer reads, as fits:
+
+- "Add the paints you mix, with how many parts of each. Changes for one
+  project go in that project's notes for the colour."
+- "You own every paint in this recipe, so the mix counts as owned."
+- "Not owned yet: Tamiya XF-19 Sky Grey. Projects using this mix put them on
+  the Shopping List."
+- "Each paint needs a number of parts more than zero.", and Add or Save is
+  disabled.
+
+Then Colour Standard and the swatch, as for a paint, without "I Own This
+Paint". Without a brand and name: "Enter a brand and a name to save the mix."
+
+**Add Paints to Recipe**: a search field ("Search brand, code, name or
+standard") and the catalogue's paints that aren't mixes or already in the
+recipe, each with a tick box, swatch, name, details and "Owned". Cancel, and
+Add Paint (or "Add 3 Paints"), which adds each with 1 part. Empty: "No Paints
+in Catalogue. Add the paints you mix to your catalogue first, from Paints in
+the sidebar.", or "No Matching Paints. No paint that isn't already in the
+recipe matches the search."
 
 ![Edit Paint](screens/paint-editor.png)
 

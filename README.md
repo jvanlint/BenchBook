@@ -150,6 +150,7 @@ Double-click a PDF to open it in its own window, with page thumbnails in the sid
 Library › Paints is one catalogue shared by every project. Each paint has a brand, range, code, name, type (such as lacquer or water-based acrylic), swatch colour, notes and whether you own it. A paint can also follow a colour standard: a system such as FS 595, RAL, RLM or BS 381C, a code such as 36270, and how closely it matches (no, closest or exact match).
 
 - **Filtering:** the Brand, Range and Type menus in the toolbar show one brand, range or type, with a count for each. Range lists only the chosen brand's ranges. They combine with Owned Only, and the subtitle shows how many paints match. Brands and ranges that differ only in case or spacing count as one.
+- **Custom mixes:** Add Mix makes a paint you mix yourself, with a recipe of catalogue paints and how many parts of each (e.g. 3 parts XF-2, 1 part XF-19). A mix counts as owned when you own every paint in its recipe, and a project using it puts the paints you're missing on the Shopping List, "for" the mix. Changes for one project, such as lightening it for a faded finish, go in the Notes column of the project's Paint tab. Mixes aren't included in the paint CSV.
 - **Owned:** tick the Owned box in the table, or select several paints and right-click › Mark as Owned or Mark as Not Owned.
 - **Shopping List:** Library › Shopping List shows the paints you don't own that a project needs, grouped by brand, with the projects (and what for) under each. Completed projects aren't included. The sidebar shows how many there are. Tick a paint to mark it owned and take it off the list, or right-click › Show in Paints. Export Shopping List… saves it as a plain-text checklist.
 - **Editing:** Add Paint adds one paint; double-click a paint to edit it. Delete (or right-click) removes paints, except those still used in a project.
@@ -166,7 +167,7 @@ Mr. Color,Lacquer,C307,Gray,FS 595,36320,Exact match,Lacquer,#6E7377,
 Gunze,Aqueous,H-417,RLM76 Light Blue,RLM,76,,,,
 ```
 
-Paints → Export CSV… saves the whole catalogue in this format, sorted by brand, range and code, so another BenchBook can import it. Ownership and notes are personal, so they're only included if you tick them in the export sheet.
+Paints → Export CSV… saves the whole catalogue (except mixes) in this format, sorted by brand, range and code, so another BenchBook can import it. Ownership and notes are personal, so they're only included if you tick them in the export sheet.
 
 ## Testing
 

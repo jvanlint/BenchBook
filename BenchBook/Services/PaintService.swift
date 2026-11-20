@@ -1,8 +1,20 @@
 import Foundation
 import SwiftData
 
+/// One line of a mix's recipe in the editor.
+struct MixPartDraft: Equatable, Identifiable {
+    var paintID: UUID
+    /// More than zero.
+    var parts: Double = 1
+
+    var id: UUID { paintID }
+}
+
 /// Editable copy of a Paint's fields, used by the editor and CSV import.
 struct PaintDraft: Equatable {
+    var isMix = false
+    /// A mix's recipe, in order.
+    var recipe: [MixPartDraft] = []
     var brand = ""
     var range = ""
     var code = ""
@@ -21,6 +33,10 @@ struct PaintDraft: Equatable {
     init() {}
 
     init(paint: Paint) {
+        isMix = paint.isMix
+        recipe = paint.sortedRecipe.compactMap { part in
+            part.paint.map { MixPartDraft(paintID: $0.id, parts: part.parts) }
+        }
         brand = paint.brand
         range = paint.range
         code = paint.code
@@ -35,28 +51,44 @@ struct PaintDraft: Equatable {
     }
 
     var identityKey: String {
-        PaintIdentity.key(brand: brand, range: range, code: code)
+        isMix ? PaintIdentity.mixKey(brand: brand, name: name) : PaintIdentity.key(brand: brand, range: range, code: code)
     }
 
-    /// Brand and code are required; everything else is optional.
+    /// Brand and code are required, or brand and name for a mix; everything
+    /// else is optional.
     var missingRequiredField: Bool {
-        brand.trimmedOrNil == nil || code.trimmedOrNil == nil
+        brand.trimmedOrNil == nil || (isMix ? name.trimmedOrNil : code.trimmedOrNil) == nil
     }
+
+    /// Every recipe line needs more than zero parts.
+    var hasBadParts: Bool { recipe.contains { !($0.parts > 0) } }
 }
 
 enum PaintServiceError: LocalizedError, Equatable {
     case missingBrandOrCode
+    case missingBrandOrName
+    case badParts
+    case badRecipePaint
     case duplicate(String)
     case inUse(paint: String, projects: [String])
+    case inRecipe(paint: String, mixes: [String])
 
     var errorDescription: String? {
         switch self {
         case .missingBrandOrCode:
             String(localized: "A paint needs a brand and a code.")
+        case .missingBrandOrName:
+            String(localized: "A mix needs a brand and a name.")
+        case .badParts:
+            String(localized: "Each paint in a recipe needs a number of parts more than zero.")
+        case .badRecipePaint:
+            String(localized: "A recipe can only use paints from your catalogue that aren't mixes, each once.")
         case .duplicate(let name):
             String(localized: "“\(name)” is already in your catalogue.")
         case .inUse(let paint, let projects):
             String(localized: "“\(paint)” is used in \(projects.formatted(.list(type: .and))). Remove it from those projects first.")
+        case .inRecipe(let paint, let mixes):
+            String(localized: "“\(paint)” is in the recipe for \(mixes.formatted(.list(type: .and))). Take it out of those mixes first.")
         }
     }
 }
@@ -73,6 +105,7 @@ struct PaintService {
         let paint = Paint(brand: "", code: "", identityKey: draft.identityKey)
         context.insert(paint)
         apply(draft, to: paint)
+        try applyRecipe(draft, to: paint)
         try save()
         return paint
     }
@@ -81,21 +114,29 @@ struct PaintService {
         try validate(draft, excluding: paint)
         guard draft != PaintDraft(paint: paint) else { return }
         apply(draft, to: paint)
+        try applyRecipe(draft, to: paint)
         paint.updatedAt = .now
         try save()
     }
 
-    /// Refuses while any Project uses the paint.
+    /// Refuses while any Project or mix uses the paint. Deleting a mix
+    /// deletes its recipe, never the paints in it.
     func delete(_ paint: Paint) throws {
         let projects = paint.projectNames
         guard projects.isEmpty else {
             throw PaintServiceError.inUse(paint: paint.displayName, projects: projects)
         }
+        let mixes = paint.mixNames
+        guard mixes.isEmpty else {
+            throw PaintServiceError.inRecipe(paint: paint.displayName, mixes: mixes)
+        }
         context.delete(paint)
         try save()
     }
 
+    /// A mix's ownership comes from its recipe, so it's left alone.
     func setOwned(_ owned: Bool, for paint: Paint) throws {
+        guard !paint.isMix else { return }
         try applyOwnership(owned, to: paint)
         try save()
     }
@@ -161,6 +202,15 @@ struct PaintService {
         try save()
     }
 
+    /// Updates a row's notes without saving; call `commit()` when editing
+    /// ends. For changes on this project only, e.g. "lightened 20%".
+    func setNotes(_ text: String, on projectPaint: ProjectPaint) {
+        let value = text.isEmpty ? nil : text
+        guard projectPaint.notes != value else { return }
+        projectPaint.notes = value
+        projectPaint.updatedAt = .now
+    }
+
     /// Updates "used for" without saving; call `commit()` when editing ends.
     func setUsedFor(_ text: String, on projectPaint: ProjectPaint) {
         let value = text.isEmpty ? nil : text
@@ -177,7 +227,16 @@ struct PaintService {
     // MARK: Helpers
 
     func validate(_ draft: PaintDraft, excluding paint: Paint?) throws {
-        guard !draft.missingRequiredField else { throw PaintServiceError.missingBrandOrCode }
+        guard !draft.missingRequiredField else {
+            throw draft.isMix ? PaintServiceError.missingBrandOrName : PaintServiceError.missingBrandOrCode
+        }
+        if draft.isMix {
+            guard !draft.hasBadParts else { throw PaintServiceError.badParts }
+            let ids = draft.recipe.map(\.paintID)
+            guard Set(ids).count == ids.count, !ids.contains(where: { $0 == paint?.id }) else {
+                throw PaintServiceError.badRecipePaint
+            }
+        }
         if let existing = try existingPaint(identityKey: draft.identityKey), existing.id != paint?.id {
             throw PaintServiceError.duplicate(existing.displayName)
         }
@@ -200,8 +259,34 @@ struct PaintService {
         if system == nil { paint.matchRaw = "" }
         paint.notes = draft.notes.trimmedOrNil
         paint.swatchHex = draft.swatchHex.flatMap(SwatchColor.normalized)
+        paint.isMix = draft.isMix
         paint.identityKey = draft.identityKey
-        try? applyOwnership(draft.isOwned, to: paint)
+        // A mix's ownership comes from its recipe.
+        try? applyOwnership(draft.isMix ? false : draft.isOwned, to: paint)
+    }
+
+    /// Replaces a mix's recipe with the draft's, without saving. Only
+    /// catalogue paints that aren't mixes can be in it.
+    private func applyRecipe(_ draft: PaintDraft, to paint: Paint) throws {
+        let wanted = draft.isMix ? draft.recipe : []
+        let current = paint.sortedRecipe.compactMap { part in
+            part.paint.map { MixPartDraft(paintID: $0.id, parts: part.parts) }
+        }
+        guard wanted != current else { return }
+        var paints: [Paint] = []
+        for line in wanted {
+            let id = line.paintID
+            guard let found = try context.fetch(FetchDescriptor<Paint>(predicate: #Predicate { $0.id == id })).first,
+                  !found.isMix
+            else { throw PaintServiceError.badRecipePaint }
+            paints.append(found)
+        }
+        for part in paint.recipe { context.delete(part) }
+        paint.recipe = []
+        for (position, (line, ingredient)) in zip(wanted, paints).enumerated() {
+            let part = PaintMixPart(mix: paint, paint: ingredient, parts: line.parts, position: position)
+            context.insert(part)
+        }
     }
 
     private func applyOwnership(_ owned: Bool, to paint: Paint) throws {

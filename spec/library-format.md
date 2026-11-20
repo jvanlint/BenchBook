@@ -53,7 +53,7 @@ Rules:
 - **Before an upgrade**, when the store is in an older schema, copy it (with
   any companion files, such as SQLite's `-wal` and `-shm`) beside it as
   `<store name> Before <new schemaVersion>.<ext>`, e.g.
-  `BenchBook Before 5.0.0.store`. Copy into a hidden folder first and move
+  `BenchBook Before 6.0.0.store`. Copy into a hidden folder first and move
   the files into place, so a failed copy never leaves part of one. Keep an
   existing copy: it's from before the first try. If the copy fails, don't
   upgrade, and say so. The library root isn't copied; upgrades don't touch it.
@@ -90,7 +90,7 @@ Describes the backup, so a restore can check it before touching the library.
   "createdAt": "2026-11-13T09:41:07Z",
   "appVersion": "1.1.0",
   "platform": "windows",
-  "schemaVersion": "5.0.0",
+  "schemaVersion": "6.0.0",
   "counts": { "projects": 4, "references": 212, "paints": 1267 },
   "files": [
     { "path": "library.json", "size": 482113, "sha256": "9f2c…" },
@@ -113,7 +113,7 @@ breaking an older one.
 
 ```json
 {
-  "schemaVersion": "5.0.0",
+  "schemaVersion": "6.0.0",
   "projects": [ … ],
   "references": [ … ],
   "assets": [ … ],
@@ -277,13 +277,25 @@ The first is 1.
 | standardCode | text | Required; empty allowed, and empty when there's no system. The code within the system, e.g. "36270"; for Multiple and Custom, the whole text, e.g. "FS 36270 / BS 637". |
 | match | text | Required; empty for not set, and empty when there's no system. "none", "closest" or "exact". |
 | type | text | Required; empty for not set. A [paint type](behaviour.md#paint-types) raw value, e.g. "lacquer". |
+| isMix | boolean | Required. True for a [custom mix](behaviour.md#mixes-stored), whose code may be empty. |
 | identityKey | text | See [Paint identity](behaviour.md#paint-identity-stored). Unique in the library. |
 
 #### ownedPaints
 
 | Field | Type | Notes |
 |---|---|---|
-| paintId | id | At most one per paint. Its presence means the user owns the paint. |
+| paintId | id | At most one per paint. Its presence means the user owns the paint. Never present for a mix. |
+
+#### paintMixParts
+
+One line of a mix's recipe. Deleting the mix deletes its lines.
+
+| Field | Type | Notes |
+|---|---|---|
+| mixId | id | A paint with `isMix` true. |
+| paintId | id | A paint with `isMix` false, not the mix itself. Once per mix. |
+| parts | number | A double, more than zero, e.g. `3` or `1.5`. |
+| position | number | An integer, the line's place in the recipe, from 0. |
 
 #### projectPaints
 
@@ -416,6 +428,7 @@ half-restored library or lose their current one.
 | 3.0.0 | Kits (#41): `kits`, and the `decimal` value type. Additive: a 2.0.0 library reads as 3.0.0 with no kits. |
 | 4.0.0 | Projects use kits (#44): `kits.projectId`; `projects.manufacturer`, `projects.scale` and `projects.kitNumber` are removed. Upgrading a 3.0.0 library (or reading an older backup) adds a line to the end of each project's notes with whichever of those three are filled in, `Kit: <manufacturer> · <kitNumber> · <scale>`, after a blank line, unless it's already the last line. Not localized. No kits are created. |
 | 5.0.0 | Paint standards, match and type (#42): `paints.standardSystem`, `paints.match`, `paints.type`, `projectPaints.standardSystem`. Upgrading a 4.0.0 library (or reading an older backup) splits each `paints.standardCode` and `projectPaints.standard` into a system and a code, following [Reading standard text](behaviour.md#reading-standard-text). Nothing is lost: text that isn't recognised is kept whole as Multiple or Custom. Match and type start empty. |
+| 6.0.0 | Custom mixes (#42): `paints.isMix`, `paintMixParts`. Additive: a 5.0.0 library reads as 6.0.0 with no mixes. |
 
 ## Mac app changes
 

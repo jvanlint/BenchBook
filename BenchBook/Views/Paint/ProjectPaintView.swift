@@ -59,7 +59,8 @@ struct ProjectPaintView: View {
     private var header: some View {
         HStack {
             let paints = rows.filter { $0.selectedPaint != nil }.count
-            let toBuy = rows.filter { $0.selectedPaint?.isOwned == false }.count
+            // A mix's paints you don't own count, not the mix.
+            let toBuy = Set(rows.compactMap(\.selectedPaint).flatMap(\.shoppingPaints).filter { !$0.isOwned }.map(\.id)).count
             let unchosen = rows.count - paints
             Text("^[\(paints) paint](inflect: true)")
             if toBuy > 0 {
@@ -147,7 +148,18 @@ struct ProjectPaintView: View {
                 .textFieldStyle(.plain)
                 .onSubmit { commit() }
             }
-            .width(min: 140, ideal: 260)
+            .width(min: 140, ideal: 220)
+            TableColumn("Notes") { row in
+                TextField(
+                    "Notes",
+                    text: Binding(get: { row.notes ?? "" }, set: { service.setNotes($0, on: row) }),
+                    prompt: Text("e.g. lightened 20%")
+                )
+                .textFieldStyle(.plain)
+                .onSubmit { commit() }
+                .help("Changes for this project only, such as a lighter mix for faded paint")
+            }
+            .width(min: 120, ideal: 200)
             TableColumn("Owned") { row in
                 if let paint = row.selectedPaint {
                     Toggle("Owned", isOn: Binding(
@@ -156,8 +168,10 @@ struct ProjectPaintView: View {
                     ))
                     .toggleStyle(.checkbox)
                     .labelsHidden()
+                    .disabled(paint.isMix)
                     .accessibilityLabel("Owned: \(paint.displayName)")
-                    .help(paint.isOwned ? "You own this paint" : "You don't own this paint yet")
+                    .help(paint.isMix ? MixOwnership.help(for: paint)
+                          : paint.isOwned ? String(localized: "You own this paint") : String(localized: "You don't own this paint yet"))
                 }
             }
             .width(50)

@@ -9,11 +9,12 @@ import SwiftData
 /// Schema 2 adds build photos and schema 3 adds kits; both upgrades only
 /// add, so they're lightweight. Schema 4 links kits to projects and removes
 /// the project's own kit fields, after copying them into its notes.
-/// Schema 5 splits paint standards into a system and a code.
+/// Schema 5 splits paint standards into a system and a code. Schema 6 adds
+/// mixes, which only adds, so it's lightweight.
 enum BenchBookMigrationPlan: SchemaMigrationPlan {
     static var schemas: [any VersionedSchema.Type] {
         [BenchBookSchemaV1.self, BenchBookSchemaV2.self, BenchBookSchemaV3.self, BenchBookSchemaV4.self,
-         BenchBookSchemaV5.self]
+         BenchBookSchemaV5.self, BenchBookSchemaV6.self]
     }
 
     static var stages: [MigrationStage] {
@@ -32,6 +33,7 @@ enum BenchBookMigrationPlan: SchemaMigrationPlan {
                 willMigrate: nil,
                 didMigrate: splitPaintStandards
             ),
+            .lightweight(fromVersion: BenchBookSchemaV5.self, toVersion: BenchBookSchemaV6.self),
         ]
     }
 
@@ -101,7 +103,7 @@ nonisolated enum KitDetailsNote {
 }
 
 /// The current version of each model. Update these when a new schema ships.
-typealias CurrentSchema = BenchBookSchemaV5
+typealias CurrentSchema = BenchBookSchemaV6
 typealias Project = CurrentSchema.Project
 typealias Reference = CurrentSchema.Reference
 typealias ManagedAsset = CurrentSchema.ManagedAsset
@@ -116,3 +118,4 @@ typealias Markup = CurrentSchema.Markup
 typealias BuildPhoto = CurrentSchema.BuildPhoto
 typealias BuildPhotoTag = CurrentSchema.BuildPhotoTag
 typealias Kit = CurrentSchema.Kit
+typealias PaintMixPart = CurrentSchema.PaintMixPart

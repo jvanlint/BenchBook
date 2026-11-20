@@ -75,7 +75,7 @@ struct ProjectKitMigrationTests {
         let models = CurrentSchema.models
         let version = CurrentSchema.versionIdentifier
         let copyURL = LibraryUpgradeCopy.copyURL(for: storeURL, version: version)
-        #expect(copyURL.lastPathComponent == "Library Before 5.0.0.store")
+        #expect(copyURL.lastPathComponent == "Library Before 6.0.0.store")
 
         #expect(try LibraryUpgradeCopy.needsUpgrade(storeURL: storeURL, models: models))
         #expect(try LibraryUpgradeCopy.makeIfNeeded(storeURL: storeURL, models: models, version: version) == copyURL)

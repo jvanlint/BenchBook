@@ -46,6 +46,35 @@ So "Tamiya", "Acrylic XF", "XF-54" gives `tamiya|acrylic xf|xf54`, and
 Creating or editing a paint whose key belongs to another paint is refused:
 "*Tamiya XF-54 Dark Sea Grey* is already in your catalogue."
 
+A mix is known by brand and name instead, as its code is optional:
+`mix|<brand>|<name>`, both folded as above. So "Custom", "Faded Sky Grey"
+gives `mix|custom|faded sky grey`.
+
+### Mixes (stored)
+
+A **mix** is a paint the user mixes from other catalogue paints, with a
+recipe. It's in the catalogue like any paint, and can be chosen for a
+project's colour.
+
+- It needs a brand (e.g. "Custom", or the user's name) and a name. Its code
+  is optional, and it has no range.
+- It has a standard, match, type, swatch and notes like any paint. Its
+  swatch is set by the user; it isn't worked out from the recipe.
+- **Recipe**: catalogue paints that aren't mixes, each once, with a number of
+  parts more than zero (a double, e.g. 3 or 1.5), in the user's order. A
+  recipe can be empty while the user works it out.
+- **Owned**: a mix has no ownership of its own. It counts as owned when its
+  recipe has paints and the user owns every one. Its Owned tick box can't be
+  ticked; its help says which paints are missing ("Not owned yet: Tamiya
+  XF-19 Sky Grey").
+- **Changes for one project**, such as "lightened 20% for fading", go in that
+  project's notes for the colour. A project can't change a recipe; a
+  different recipe is another mix.
+- Shown as "Mix: 3 parts XF-2, 1 part XF-19" where a paint shows its range:
+  "1 part" for exactly one, otherwise the number with up to two decimals and
+  "parts". Each paint is its code, or its name if it has no code.
+- Mixes aren't in the paint CSV. Backups keep them.
+
 ### Paint search
 
 A paint matches a query when brand, range, code, name or standard contains it,
@@ -260,14 +289,16 @@ apart from its references.
 | Reference | its tag links, video moments, markups and poster file | the asset, unless nothing else uses it |
 | Build photo | its tag links and box notes; clears the project photo if it was that | the asset, unless nothing else uses it |
 | Tag | its links | references, build photos |
-| Paint | its ownership record | — refused while any project paint uses it |
+| Paint | its ownership record, and a mix's recipe lines | — refused while any project paint or recipe uses it |
 | Aftermarket item | — | its image asset, unless nothing else uses it |
 | Kit | — | its picture asset, unless another copy or anything else uses it; projects (it leaves its project) |
 
 - An asset is unused when no reference, aftermarket item, build photo or kit
   points to it.
   Deleting an unused asset deletes its original and thumbnail.
-- Refusing to delete a paint names the projects using it.
+- Refusing to delete a paint names the projects using it, or the mixes:
+  "*Tamiya XF-2 Flat White* is in the recipe for Custom Faded Sky Grey. Take
+  it out of those mixes first."
 - Deleting kits a project uses still asks once, and names the projects:
   "It's used by the project “Cobra”." Removing a kit from a project never
   deletes it, so it doesn't ask.
@@ -668,6 +699,7 @@ Set. The library is copied first.
   whatever the Mac's language. Match is `No match`, `Closest match` or `Exact
   match`, and Type is the type's CSV name. An unknown system, match or type is
   written as empty.
+- Mixes are left out.
 - Sorted by brand, range, then code. CRLF line endings.
 - A field is quoted when it contains a comma, quote or line break, or starts or
   ends with a space. Quotes inside are doubled.
@@ -678,10 +710,13 @@ Set. The library is copied first.
 - **Kits**: needed kits (see Kits in projects), first, by project, then
   brand and name. Each shows its project. Ticking one as bought makes it
   owned and BNIB, and it leaves the list.
-- **To buy**: paints that aren't owned and are chosen in at least one project
-  that isn't Completed. Grouped by brand (brands with the same folded name
+- **To buy**: paints that aren't owned and are needed by at least one project
+  that isn't Completed: chosen for a colour, or in the recipe of a mix that's
+  chosen. A mix itself is never listed. Grouped by brand (brands with the same folded name
   together, shown with the most common spelling), sorted by code. Each shows
   its projects, with what they're used for: "F-16C (upper surfaces), Spitfire".
+  A paint needed for a mix adds "for" and the mix's name: "F-16C (upper
+  surfaces, for Faded Sky Grey)", or "F-16C (for Faded Sky Grey)".
 - **No paint chosen**: project colours with a standard but no paint, in
   projects that aren't Completed, by shown standard, then project.
 - Ticking a paint as bought marks it owned, and it leaves the list.

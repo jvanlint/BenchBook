@@ -1,7 +1,7 @@
 import Foundation
 
-/// Paints to buy: not owned, and needed by a project that isn't Completed.
-/// Grouped by brand, and saved as a plain-text checklist. Colours with no
+/// Paints to buy: not owned, and needed by a project that isn't Completed,
+/// chosen for a colour or in the recipe of a chosen mix. Grouped by brand, and saved as a plain-text checklist. Colours with no
 /// paint chosen yet are listed after them.
 nonisolated struct PaintShoppingList: Equatable {
     struct Use: Equatable {
@@ -81,7 +81,8 @@ nonisolated struct PaintShoppingList: Equatable {
     @MainActor
     init(selections: [ProjectPaint]) {
         var seen = Set<UUID>()
-        let paints = selections.compactMap(\.selectedPaint).filter { seen.insert($0.id).inserted }
+        let paints = selections.compactMap(\.selectedPaint).flatMap(\.shoppingPaints)
+            .filter { seen.insert($0.id).inserted }
         let unchosen = selections.compactMap { selection -> Colour? in
             guard selection.selectedPaint == nil, let standard = selection.standardText.trimmedOrNil,
                   let project = selection.project, project.status != .completed else { return nil }
@@ -89,15 +90,28 @@ nonisolated struct PaintShoppingList: Equatable {
                           use: Use(project: project.name, usedFor: selection.usedFor?.trimmedOrNil))
         }
         let items = paints.filter(\.isToBuy).map { paint in
-            let uses = paint.unfinishedProjectSelections
-                .compactMap { selection in
-                    selection.project.map { Use(project: $0.name, usedFor: selection.usedFor?.trimmedOrNil) }
+            let uses = paint.unfinishedUses
+                .compactMap { use in
+                    use.selection.project.map {
+                        Use(project: $0.name, usedFor: Self.usedFor(use.selection.usedFor, mix: use.mix))
+                    }
                 }
                 .sorted { $0.project.localizedStandardCompare($1.project) == .orderedAscending }
             return Item(id: paint.id, brand: paint.brand, range: paint.range, code: paint.code, name: paint.name,
                         standard: paint.standardText, swatchHex: paint.swatchHex, uses: uses)
         }
         self.init(items: items, unchosen: unchosen)
+    }
+
+    /// "upper surfaces", or for a mix's paint "upper surfaces, for Faded
+    /// Sky Grey" or "for Faded Sky Grey".
+    @MainActor
+    static func usedFor(_ usedFor: String?, mix: Paint?) -> String? {
+        let usedFor = usedFor?.trimmedOrNil
+        guard let mix else { return usedFor }
+        let name = mix.name.trimmedOrNil ?? mix.displayName
+        let forMix = String(localized: "for \(name)")
+        return [usedFor, forMix].compactMap { $0 }.joined(separator: ", ")
     }
 
     var items: [Item] { groups.flatMap(\.items) }

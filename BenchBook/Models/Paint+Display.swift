@@ -8,6 +8,12 @@ nonisolated enum PaintIdentity {
         [words(brand), words(range), compactCode(code)].joined(separator: "|")
     }
 
+    /// A mix is known by brand and name, as its code is optional:
+    /// "Custom", "Faded Sky Grey" gives "mix|custom|faded sky grey".
+    static func mixKey(brand: String, name: String) -> String {
+        ["mix", words(brand), words(name)].joined(separator: "|")
+    }
+
     /// Folds case and spacing: " Tamiya  Acrylic" → "tamiya acrylic".
     static func words(_ text: String) -> String {
         text.split(whereSeparator: \.isWhitespace).joined(separator: " ").lowercased()
@@ -123,7 +129,43 @@ nonisolated enum SwatchColor {
 }
 
 extension Paint {
-    var isOwned: Bool { ownership != nil }
+    /// A mix is owned when its recipe has paints and you own every one.
+    var isOwned: Bool {
+        guard isMix else { return ownership != nil }
+        let paints = recipePaints
+        return !paints.isEmpty && paints.allSatisfy { $0.ownership != nil }
+    }
+
+    /// A mix's recipe, in order.
+    var sortedRecipe: [PaintMixPart] {
+        recipe.sorted { ($0.position, $0.createdAt) < ($1.position, $1.createdAt) }
+    }
+
+    /// The paints in a mix's recipe, in order.
+    var recipePaints: [Paint] { sortedRecipe.compactMap(\.paint) }
+
+    /// A mix's recipe paints you don't own yet.
+    var missingRecipePaints: [Paint] { recipePaints.filter { $0.ownership == nil } }
+
+    /// e.g. "3 parts XF-2, 1 part XF-19". Empty for a paint that isn't a mix.
+    var recipeSummary: String {
+        sortedRecipe.compactMap { part in
+            part.paint.map { MixAmount.line(parts: part.parts, paint: $0.shortName) }
+        }
+        .joined(separator: ", ")
+    }
+
+    /// The code, or the name when there's no code: "XF-2".
+    var shortName: String { code.trimmedOrNil ?? name.trimmedOrNil ?? brand }
+
+    /// What you'd buy to paint with this: itself, or a mix's recipe paints.
+    var shoppingPaints: [Paint] { isMix ? recipePaints : [self] }
+
+    /// Mixes whose recipe uses this paint, by name.
+    var mixesUsingPaint: [Paint] {
+        mixParts.compactMap(\.mix)
+            .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+    }
 
     /// e.g. "Tamiya XF-54 Dark Sea Grey".
     var displayName: String {
@@ -143,9 +185,11 @@ extension Paint {
 
     var type: PaintType? { PaintType(rawValue: typeRaw) }
 
-    /// Range and colour standard, e.g. "Acrylic XF · FS 36270".
+    /// Range and colour standard, e.g. "Acrylic XF · FS 36270". A mix shows
+    /// its recipe instead of a range: "Mix: 3 parts XF-2, 1 part XF-19".
     var secondaryLine: String {
-        [range, standardText].filter { !$0.isEmpty }.joined(separator: " · ")
+        let first = isMix ? MixAmount.recipeLine(recipeSummary) : range
+        return [first, standardText].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     /// For sorting the Match column: exact first, then closest, no match, not set.
@@ -168,8 +212,16 @@ extension Paint {
         projectSelections.filter { $0.project.map { $0.status != .completed } ?? false }
     }
 
-    /// Not owned, and needed by a project that isn't Completed.
-    var isToBuy: Bool { !isOwned && !unfinishedProjectSelections.isEmpty }
+    /// Where a project that isn't Completed needs this paint: chosen for a
+    /// colour itself, or in the recipe of a mix that's chosen (`mix` set).
+    var unfinishedUses: [(selection: ProjectPaint, mix: Paint?)] {
+        unfinishedProjectSelections.map { ($0, nil) }
+            + mixesUsingPaint.flatMap { mix in mix.unfinishedProjectSelections.map { ($0, mix) } }
+    }
+
+    /// Not owned, and needed by a project that isn't Completed, itself or in
+    /// a mix. A mix is never bought; its recipe paints are.
+    var isToBuy: Bool { !isMix && !isOwned && !unfinishedUses.isEmpty }
 
     func matches(_ query: String) -> Bool {
         PaintIdentity.matches(query, brand: brand, range: range, code: code, name: name, standard: searchableStandard)
@@ -181,6 +233,9 @@ extension Paint {
         guard let standard else { return "" }
         return [standard.displayText, standard.system.displayName].joined(separator: " ")
     }
+
+    /// Names of the mixes using this paint, sorted.
+    var mixNames: [String] { mixesUsingPaint.map(\.displayName) }
 
     /// Names of Projects using this paint, sorted.
     var projectNames: [String] {
@@ -205,6 +260,36 @@ extension ProjectPaint {
 
     /// e.g. "FS 36270", or empty.
     var standardText: String { guideStandard?.displayText ?? "" }
+}
+
+/// How a recipe's parts are written.
+nonisolated enum MixAmount {
+    /// "3", "1.5" or "0.25".
+    static func text(_ parts: Double) -> String {
+        parts.formatted(.number.precision(.fractionLength(0...2)))
+    }
+
+    /// "1 part XF-19" or "3 parts XF-2".
+    static func line(parts: Double, paint: String) -> String {
+        parts == 1
+            ? String(localized: "1 part \(paint)")
+            : String(localized: "\(text(parts)) parts \(paint)")
+    }
+
+    /// "Mix: 3 parts XF-2, 1 part XF-19", or "Mix" with no recipe yet.
+    static func recipeLine(_ summary: String) -> String {
+        summary.isEmpty ? String(localized: "Mix") : String(localized: "Mix: \(summary)")
+    }
+}
+
+/// The Owned tick box's help for a mix, which can't be ticked.
+enum MixOwnership {
+    static func help(for mix: Paint) -> String {
+        if mix.recipe.isEmpty { return String(localized: "Add a recipe to this mix. It's owned when you own every paint in it.") }
+        let missing = mix.missingRecipePaints.map(\.displayName)
+        if missing.isEmpty { return String(localized: "You own every paint in this mix") }
+        return String(localized: "Not owned yet: \(missing.formatted(.list(type: .and)))")
+    }
 }
 
 /// Which paints are clears, drawn as glass. Worked out from the name, so
