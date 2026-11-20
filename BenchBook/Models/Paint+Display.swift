@@ -142,16 +142,34 @@ extension Paint {
         projectSelections.compactMap { $0.project?.name }
             .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
     }
+
+    /// A clear, such as X-22 Clear or X-27 Clear Red (`PaintClarity`).
+    var isClear: Bool { PaintClarity.isClear(name: name) }
 }
 
-/// A small round swatch, or an empty outline when no colour is set.
+/// Which paints are clears, drawn as glass. Worked out from the name, so
+/// nothing is stored.
+nonisolated enum PaintClarity {
+    /// True when the name has the word "clear" in it, ignoring case: "Clear",
+    /// "Flat clear", "Clear Red", "Semi-Gloss Super Clear". "Unclear" isn't.
+    static func isClear(name: String) -> Bool {
+        name.split { !$0.isLetter }.contains { $0.compare("clear", options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame }
+    }
+}
+
+/// A small round swatch, or an empty outline when no colour is set. Clears
+/// are drawn as glass: their colour, see-through over a faint checkerboard,
+/// with a highlight across the top. A clear without a colour is clear glass.
 struct PaintSwatch: View {
     let hex: String?
+    var isClear = false
     var size: CGFloat = 16
 
     var body: some View {
         Group {
-            if let color = SwatchColor.color(hex) {
+            if isClear {
+                glass(tint: SwatchColor.color(hex) ?? .white)
+            } else if let color = SwatchColor.color(hex) {
                 Circle().fill(color)
                     .overlay(Circle().strokeBorder(.separator, lineWidth: 1))
             } else {
@@ -160,5 +178,38 @@ struct PaintSwatch: View {
         }
         .frame(width: size, height: size)
         .accessibilityHidden(true)
+    }
+
+    private func glass(tint: Color) -> some View {
+        ZStack {
+            Checkerboard(squares: 4)
+            Circle().fill(tint.opacity(0.55))
+            // The highlight: a soft white band over the top half.
+            Ellipse()
+                .fill(LinearGradient(colors: [.white.opacity(0.85), .white.opacity(0)],
+                                     startPoint: .top, endPoint: .bottom))
+                .frame(width: size * 0.7, height: size * 0.45)
+                .offset(y: -size * 0.2)
+        }
+        .clipShape(Circle())
+        .overlay(Circle().strokeBorder(.separator, lineWidth: 1))
+    }
+}
+
+/// A faint checkerboard, like the one behind see-through images.
+private struct Checkerboard: View {
+    let squares: Int
+
+    var body: some View {
+        Canvas { context, size in
+            let side = size.width / CGFloat(squares)
+            context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.white))
+            for row in 0..<squares {
+                for column in 0..<squares where (row + column).isMultiple(of: 2) {
+                    let square = CGRect(x: CGFloat(column) * side, y: CGFloat(row) * side, width: side, height: side)
+                    context.fill(Path(square), with: .color(.gray.opacity(0.35)))
+                }
+            }
+        }
     }
 }

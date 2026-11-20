@@ -170,7 +170,7 @@ struct PaintCatalogueView: View {
         ScrollViewReader { proxy in
         Table(visiblePaints, selection: $selection, sortOrder: $sortOrder) {
             TableColumn("Swatch") { paint in
-                PaintSwatch(hex: paint.swatchHex)
+                PaintSwatch(hex: paint.swatchHex, isClear: paint.isClear)
             }
             .width(48)
             TableColumn("Brand", value: \.brand, comparator: .localizedStandard)

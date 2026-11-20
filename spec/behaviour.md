@@ -57,6 +57,14 @@ both, so "FS 36270" finds "FS36270" and "FS-36270 / BS 637".
 A swatch accepts `#RRGGBB`, `RRGGBB` or `#RGB`, and is stored as uppercase
 `#RRGGBB`. Anything else isn't a colour.
 
+**Clear paints** are drawn as glass wherever a swatch appears: the swatch
+colour at 55% opacity over a faint checkerboard, with a soft white highlight
+across the top. A clear with no swatch colour is drawn as clear (white) glass.
+A paint is a clear when its name, split into words at anything that isn't a
+letter, has the word "clear", ignoring case and accents: "Clear", "Flat
+clear", "Clear Red", "Semi-Gloss Super Clear". "Unclear" and "Clearcoat"
+aren't. Nothing is stored.
+
 ## Files references accept
 
 A file is checked by its **contents**, not its name, except Markdown, which has

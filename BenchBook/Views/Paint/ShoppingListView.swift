@@ -158,7 +158,7 @@ struct ShoppingListView: View {
                 .labelsHidden()
                 .help("Mark as owned and take it off the list")
                 .accessibilityLabel("Mark \(item.title) as Owned")
-            PaintSwatch(hex: item.swatchHex)
+            PaintSwatch(hex: item.swatchHex, isClear: PaintClarity.isClear(name: item.name))
                 .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)

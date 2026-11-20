@@ -74,7 +74,7 @@ struct PaintPickerView: View {
                         set: { toggle(paint.id, on: $0) }
                     )) {
                         HStack(spacing: 8) {
-                            PaintSwatch(hex: paint.swatchHex)
+                            PaintSwatch(hex: paint.swatchHex, isClear: paint.isClear)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(paint.displayName)
                                 if !paint.secondaryLine.isEmpty {

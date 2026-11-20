@@ -36,6 +36,7 @@ struct KitCSVTests {
             .filter { brand == nil || $0.brand == brand }
     }
 
+    @discardableResult
     private func addKit(_ brand: String, _ name: String, number: String, scale: String, owned: Bool = true) throws -> Kit {
         var draft = KitDraft()
         draft.brand = brand

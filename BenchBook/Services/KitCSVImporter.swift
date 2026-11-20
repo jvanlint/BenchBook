@@ -67,7 +67,7 @@ struct KitCSVImporter {
     }
 
     /// The Scalemates type of a kit. Other rows are decals, detail sets and so on.
-    static let kitType = "Static model kits"
+    nonisolated static let kitType = "Static model kits"
 
     let context: ModelContext
 

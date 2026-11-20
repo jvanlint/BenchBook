@@ -89,7 +89,7 @@ struct ProjectPaintView: View {
     private var table: some View {
         Table(rows, selection: $selection) {
             TableColumn("Swatch") { row in
-                PaintSwatch(hex: row.selectedPaint?.swatchHex)
+                PaintSwatch(hex: row.selectedPaint?.swatchHex, isClear: row.selectedPaint?.isClear ?? false)
             }
             .width(48)
             TableColumn("Paint") { row in

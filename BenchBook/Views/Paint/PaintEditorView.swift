@@ -85,8 +85,17 @@ struct PaintEditorView: View {
                     set: { draft.swatchHex = $0 ? SwatchColor.hex(from: swatch) : nil }
                 ))
                 if draft.swatchHex != nil {
-                    ColorPicker("Swatch Colour", selection: $swatch, supportsOpacity: false)
-                        .onChange(of: swatch) { _, color in draft.swatchHex = SwatchColor.hex(from: color) }
+                    LabeledContent {
+                        HStack(spacing: 8) {
+                            // Clears show as glass, as everywhere else.
+                            PaintSwatch(hex: draft.swatchHex, isClear: PaintClarity.isClear(name: draft.name), size: 20)
+                            ColorPicker("Swatch Colour", selection: $swatch, supportsOpacity: false)
+                                .labelsHidden()
+                        }
+                    } label: {
+                        Text("Swatch Colour")
+                    }
+                    .onChange(of: swatch) { _, color in draft.swatchHex = SwatchColor.hex(from: color) }
                 }
                 Toggle("I Own This Paint", isOn: $draft.isOwned)
             } footer: {

@@ -202,7 +202,7 @@ struct SearchResultsView: View {
 
     private func paintRow(_ paint: Paint) -> some View {
         HStack(spacing: 10) {
-            PaintSwatch(hex: paint.swatchHex, size: 20)
+            PaintSwatch(hex: paint.swatchHex, isClear: paint.isClear, size: 20)
                 .frame(width: 64)
             VStack(alignment: .leading, spacing: 2) {
                 Text(SearchSnippet.highlighted(paint.displayName, for: query))

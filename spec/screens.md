@@ -398,7 +398,7 @@ Range, Code, Name, FS/RLM, Colour and Owned columns."
 "New Paint" or "Edit Paint": Brand ("Required, e.g. Tamiya"), Range
 ("e.g. Acrylic XF"), Code ("Required, e.g. XF-54"), Name ("e.g. Dark Sea
 Grey"), FS / RLM ("e.g. FS 36270 or RLM 76"), Show a Swatch with a "Swatch Colour"
-picker, "I Own This Paint", and Notes ("Optional, e.g. thin 1:1 with X-20A").
+picker and a preview of the swatch (glass for clears), "I Own This Paint", and Notes ("Optional, e.g. thin 1:1 with X-20A").
 Under the swatch: "The swatch only helps you recognise the paint on screen; it
 isn't an accurate colour match."
 
