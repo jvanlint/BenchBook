@@ -67,7 +67,7 @@ struct BuildPhotosView: View {
                 ContentUnavailableView {
                     Label("No Build Photos", systemImage: "camera")
                 } description: {
-                    Text("Drop photos here, or choose Add Photos…. Keep progress shots and photos of the completed model here, apart from your references.")
+                    Text("Drop photos here, choose Add Photos…, or take one with your iPhone using File › Import from iPhone or iPad. Keep progress shots and photos of the completed model here, apart from your references.")
                 } actions: {
                     Button("Add Photos…", action: onAddPhotos)
                     Button("Import from Photos…", action: onImportFromPhotos)

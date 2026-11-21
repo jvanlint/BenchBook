@@ -95,6 +95,8 @@ struct PictureWell: View {
         .fileImporter(isPresented: $isChoosing, allowedContentTypes: [.image]) { result in
             if case .success(let url) = result { useImage(at: url) }
         }
+        // A photo from the iPhone or iPad camera becomes the picture.
+        .takesCameraPhotos { receiveDrop($0) }
     }
 
     private func useImage(at url: URL) {

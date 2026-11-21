@@ -242,8 +242,14 @@ body keeps line breaks and indentation, trimmed only at the ends.
 A project's Build Photos section holds the user's own photos of the build,
 apart from its references.
 
-- **Adding**: drop, paste, Add Photos… (file picker) or Import from Photos…
-  (the system photo picker, which needs no access to the whole library).
+- **Adding**: drop, paste, Add Photos… (file picker), Import from Photos…
+  (the system photo picker, which needs no access to the whole library), or a
+  photo taken with an iPhone or iPad camera (Continuity Camera: File › Import
+  from iPhone or iPad). A camera photo goes to the editor's picture when a kit
+  or aftermarket editor is in front, otherwise to Build Photos when it's
+  showing in the front window; with neither, the menu item is unavailable.
+  Its original name is "Camera Photo". Document scans aren't taken. Windows
+  has no equivalent and can leave this out.
   While Build Photos is showing, drops and pastes go there instead of
   References. Each file is checked like a reference file, and only images are
   accepted: anything else is reported as "“name” isn't a photo." The original

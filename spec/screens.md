@@ -514,7 +514,9 @@ starting with the project's scale), Product Page ("https://…"), and Notes
 
 **Picture**: drop an image, Choose Image…, "Use Image from Product Page"
 (disabled until there's a product page: "Enter the product page first"), and
-Remove Image. A product page that isn't a web address: "Enter a web address,
+Remove Image. While the editor is in front, File › Import from iPhone or iPad
+› Take Photo makes the photo the picture; like a dropped one, it's kept only
+on Save. A product page that isn't a web address: "Enter a web address,
 such as hannants.co.uk/product/…".
 
 ![Edit Part](screens/aftermarket-editor.png)
@@ -547,12 +549,14 @@ star in its corner.
 - **Export…** asks for a folder ("Choose a folder for the 3 exported
   photos."), with a **Remove location data** checkbox, on by default.
 
-Adding: drop or paste onto the section, Add Photos… or Import from Photos….
+Adding: drop or paste onto the section, Add Photos…, Import from Photos…, or
+File › Import from iPhone or iPad › Take Photo.
 Anything that isn't an image: "“name” isn't a photo." The same photo twice:
 "Already in Build Photos" or "“name” is already in this project's build
 photos."
 
-Empty: "No Build Photos. Drop photos here, or choose Add Photos…. Keep
+Empty: "No Build Photos. Drop photos here, choose Add Photos…, or take one
+with your iPhone using File › Import from iPhone or iPad. Keep
 progress shots and photos of the completed model here, apart from your
 references." with Add Photos… and Import from Photos….
 

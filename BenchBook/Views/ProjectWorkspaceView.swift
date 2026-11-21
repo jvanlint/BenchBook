@@ -188,6 +188,8 @@ struct ProjectWorkspaceView: View {
             BuildPhotosView(project: project, revealID: $revealBuildPhotoID,
                             onAddPhotos: { isAddingPhotos = true },
                             onImportFromPhotos: { isPickingPhotos = true })
+                // An iPhone or iPad photo becomes a build photo.
+                .takesCameraPhotos { addBuildPhotos(from: $0) }
         }
     }
 

@@ -24,6 +24,8 @@ struct BenchBookApp: App {
         .commands {
             SidebarCommands()
             BenchBookCommands()
+            // File › Import from iPhone or iPad (Continuity Camera).
+            ImportFromDevicesCommands()
         }
 
         // One window per image; reopening an image brings its window forward.
