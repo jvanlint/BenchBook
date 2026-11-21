@@ -437,8 +437,9 @@ isn't an accurate colour match."
 **Mixes**: "New Mix" or "Edit Mix". Brand ("Required, e.g. Custom or your
 name"), Code ("Optional"), Name ("Required, e.g. Faded Sky Grey") and Type;
 there's no Range. Then a Recipe section: one row per paint, with its swatch,
-name, a parts field and "part" or "parts", and a remove button ("Take Tamiya
-XF-2 Flat White out of the recipe"). Rows can be dragged into order. Add
+name, a parts field with "part" or "parts", up and down arrows ("Move
+Tamiya XF-2 Flat White up the recipe"; dimmed at the top and bottom), and a
+remove button ("Take Tamiya XF-2 Flat White out of the recipe"). Add
 Paints… ("Choose catalogue paints for this mix") opens Add Paints to Recipe.
 The footer reads, as fits:
 
