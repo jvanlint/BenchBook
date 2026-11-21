@@ -488,13 +488,13 @@ struct SearchResultsView: View {
 
     private func summary(_ results: SearchResults) -> String {
         var parts: [String] = []
-        if !results.projects.isEmpty { parts.append(String(localized: "\(results.projects.count) projects")) }
+        if !results.projects.isEmpty { parts.append(String(AttributedString(localized: "^[\(results.projects.count) project](inflect: true)").inflected().characters)) }
         if !results.kits.isEmpty {
             parts.append(String(AttributedString(localized: "^[\(results.kits.count) kit](inflect: true)").inflected().characters))
         }
-        if !results.paints.isEmpty { parts.append(String(localized: "\(results.paints.count) paints")) }
-        if !results.aftermarketItems.isEmpty { parts.append(String(localized: "\(results.aftermarketItems.count) parts")) }
-        if results.referenceCount > 0 { parts.append(String(localized: "\(results.referenceCount) references")) }
+        if !results.paints.isEmpty { parts.append(String(AttributedString(localized: "^[\(results.paints.count) paint](inflect: true)").inflected().characters)) }
+        if !results.aftermarketItems.isEmpty { parts.append(String(AttributedString(localized: "^[\(results.aftermarketItems.count) part](inflect: true)").inflected().characters)) }
+        if results.referenceCount > 0 { parts.append(String(AttributedString(localized: "^[\(results.referenceCount) reference](inflect: true)").inflected().characters)) }
         if results.buildPhotoCount > 0 {
             parts.append(String(AttributedString(
                 localized: "^[\(results.buildPhotoCount) build photo](inflect: true)").inflected().characters))

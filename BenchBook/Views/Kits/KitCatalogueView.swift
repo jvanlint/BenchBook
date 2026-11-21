@@ -497,7 +497,7 @@ struct KitCatalogueView: View {
         }
         if summary.skippedCount > 0 {
             let types = summary.skipped.map { "\($0.type) \($0.count)" }.formatted(.list(type: .and, width: .narrow))
-            lines.append(String(localized: "\(summary.skippedCount) rows skipped that aren't kits: \(types)."))
+            lines.append(String(AttributedString(localized: "Skipped ^[\(summary.skippedCount) row](inflect: true) for things other than kits: \(types).").inflected().characters))
         }
         lines += summary.problems.prefix(10)
         if summary.problems.count > 10 {
@@ -528,7 +528,7 @@ private struct KitExportSheet: View {
             Section {
                 Toggle("Include notes", isOn: $options.includesNotes)
             } footer: {
-                Text("All \(kitCount) kits are saved, one row each, with their details, status, rating, prices and links, in a CSV file BenchBook can import. Pictures aren't included; a backup has them.")
+                Text("^[\(kitCount) kit](inflect: true) will be saved, one row per kit, with details, status, rating, prices and links, in a CSV file BenchBook can import. Pictures aren't included; a backup has them.")
                     .foregroundStyle(.secondary)
             }
         }

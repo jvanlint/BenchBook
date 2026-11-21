@@ -152,8 +152,8 @@ struct ProjectSidebar: View {
             Button("Delete", role: .destructive) { delete(tag) }
         } message: { tag in
             Text(tag.usageCount == 0
-                 ? "No references use it."
-                 : "It will be removed from \(tag.usageCount) references. The references themselves aren't deleted.")
+                 ? "No references or build photos use it."
+                 : "It will be removed from \(tag.usageSummary), which aren't deleted.")
         }
     }
 

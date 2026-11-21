@@ -73,12 +73,12 @@ struct ReferenceTile: View {
         case .image:
             let count = reference.markups.count
             if count > 0 {
-                return "\(kindName) · " + String(localized: "\(count) notes")
+                return "\(kindName) · " + String(AttributedString(localized: "^[\(count) note](inflect: true)").inflected().characters)
             }
         case .pdf:
             let count = reference.markups.count
             if count > 0 {
-                return "\(kindName) · " + String(localized: "\(count) markups")
+                return "\(kindName) · " + String(AttributedString(localized: "^[\(count) markup](inflect: true)").inflected().characters)
             }
         case .videoLink:
             if let channel = reference.videoChannel {

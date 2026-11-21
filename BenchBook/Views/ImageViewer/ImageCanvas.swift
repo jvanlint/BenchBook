@@ -580,6 +580,6 @@ final class NoteOverlayView: NSView {
     override func isAccessibilityElement() -> Bool { true }
     override func accessibilityRole() -> NSAccessibility.Role? { .image }
     override func accessibilityLabel() -> String? {
-        String(localized: "Image with \(notes.count) notes. The notes are listed in the side panel.")
+        String(AttributedString(localized: "Image with ^[\(notes.count) note](inflect: true). Notes are listed in the side panel.").inflected().characters)
     }
 }

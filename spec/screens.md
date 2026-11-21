@@ -13,11 +13,7 @@ Wording: keep the meaning and tone of every message. Change it only where
 Windows has its own words, such as Explorer for Finder, Recycle Bin for Trash,
 and Ctrl for ⌘. The Mac uses British English ("colour"), and so does Windows.
 
-Counts: use the singular for one ("1 reference", "1 note"). A few Mac strings
-don't yet, and show "1 references", "1 notes", "1 markups", "1 paints" or "1
-parts": the tile's note and markup counts, search and tag group headings, the
-search summary, the Aftermarket tab's header, and the sidebar tag count read by
-VoiceOver. Those are Mac bugs, not wording to copy.
+Counts: use the singular for one ("1 reference", "1 note", "1 part").
 
 ## Main window
 
@@ -315,10 +311,10 @@ Not Owned, For Sale, Not in a Project, Needed), Import CSV…, Export CSV…, Ad
   For kits in a project, that starts with "It's used by the project “Cobra”."
   or "They're used by the projects “Cobra” and “Spitfire”."
 - Import shows "Added 3 Kits and Updated 1" (or "Added 3 Kits", "Updated 1
-  Kit", "No Kits Added"), then "Already in your catalogue: 110.", "27 rows
-  skipped that aren't kits: Markings (Decals) 22, Detail and Conversion sets
-  5.", and up to ten problems.
-- Export asks first: "All 116 kits are saved, one row each, with their
+  Kit", "No Kits Added"), then "Already in your catalogue: 110.", "Skipped 27
+  rows for things other than kits: Markings (Decals) 22, Detail and Conversion
+  sets 5.", and up to ten problems.
+- Export asks first: "116 kits will be saved, one row per kit, with
   details, status, rating, prices and links, in a CSV file BenchBook can
   import. Pictures aren't included; a backup has them.", with "Include notes",
   off.
@@ -400,7 +396,7 @@ the catalogue"), Add Paint.
   project or a mix's recipe can't be deleted until they're removed from it."
 - Import shows "Imported 120 Paints", with "6 were already in your catalogue
   and were skipped." and up to ten problems ("…and 4 more problems.").
-- Export asks first: "All 1,267 paints are saved with their brand, range, code,
+- Export asks first: "1,267 paints will be saved, with brand, range, code,
   name, standard, match, type and colour, in a CSV file another BenchBook can
   import. Mixes aren't included. Leave
   ownership and notes out when sharing.", with "Include whether you own each

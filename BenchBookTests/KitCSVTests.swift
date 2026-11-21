@@ -265,8 +265,11 @@ struct KitImportSummaryTests {
         #expect(KitCatalogueView.importTitle(summary) == "Added 3 Kits and Updated 1")
         #expect(KitCatalogueView.importMessage(summary) == """
         Already in your catalogue: 110.
-        27 rows skipped that aren't kits: Markings (Decals) 22, Detail and Conversion sets 5.
+        Skipped 27 rows for things other than kits: Markings (Decals) 22, Detail and Conversion sets 5.
         """)
+        var one = KitCSVImporter.Summary()
+        one.skipped = [("Paints", 1)]
+        #expect(KitCatalogueView.importMessage(one) == "Skipped 1 row for things other than kits: Paints 1.")
 
         #expect(KitCatalogueView.importTitle(KitCSVImporter.Summary()) == "No Kits Added")
         summary.added = 0

@@ -273,8 +273,8 @@ struct PaintCatalogueView: View {
 
     private var subtitle: String {
         let owned = paints.filter(\.isOwned).count
-        guard filter.isActive else { return String(localized: "\(paints.count) paints · \(owned) owned") }
-        return String(localized: "\(visiblePaints.count) of \(paints.count) paints · \(owned) owned")
+        guard filter.isActive else { return String(AttributedString(localized: "^[\(paints.count) paint](inflect: true) · \(owned) owned").inflected().characters) }
+        return String(AttributedString(localized: "\(visiblePaints.count) of ^[\(paints.count) paint](inflect: true) · \(owned) owned").inflected().characters)
     }
 
     // MARK: Filters
@@ -404,7 +404,7 @@ private struct PaintExportSheet: View {
                 Toggle("Include whether you own each paint", isOn: $options.includesOwnership)
                 Toggle("Include notes", isOn: $options.includesNotes)
             } footer: {
-                Text("All \(paintCount) paints are saved with their brand, range, code, name, standard, match, type and colour, in a CSV file another BenchBook can import. Mixes aren't included. Leave ownership and notes out when sharing.")
+                Text("^[\(paintCount) paint](inflect: true) will be saved, with brand, range, code, name, standard, match, type and colour, in a CSV file another BenchBook can import. Mixes aren't included. Leave ownership and notes out when sharing.")
                     .foregroundStyle(.secondary)
             }
         }

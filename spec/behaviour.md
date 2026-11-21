@@ -576,8 +576,8 @@ order and case; other columns are ignored. Parsing is as for paint CSV.
   and that field is left as it was.
 - The whole file saves at once: it all imports, or nothing does.
 - The summary: "Added 3 Kits and Updated 1", then "Already in your catalogue:
-  110.", "27 rows skipped that aren't kits: Markings (Decals) 22, Detail and
-  Conversion sets 5.", and up to ten problems.
+  110.", "Skipped 27 rows for things other than kits: Markings (Decals) 22,
+  Detail and Conversion sets 5.", and up to ten problems.
 
 Test file: [fixtures/kits-scalemates.csv](fixtures/kits-scalemates.csv), a
 made-up stash with two copies of one kit, two single kits and three rows that

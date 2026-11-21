@@ -81,7 +81,7 @@ struct ProjectAftermarketView: View {
 
     private var header: some View {
         HStack(spacing: 6) {
-            Text("\(project.aftermarketItems.count) parts")
+            Text("^[\(project.aftermarketItems.count) part](inflect: true)")
             ForEach(statusCounts, id: \.status) { entry in
                 Text("·")
                     .foregroundStyle(.secondary)

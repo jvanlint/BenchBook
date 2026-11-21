@@ -31,12 +31,12 @@ struct TagManagerView: View {
     var body: some View {
         content
             .navigationTitle("Tags")
-            .navigationSubtitle(String(localized: "\(tags.count) tags"))
+            .navigationSubtitle(String(AttributedString(localized: "^[\(tags.count) tag](inflect: true)").inflected().characters))
             .toolbar {
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button("Remove Unused Tags", systemImage: "tag.slash") { perform { try service.removeUnused() } }
                         .disabled(unusedCount == 0)
-                        .help(unusedCount == 0 ? "Every tag is in use" : "Delete the \(unusedCount) tags no reference or build photo uses")
+                        .help(unusedCount == 0 ? "Every tag is in use" : String(AttributedString(localized: "Delete the ^[\(unusedCount) tag](inflect: true) no reference or build photo uses").inflected().characters))
                     Button("New Tag", systemImage: "plus") { nameSheet = .new }
                         .help("Add a tag, to drag onto references")
                 }
@@ -144,11 +144,11 @@ struct TagManagerView: View {
         case (0, 0):
             return String(localized: "No references or build photos use them.")
         case (_, 0):
-            return String(localized: "They'll be removed from \(references) references. The references themselves aren't deleted.")
+            return String(AttributedString(localized: "They'll be removed from ^[\(references) reference](inflect: true), which aren't deleted.").inflected().characters)
         case (0, _):
-            return String(localized: "They'll be removed from \(photos) build photos. The photos themselves aren't deleted.")
+            return String(AttributedString(localized: "They'll be removed from ^[\(photos) build photo](inflect: true), which aren't deleted.").inflected().characters)
         default:
-            return String(localized: "They'll be removed from \(references) references and \(photos) build photos, which aren't deleted.")
+            return String(AttributedString(localized: "They'll be removed from ^[\(references) reference](inflect: true) and ^[\(photos) build photo](inflect: true), which aren't deleted.").inflected().characters)
         }
     }
 
