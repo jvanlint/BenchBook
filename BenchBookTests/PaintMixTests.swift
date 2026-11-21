@@ -89,6 +89,19 @@ struct PaintMixTests {
         #expect(grey.mixNames == ["Custom Faded Sky Grey"])
     }
 
+    @Test func recipePaintsMoveUpAndDown() {
+        let white = UUID(), grey = UUID(), black = UUID()
+        var draft = PaintDraft()
+        draft.recipe = [white, grey, black].map { MixPartDraft(paintID: $0) }
+        draft.moveRecipePaint(black, by: -1)
+        #expect(draft.recipe.map(\.paintID) == [white, black, grey])
+        draft.moveRecipePaint(white, by: -1)
+        draft.moveRecipePaint(grey, by: 1)
+        #expect(draft.recipe.map(\.paintID) == [white, black, grey])
+        draft.moveRecipePaint(white, by: 1)
+        #expect(draft.recipe.map(\.paintID) == [black, white, grey])
+    }
+
     @Test func aMixIsOwnedWhenEveryRecipePaintIs() throws {
         let white = try paint("XF-2", "Flat White", owned: true)
         let grey = try paint("XF-19", "Sky Grey")

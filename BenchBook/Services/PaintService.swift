@@ -62,6 +62,14 @@ struct PaintDraft: Equatable {
 
     /// Every recipe line needs more than zero parts.
     var hasBadParts: Bool { recipe.contains { !($0.parts > 0) } }
+
+    /// Moves a recipe paint one place up (-1) or down (1); nothing happens
+    /// at either end.
+    mutating func moveRecipePaint(_ paintID: UUID, by offset: Int) {
+        guard let from = recipe.firstIndex(where: { $0.paintID == paintID }),
+              recipe.indices.contains(from + offset) else { return }
+        recipe.swapAt(from, from + offset)
+    }
 }
 
 enum PaintServiceError: LocalizedError, Equatable {

@@ -224,6 +224,24 @@ struct PaintEditorView: View {
                         Text(line.parts == 1 ? "part" : "parts")
                             .foregroundStyle(.secondary)
                         Button {
+                            draft.moveRecipePaint(line.paintID, by: -1)
+                        } label: {
+                            Image(systemName: "chevron.up")
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(draft.recipe.first?.paintID == line.paintID)
+                        .help("Move \(paint.displayName) up the recipe")
+                        .accessibilityLabel("Move \(paint.displayName) Up")
+                        Button {
+                            draft.moveRecipePaint(line.paintID, by: 1)
+                        } label: {
+                            Image(systemName: "chevron.down")
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(draft.recipe.last?.paintID == line.paintID)
+                        .help("Move \(paint.displayName) down the recipe")
+                        .accessibilityLabel("Move \(paint.displayName) Down")
+                        Button {
                             draft.recipe.removeAll { $0.paintID == line.paintID }
                         } label: {
                             Image(systemName: "minus.circle")
@@ -234,7 +252,6 @@ struct PaintEditorView: View {
                     }
                 }
             }
-            .onMove { draft.recipe.move(fromOffsets: $0, toOffset: $1) }
             Button("Add Paints…", systemImage: "plus") { isAddingToRecipe = true }
                 .help("Choose catalogue paints for this mix")
         } header: {
