@@ -8,6 +8,7 @@ The spec sections are the reference. This list is only a checklist.
 
 | Change | Issue | Format change | Spec |
 |---|---|---|---|
+| A PDF markup's number badge is kept wholly on the page: one starting at the page edge is drawn moved inward instead of cut in half, in the viewer and in export. | #39 | No | behaviour.md › PDF markups |
 | A project holds each link once: saving a webpage or video link with exactly the same address as one already in the project reports it as already saved. A file saved with the page it came from (such as an image from Safari) keeps that page as its source. | #7 | No | behaviour.md › Capture |
 | A Safari extension saves pages, images, PDFs and highlighted text from the right-click menu or toolbar, shows the outcome in the page, and can move a save to another project. Windows plans an Edge and Chrome extension, which should work the same way. | #7 | No | behaviour.md › Browser extension; screens.md › Safari extension |
 | Custom mixes: a paint made from other catalogue paints, with a recipe of parts. A mix counts as owned when every recipe paint is; a project using it puts the missing paints on the Shopping List "for" the mix. Paints in a recipe can't be deleted. Add Mix on the Paints screen. A project's Paint tab gains a Notes column. Mixes aren't in the paint CSV. | #42 | Yes: schema 6.0.0, `paints.isMix`, `paintMixParts` | library-format.md › paints, paintMixParts, Compatibility; behaviour.md › Paint identity, Mixes, Deleting, Shopping list, Paint CSV › Export; screens.md › Paint tab, Paints catalogue, Paint editor |

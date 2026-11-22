@@ -46,26 +46,33 @@ struct MarkupItem: Equatable, Identifiable {
                    text: text, number: number)
     }
 
-    /// Where the number badge sits: a note's top-left corner, or a stroke's start.
-    var badgeCenter: CGPoint {
+    /// Where the number badge belongs: a note's top-left corner, or a stroke's start.
+    var badgeAnchor: CGPoint {
         switch kind {
         case .note: CGPoint(x: rect.minX, y: rect.maxY)
         case .highlight, .arrow: points.first ?? CGPoint(x: rect.minX, y: rect.maxY)
         }
     }
 
+    /// Where the number badge is drawn on a page with these bounds.
+    func badgeCenter(within page: CGRect) -> CGPoint {
+        MarkupGeometry.badgeCenter(for: badgeAnchor, within: page)
+    }
+
     /// Everything drawn, including the badge and selection outline.
-    var drawingBounds: CGRect {
+    func drawingBounds(within page: CGRect) -> CGRect {
         let radius = MarkupGeometry.badgeDiameter / 2
-        let badge = CGRect(x: badgeCenter.x - radius, y: badgeCenter.y - radius,
-                           width: radius * 2, height: radius * 2)
+        let center = badgeCenter(within: page)
+        let badge = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
         return rect.union(badge).insetBy(dx: -6, dy: -6)
     }
 }
 
 /// Draws markups in page coordinates, for the viewer and for export.
 enum MarkupRenderer {
-    static func draw(_ item: MarkupItem, selected: Bool = false, showsNumber: Bool = true, in context: CGContext) {
+    /// `page` is the page's bounds, which the number badge is kept inside.
+    static func draw(_ item: MarkupItem, selected: Bool = false, showsNumber: Bool = true, page: CGRect,
+                     in context: CGContext) {
         context.saveGState()
         defer { context.restoreGState() }
         switch item.kind {
@@ -81,7 +88,7 @@ enum MarkupRenderer {
             context.setLineDash(phase: 0, lengths: [])
         }
         if showsNumber, item.number > 0 {
-            drawBadge(item.number, at: item.badgeCenter, color: selected ? .controlAccentColor : item.color.nsColor,
+            drawBadge(item.number, at: item.badgeCenter(within: page), color: selected ? .controlAccentColor : item.color.nsColor,
                       in: context)
         }
     }
@@ -169,11 +176,14 @@ enum MarkupRenderer {
 final class MarkupAnnotation: PDFAnnotation {
     let item: MarkupItem
     let isMarkupSelected: Bool
+    let pageBounds: CGRect
 
-    init(_ item: MarkupItem, selected: Bool) {
+    /// `pageBounds` is the page as shown, so the number badge stays on it.
+    init(_ item: MarkupItem, selected: Bool, pageBounds: CGRect) {
         self.item = item
         self.isMarkupSelected = selected
-        super.init(bounds: item.drawingBounds, forType: .stamp, withProperties: nil)
+        self.pageBounds = pageBounds
+        super.init(bounds: item.drawingBounds(within: pageBounds), forType: .stamp, withProperties: nil)
         shouldPrint = false
     }
 
@@ -181,7 +191,7 @@ final class MarkupAnnotation: PDFAnnotation {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not used") }
 
     override func draw(with box: PDFDisplayBox, in context: CGContext) {
-        MarkupRenderer.draw(item, selected: isMarkupSelected, in: context)
+        MarkupRenderer.draw(item, selected: isMarkupSelected, page: pageBounds, in: context)
     }
 }
 
@@ -211,7 +221,7 @@ enum MarkupExporter {
             output.clip(to: crop)
             output.drawPDFPage(source)
             for item in byPage[index] ?? [] {
-                MarkupRenderer.draw(item, showsNumber: isListed(item), in: output)
+                MarkupRenderer.draw(item, showsNumber: isListed(item), page: crop, in: output)
             }
             output.restoreGState()
             output.endPage()

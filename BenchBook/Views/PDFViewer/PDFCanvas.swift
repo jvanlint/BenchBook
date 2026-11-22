@@ -98,7 +98,8 @@ final class PDFViewerController: NSObject {
         selectedMarkupID = id
         guard let item = items.first(where: { $0.id == id }),
               let page = pdfView.document?.page(at: item.pageIndex) else { return }
-        pdfView.go(to: item.drawingBounds.insetBy(dx: -40, dy: -40), on: page)
+        let bounds = item.drawingBounds(within: page.bounds(for: pdfView.displayBox))
+        pdfView.go(to: bounds.insetBy(dx: -40, dy: -40), on: page)
     }
 
     /// The topmost shown markup at `point` on a page.
@@ -120,7 +121,7 @@ final class PDFViewerController: NSObject {
             redrawMarkups()
         }
         guard let item, let page = pdfView.document?.page(at: item.pageIndex) else { return }
-        let annotation = MarkupAnnotation(item, selected: id != nil)
+        let annotation = MarkupAnnotation(item, selected: id != nil, pageBounds: page.bounds(for: pdfView.displayBox))
         page.addAnnotation(annotation)
         previewAnnotation = (annotation, page)
     }
@@ -136,7 +137,9 @@ final class PDFViewerController: NSObject {
         }
         guard showsMarkups else { return }
         for item in items where item.id != hiddenMarkupID {
-            document.page(at: item.pageIndex)?.addAnnotation(MarkupAnnotation(item, selected: item.id == selectedMarkupID))
+            guard let page = document.page(at: item.pageIndex) else { continue }
+            page.addAnnotation(MarkupAnnotation(item, selected: item.id == selectedMarkupID,
+                                                pageBounds: page.bounds(for: pdfView.displayBox)))
         }
     }
 

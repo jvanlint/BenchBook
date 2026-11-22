@@ -164,6 +164,18 @@ nonisolated enum MarkupGeometry {
                       height: rect.height > page.height ? offset.height : dy)
     }
 
+    /// Where a number badge is drawn: at `anchor`, moved inward just enough
+    /// for the whole circle to be on the page, since nothing outside the page
+    /// is shown. On a page narrower than the badge, it's centred.
+    static func badgeCenter(for anchor: CGPoint, within page: CGRect) -> CGPoint {
+        let radius = badgeDiameter / 2
+        func fit(_ value: CGFloat, _ low: CGFloat, _ high: CGFloat) -> CGFloat {
+            low > high ? (low + high) / 2 : min(max(value, low), high)
+        }
+        return CGPoint(x: fit(anchor.x, page.minX + radius, page.maxX - radius),
+                       y: fit(anchor.y, page.minY + radius, page.maxY - radius))
+    }
+
     static func clamp(_ point: CGPoint, to page: CGRect) -> CGPoint {
         CGPoint(x: min(max(point.x, page.minX), page.maxX), y: min(max(point.y, page.minY), page.maxY))
     }

@@ -812,6 +812,9 @@ All sizes are in page points.
   grown by half the head length.
 - Moving a markup keeps it on the page, unless it's bigger than the page.
 - The badge sits at a note's top-left corner, or at a stroke's first point.
+  It's drawn moved inward just enough for the whole circle to be on the page
+  (its centre at least 9 from every edge, or the page's centre on a page
+  narrower than 18), in the viewer and in export. The stored points don't move.
 - New markups use the last colour chosen for their kind. Defaults: notes and
   highlights yellow, arrows red.
 

@@ -34,6 +34,18 @@ struct MarkupGeometryTests {
                 == CGSize(width: -5, height: 5))
     }
 
+    @Test func badgesStayOnThePage() {
+        let page = CGRect(x: 0, y: 0, width: 200, height: 200)
+        // Moved inward just enough for the 18 pt circle to fit.
+        #expect(MarkupGeometry.badgeCenter(for: CGPoint(x: 0, y: 150), within: page) == CGPoint(x: 9, y: 150))
+        #expect(MarkupGeometry.badgeCenter(for: CGPoint(x: 195, y: 200), within: page) == CGPoint(x: 191, y: 191))
+        // Left where it is when it already fits.
+        #expect(MarkupGeometry.badgeCenter(for: CGPoint(x: 50, y: 60), within: page) == CGPoint(x: 50, y: 60))
+        // Centred on a page smaller than the badge.
+        #expect(MarkupGeometry.badgeCenter(for: .zero, within: CGRect(x: 0, y: 0, width: 10, height: 10))
+                == CGPoint(x: 5, y: 5))
+    }
+
     @Test func pointsRoundTripThroughStorage() {
         let points = [CGPoint(x: 1.5, y: 2), CGPoint(x: 3, y: 4.25)]
         #expect(MarkupGeometry.flatten(points) == [1.5, 2, 3, 4.25])
@@ -213,6 +225,21 @@ struct MarkupDisplayTests {
         #expect(noteFill.b > noteFill.r + 40)
         let blank = rgb(image, x: 80, y: 180)
         #expect(blank.r > 240 && blank.g > 240 && blank.b > 240)
+    }
+
+    @Test func exportDrawsWholeBadgesAtThePageEdge() throws {
+        let document = try makeDocument()
+        // A highlight up the page's left edge, numbered because it has text.
+        let highlight = MarkupItem(pageIndex: 0, kind: .highlight, color: .blue,
+                                   rect: CGRect(x: -7, y: 100, width: 14, height: 80),
+                                   points: [CGPoint(x: 0, y: 100), CGPoint(x: 0, y: 180)],
+                                   text: "Edge", number: 1)
+        let data = try #require(MarkupExporter.markedUpData(of: document, markups: [highlight]))
+        let image = pixels(of: try #require(CGPDFDocument(CGDataProvider(data: data as CFData)!)?.page(at: 1)))
+        // The badge's right side, past the highlight, which a badge centred
+        // on the edge wouldn't reach.
+        let badge = rgb(image, x: 14, y: 100)
+        #expect(badge.b > badge.r + 100)
     }
 
     @Test func exportListsTextThatOnlyShowsInThePanel() throws {
