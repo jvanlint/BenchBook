@@ -1,8 +1,9 @@
 import Foundation
 
-/// The App Group shared by BenchBook and its Share extension. It holds the
-/// capture inbox and a small list of Projects for the share sheet. The
-/// library itself stays in the app's own container.
+/// The App Group shared by BenchBook and its Share and Safari extensions. It
+/// holds the capture inbox, results for the Safari extension, and a small
+/// list of Projects and tag names. The library itself stays in the app's own
+/// container.
 nonisolated enum AppGroup {
     /// Team-prefixed, matching `$(TeamIdentifierPrefix)com.jasonvanlint.BenchBook`
     /// in both targets' entitlements.
@@ -14,6 +15,10 @@ nonisolated enum AppGroup {
 
     static var inboxURL: URL? {
         containerURL?.appending(path: "Inbox", directoryHint: .isDirectory)
+    }
+
+    static var resultsURL: URL? {
+        containerURL?.appending(path: "Results", directoryHint: .isDirectory)
     }
 
     static var defaults: UserDefaults? {
@@ -28,12 +33,13 @@ nonisolated struct ProjectSummary: Codable, Hashable, Identifiable, Sendable {
     var detail: String
 }
 
-/// The app publishes its Projects here; the Share extension reads them.
+/// The app publishes its Projects and tag names here; the extensions read them.
 /// The active Project is the one most recently selected in the app or
 /// shared to, and is preselected in the share sheet.
 nonisolated struct ProjectDirectory {
     private static let projectsKey = "projects.v1"
     private static let activeProjectKey = "activeProjectID"
+    private static let tagsKey = "tags.v1"
 
     let defaults: UserDefaults
 
@@ -45,6 +51,16 @@ nonisolated struct ProjectDirectory {
     func load() -> [ProjectSummary] {
         guard let data = defaults.data(forKey: Self.projectsKey) else { return [] }
         return (try? JSONDecoder().decode([ProjectSummary].self, from: data)) ?? []
+    }
+
+    /// Tag names, suggested as the user types tags in Safari.
+    func publishTags(_ names: [String]) {
+        guard names != loadTags() else { return }
+        defaults.set(names, forKey: Self.tagsKey)
+    }
+
+    func loadTags() -> [String] {
+        defaults.stringArray(forKey: Self.tagsKey) ?? []
     }
 
     var activeProjectID: UUID? {

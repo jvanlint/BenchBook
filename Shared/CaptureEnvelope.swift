@@ -42,9 +42,19 @@ nonisolated enum CapturedItem: Hashable, Sendable {
 ///
 /// The extension builds the folder under `Inbox/.staging/` and moves it into
 /// place only when complete, so the app never sees a half-written capture.
+///
+/// Version 2 adds `source`, `pageURL` and `amends`. Each is optional, so
+/// version 1 envelopes still read.
 nonisolated struct CaptureEnvelope: Codable, Equatable, Sendable {
     static let fileName = "envelope.json"
-    static let currentVersion = 1
+    static let currentVersion = 2
+
+    /// Where a capture came from.
+    enum Source: String, Codable, Sendable {
+        case shareMenu
+        /// The Safari extension, which waits for a `CaptureResult`.
+        case safari
+    }
 
     enum Item: Codable, Equatable, Sendable {
         /// `name` is a file inside the envelope folder.
@@ -60,6 +70,13 @@ nonisolated struct CaptureEnvelope: Codable, Equatable, Sendable {
     var tags: [String]
     var note: String?
     var items: [Item]
+    /// Nil for envelopes from before version 2, which came from the Share menu.
+    var source: Source? = nil
+    /// The page the files came from, such as the page an image was on.
+    var pageURL: URL? = nil
+    /// Instead of adding items, moves these References to `projectID` and
+    /// adds `tags` and `note` to them. Used by Change… after a Safari save.
+    var amends: [UUID]? = nil
 
     /// Converts envelope items back into captured items whose files live in `folder`.
     /// Returns nil for any file name that would escape the folder.
@@ -89,6 +106,17 @@ nonisolated struct CaptureInboxStore: Sendable {
     func makeStagingFolder() throws -> URL {
         let folder = stagingURL.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder
+    }
+
+    /// The staging folder for an upload that arrives in parts, named by its ID.
+    func stagingFolder(for uploadID: UUID, creating: Bool) throws -> URL {
+        let folder = stagingURL.appending(path: uploadID.uuidString, directoryHint: .isDirectory)
+        if creating {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        } else if !FileManager.default.fileExists(atPath: folder.path) {
+            throw CocoaError(.fileNoSuchFile)
+        }
         return folder
     }
 

@@ -13,6 +13,7 @@ What BenchBook 1.1 does:
 - Project deletion from the sidebar or the Project menu. It removes the project's references, image notes, PDF markups, paint list, aftermarket parts and their stored files; catalogue paints and tags are kept.
 - References: images (JPEG, PNG, WebP, HEIC), PDFs, Markdown files, webpage links (with the page's preview image, site name and description), video links (YouTube timestamps become moments; YouTube and Vimeo links get their poster, title, channel, length, publish date and description), highlighted text snippets, and notes you write yourself (New Note, ⇧⌘N).
 - Capture by dragging onto the window or a sidebar project, pasting (⌘V), Add Files (⌘O), or the macOS Share menu (**BenchBook**), with optional tags and a note.
+- Safari extension: right-click › Save Page, Save Image or Save Selection to BenchBook saves straight to the last project, and a notice in the page says what happened, with Change… to pick another project or add tags and a note. The toolbar button does the same with a panel first. Turn it on in Safari › Settings › Extensions (Safari 18.4 or later).
 - A gallery of tiles (preview, title, type, tags) with type and tag filters. Images and PDFs open in their own viewer windows; other files open in Quick Look (Space previews anything); links open in the browser.
 - Select several references by ⌘-clicking, ⇧-clicking a range, ⌘A, or dragging a selection rectangle across empty space, as in Finder (hold ⇧ to add to the selection or ⌘ to flip tiles in and out; Esc cancels; the gallery scrolls when you drag to its top or bottom edge).
 - Move or copy references to another project: right-click › Move to Project or Copy to Project, or drag tiles onto a project in the sidebar (hold Option to copy). Copies keep their tags, image notes, PDF markups and video moments, and share the stored file instead of duplicating it.
@@ -26,7 +27,7 @@ What BenchBook 1.1 does:
 - Compare images side by side: select two to four images and choose Open Side by Side (or press Return). Each image zooms on its own; the Notes and Info panel follows the image you last clicked. Switch between a row and a grid, double-click an image to fill the window, and drag images in from any project's gallery to add or replace one.
 - Local SwiftData persistence, with originals copied byte-for-byte into an app-managed file library.
 
-Deferred: Safari/Chromium extensions; and sync.
+Deferred: the Chromium extension (#8); and sync (#47).
 
 ## Requirements
 
@@ -49,16 +50,20 @@ BenchBook/
   Views/      Sidebar, workspace, references gallery, editors,
               ImageViewer/ (viewer and comparison windows, zoomable canvas, notes panel),
               PDFViewer/ (viewer window, markup canvas and panel, export)
-Shared/       Code compiled into both the app and the Share extension
+Shared/       Code compiled into the app and both extensions (capture inbox, results, Safari messages)
 BenchBookShare/  The Share extension (share sheet UI)
+BenchBookSafari/ The Safari extension's native part, which answers the web code's messages
+WebExtension/    The Safari extension's web code: menus, notice, toolbar panel, downloads
 BenchBookTests/  Swift Testing unit tests
+WebExtensionTests/ Node tests for the web code (not in any target)
 ```
 
 Rules:
 
 - Views edit a `ProjectDraft` and hand it to `ProjectService`. The service validates the draft, normalises blank optional text to `nil`, updates `updatedAt` and saves explicitly.
 - Every capture path goes through `ReferenceImporter`. It checks file contents (not names), copies the original byte-for-byte into the asset library, then saves the Reference. Within a Project, an identical file is reported as already saved instead of being added twice.
-- The Share extension never writes to the library. It leaves an envelope (files plus JSON) in the App Group inbox, and `CaptureCoordinator` imports it when BenchBook is running. The extension starts BenchBook in the background after sending. The App Group also holds the Project list and the active Project shown in the share sheet.
+- The Share and Safari extensions never write to the library. Each leaves an envelope (files plus JSON) in the App Group inbox, and `CaptureCoordinator` imports it when BenchBook is running. The extension starts BenchBook in the background after sending. For Safari envelopes, BenchBook writes a result to `Results/` in the App Group, which the Safari extension waits for (up to 5 seconds) to show in the page. The App Group also holds the Project list, the active Project and tag names.
+- `SafariCaptureService` (in `Shared/`) checks every message from the Safari extension before anything is written. Files arrive in base64 chunks into a staging folder, so large PDFs don't need one huge message.
 - Schemas are versioned (`BenchBookSchemaV1` to `BenchBookSchemaV6`, `BenchBookMigrationPlan`). `BenchBookSchemaV1` is the model 1.0 shipped with; `BenchBookSchemaV6` is 1.1's. Add a new schema and stage for each model change; never edit one that has shipped.
 - Image notes and PDF markups are both `Markup` records. An image's are notes only, with boxes in fractions of the image from its top-left corner; a PDF's are in page points from the bottom left.
 - If the store fails to open, the app shows an error and leaves the store alone. It never deletes or resets it.
@@ -70,7 +75,7 @@ Storage, inside `~/Library/Containers/com.jasonvanlint.BenchBook/Data/Library/Ap
 - `Library/Thumbnails/<asset-id>.png`: generated previews, safe to delete.
 - `Library/Posters/<reference-id>.jpg`: video posters and webpage previews, safe to delete (Refresh Video Details or Refresh Page Preview fetches them again).
 
-The App Group (`952LYY5FW2.com.jasonvanlint.BenchBook`) holds the share inbox and the shared Project list.
+The App Group (`952LYY5FW2.com.jasonvanlint.BenchBook`) holds the capture inbox, results for the Safari extension, and the shared Project list and tag names.
 
 ## Settings
 
@@ -176,7 +181,10 @@ Paints → Export CSV… saves the whole catalogue (except mixes) in this format
 
 ```sh
 xcodebuild -project BenchBook.xcodeproj -scheme BenchBook -destination 'platform=macOS' test
+node --test WebExtensionTests
 ```
+
+To try the Safari extension from a Debug build, turn on Safari › Settings › Advanced › Show features for web developers, then Develop › Allow Unsigned Extensions (Safari turns this off again when it quits), and tick BenchBook in Safari › Settings › Extensions. Notarised release builds don't need this on Safari 18.4 or later.
 
 To try the app without touching your real library, launch a Debug build with a separate store. This also keeps it out of Share-extension handoff:
 

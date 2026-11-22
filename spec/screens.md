@@ -716,6 +716,12 @@ Settings page.
 - Projects: Status for new projects (a menu, each status with its icon).
 - The Mac also has an Apple Intelligence section ("Suggest titles and notes for
   new images"), between Links and Image Viewer. Windows leaves it out.
+- Safari (Mac only), last: "Safari extension" On, Off or Unknown, and Open
+  Safari Extension Settings…, explained as "Save pages, images, PDFs and
+  highlighted text to a project from Safari's right-click menu or toolbar.
+  Turn the extension on in Safari's settings, and allow it on the websites you
+  save from." With Safari older than 18.4: "This Mac has Safari 18.3. The
+  extension needs Safari 18.4 or later, which comes with macOS 15.4 and later."
 
 ![Settings: General](screens/settings-general.png)
 
@@ -764,6 +770,38 @@ Markdown files, web links and text."
 There's no screenshot: macOS shows this inside the sharing app's window. On
 Windows it's the Share target window (see
 [windows-app.md](windows-app.md#capture)).
+
+## Safari extension
+
+`WebExtension/` (shared web code), `BenchBookSafari/` (the native part)
+
+- **Right-click menu**: Save Page to BenchBook, Save Image to BenchBook, Save
+  Selection to BenchBook.
+- **Notice**, in the page's top-right corner for 5 seconds (12 for a failure,
+  and not while the pointer is over it), with a symbol, a headline, a detail
+  line, Change… and a close button:
+  - "Saving to BenchBook…", with what's being saved;
+  - "Saved to *project*" with what was saved, and Change…;
+  - "Already in *project*", and Change…;
+  - "Sent to BenchBook" and "BenchBook will show what happened when it has
+    saved it.";
+  - "Couldn't save" and the reason, such as "The website didn't allow the file
+    to be downloaded (error 403)."
+- **Change…** replaces the notice with "Change where it's saved" (or "Save to
+  another project" after a duplicate), what was saved, the Project, Tags and
+  Note fields, and Cancel and Save. Tags suggests the library's tags as you
+  type. ⌘Return saves; Escape closes.
+- Where Safari doesn't allow the notice (its own pages, or websites the
+  extension isn't allowed on), the toolbar button's badge shows ✓, = or !, and
+  its tooltip says what happened.
+- **Toolbar panel**, "Save to BenchBook": the page's title and "Web page ·
+  *site*" or "PDF · *site*", Project (starting with the last one used), Tags,
+  Note, and Save. Then "Saved to *project*." and it closes, "Already in
+  *project*.", or the reason it couldn't save. On a page that isn't a website:
+  "Open a web page to save it to BenchBook." With no projects: "There are no
+  projects yet. Open BenchBook, make a project, then try again."
+
+There's no screenshot yet. The notice and panel follow light and dark mode.
 
 ## Library error
 

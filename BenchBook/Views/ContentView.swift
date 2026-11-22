@@ -161,6 +161,9 @@ struct ContentView: View {
         .onChange(of: projects.map { Self.summary($0) }, initial: true) { _, summaries in
             projectDirectory?.publish(summaries)
         }
+        .onChange(of: tags.map(\.name), initial: true) { _, names in
+            projectDirectory?.publishTags(names)
+        }
     }
 
     /// The tag chosen in the sidebar, if any.

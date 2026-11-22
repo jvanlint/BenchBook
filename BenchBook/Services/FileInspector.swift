@@ -142,6 +142,8 @@ nonisolated enum CaptureError: LocalizedError, Equatable {
     case invalidLink(String)
     case emptyText
     case projectNotFound
+    case referenceNotFound
+    case nothingToSave
 
     var errorDescription: String? {
         switch self {
@@ -159,6 +161,10 @@ nonisolated enum CaptureError: LocalizedError, Equatable {
             String(localized: "The shared text was empty.")
         case .projectNotFound:
             String(localized: "The project these items were sent to no longer exists.")
+        case .referenceNotFound:
+            String(localized: "What was saved is no longer in BenchBook.")
+        case .nothingToSave:
+            String(localized: "There was nothing to save.")
         }
     }
 }

@@ -214,10 +214,15 @@ goes through one import path:
    reference with that hash, it's a duplicate: nothing is added and the user is
    told "“title” is already saved to this project." Otherwise copy the file into
    `Originals` under a new asset id, then save the asset and reference together.
-   If saving fails, delete the copied file.
-2. **Links**: http or https only, with a host. A YouTube or Vimeo address (see
-   [Video links](#video-links)) becomes a `videoLink`, anything else a
-   `webpage`. A video link with a timestamp also gets a moment at that time.
+   If saving fails, delete the copied file. When the capture says which page
+   the file came from, such as the page an image was on, it's saved as the
+   reference's source page, and the file's own address as its original address.
+2. **Links**: http or https only, with a host. If the project already has a
+   webpage or video link with exactly the same address, it's a duplicate, as
+   for files. A YouTube or Vimeo address (see [Video links](#video-links))
+   becomes a `videoLink`, anything else a `webpage`. A video link with a
+   timestamp also gets a moment at that time. Addresses that differ in any way,
+   such as a different timestamp, are different links.
 3. **Text**: trimmed, refused if empty, cut to 100,000 characters, saved as a
    `textSnippet` with its source page if known.
 
@@ -230,6 +235,38 @@ After a link is saved, its details are fetched in the background (see
 
 The same file in two projects is two references with two assets. Only copying
 a reference shares an asset.
+
+### Browser extension
+
+The Mac has a Safari extension, inside BenchBook.app. Its right-click menu has
+Save Page to BenchBook, Save Image to BenchBook and Save Selection to
+BenchBook. Each saves straight away, with no dialog, to the project last used
+in BenchBook or in the extension. Save Page on a PDF saves the PDF file. The
+toolbar button opens a panel to choose the project and add tags and a note.
+
+- **Downloads**: the extension downloads images and PDFs itself, with the
+  browser's cookies, so pages the user is signed in to work. Files can be up
+  to 200 MB. Text keeps its line breaks.
+- **Handing over**: like the Share extension, it never writes to the library.
+  It leaves an envelope in the inbox, marked as from Safari, and starts
+  BenchBook in the background.
+- **Result**: after importing an envelope from Safari, BenchBook writes its
+  result for the extension: saved (with the references added), already in
+  this project, or failed with the reason. The extension waits up to 5 seconds
+  for it. If none comes, it says "Sent to BenchBook", and BenchBook reports
+  any problem itself when it imports. Because Safari shows the outcome,
+  BenchBook doesn't also show an alert for duplicates from Safari; it still
+  does for failures.
+- **Change…**: after a save, the notice's Change… moves what was saved to
+  another project, adds tags to its own, and adds the note after any note it
+  has. After "already in this project", Change… saves it to another project.
+- **Checks**: BenchBook checks every message from the extension: web
+  addresses must be http or https, file names lose any folders and leading
+  dots, and text, notes and tags are cut to their limits. Anything else is
+  refused.
+
+Windows plans an Edge and Chrome extension in a later phase; it should behave
+the same way.
 
 ### Notes
 

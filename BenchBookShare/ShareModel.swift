@@ -86,7 +86,8 @@ final class ShareModel {
             projectID: projectID,
             tags: TagNames.parse(tagsText),
             note: note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : note,
-            items: envelopeItems
+            items: envelopeItems,
+            source: .shareMenu
         )
         do {
             try inbox.commit(envelope, stagingFolder: folder)

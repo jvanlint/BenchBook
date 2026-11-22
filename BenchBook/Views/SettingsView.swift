@@ -10,7 +10,7 @@ struct SettingsView: View {
             // asks for the height its content needs.
             Tab("General", systemImage: "gearshape") {
                 GeneralSettings()
-                    .frame(height: 560)
+                    .frame(height: 680)
             }
             Tab("Library", systemImage: "externaldrive") {
                 LibrarySettings()
@@ -33,6 +33,7 @@ private struct GeneralSettings: View {
     @AppStorage(AppSettings.suggestsImageDetailsKey) private var suggestsImageDetails = false
     @Environment(\.linkInfoService) private var linkInfoService
     @Environment(\.imageSuggestionService) private var imageSuggestions
+    @State private var safari = SafariExtension()
 
     var body: some View {
         Form {
@@ -73,8 +74,35 @@ private struct GeneralSettings: View {
                     }
                 }
             }
+
+            Section {
+                LabeledContent("Safari extension") {
+                    switch safari.state {
+                    case .on: Text("On")
+                    case .off: Text("Off")
+                    case .unknown: Text("Unknown")
+                    }
+                }
+                Button("Open Safari Extension Settings…") { safari.openSafariSettings() }
+            } header: {
+                Text("Safari")
+            } footer: {
+                Group {
+                    if let version = safari.outdatedSafariVersion {
+                        Text("This Mac has Safari \(version). The extension needs Safari \(SafariExtension.minimumSafariVersion) or later, which comes with macOS 15.4 and later.")
+                    } else {
+                        Text("Save pages, images, PDFs and highlighted text to a project from Safari's right-click menu or toolbar. Turn the extension on in Safari's settings, and allow it on the websites you save from.")
+                    }
+                }
+                .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
+        .task { await safari.refresh() }
+        // Catch the change after the user turns the extension on in Safari.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { await safari.refresh() }
+        }
         .onChange(of: fetchesLinkDetails) { _, isOn in
             // Catch up on links saved while it was off.
             if isOn { linkInfoService?.fetchMissing() }

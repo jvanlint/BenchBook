@@ -27,7 +27,8 @@ final class LibraryEnvironment {
         let sharesWithExtension = PersistenceController.usesDefaultLibrary
         let inbox = sharesWithExtension ? AppGroup.inboxURL.map(CaptureInboxStore.init) : nil
         projectDirectory = sharesWithExtension ? AppGroup.defaults.map(ProjectDirectory.init) : nil
-        capture = CaptureCoordinator(context: container.mainContext, library: assetLibrary, inbox: inbox)
+        let results = sharesWithExtension ? AppGroup.resultsURL.map(CaptureResultStore.init) : nil
+        capture = CaptureCoordinator(context: container.mainContext, library: assetLibrary, inbox: inbox, results: results)
         linkInfo = LinkInfoService(context: container.mainContext, library: assetLibrary)
         capture.linkInfo = linkInfo
         imageSuggestions = ImageSuggestionService(context: container.mainContext, library: assetLibrary)

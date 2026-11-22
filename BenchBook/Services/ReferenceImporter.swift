@@ -4,7 +4,7 @@ import SwiftData
 /// The result of importing one captured item.
 enum CaptureOutcome {
     case added(Reference)
-    /// The same file is already in this Project.
+    /// The same file, or the same link, is already in this Project.
     case duplicate(existing: Reference, item: CapturedItem)
     case failed(item: CapturedItem, error: Error)
 }
@@ -13,7 +13,7 @@ enum CaptureOutcome {
 /// extension. Each item is validated, its file copied into the library, and
 /// its Reference saved, before it counts as added.
 struct ReferenceImporter {
-    static let maxTextLength = 100_000
+    static let maxTextLength = ReferenceLimits.maxTextLength
 
     let context: ModelContext
     let library: AssetLibrary
@@ -22,12 +22,13 @@ struct ReferenceImporter {
         _ items: [CapturedItem],
         into project: Project,
         tags: [String] = [],
-        note: String? = nil
+        note: String? = nil,
+        pageURL: URL? = nil
     ) async -> [CaptureOutcome] {
         var outcomes: [CaptureOutcome] = []
         for item in items {
             do {
-                outcomes.append(try await importItem(item, into: project, tags: tags, note: note))
+                outcomes.append(try await importItem(item, into: project, tags: tags, note: note, pageURL: pageURL))
             } catch {
                 outcomes.append(.failed(item: item, error: error))
             }
@@ -35,15 +36,22 @@ struct ReferenceImporter {
         return outcomes
     }
 
-    private func importItem(_ item: CapturedItem, into project: Project, tags: [String], note: String?) async throws -> CaptureOutcome {
+    /// `pageURL` is the page a file came from, such as the page an image was on.
+    private func importItem(_ item: CapturedItem, into project: Project, tags: [String], note: String?,
+                            pageURL: URL?) async throws -> CaptureOutcome {
         switch item {
         case .file(let url, let originalFilename, let resourceURL):
-            return try await importFile(url, originalFilename: originalFilename, resourceURL: resourceURL,
+            return try await importFile(url, originalFilename: originalFilename, resourceURL: resourceURL, pageURL: pageURL,
                                         item: item, project: project, tags: tags, note: note)
 
         case .link(let url, let title):
             guard let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme), url.host() != nil else {
                 throw CaptureError.invalidLink(url.absoluteString)
+            }
+            if let existing = project.references.first(where: {
+                $0.asset == nil && $0.sourcePageURL == url && ($0.kind == .webpage || $0.kind == .videoLink)
+            }) {
+                return .duplicate(existing: existing, item: item)
             }
             let video = VideoLink.parse(url)
             let reference = Reference(
@@ -77,7 +85,7 @@ struct ReferenceImporter {
     }
 
     private func importFile(
-        _ url: URL, originalFilename: String?, resourceURL: URL?,
+        _ url: URL, originalFilename: String?, resourceURL: URL?, pageURL: URL?,
         item: CapturedItem, project: Project, tags: [String], note: String?
     ) async throws -> CaptureOutcome {
         let accessing = url.startAccessingSecurityScopedResource()
@@ -112,6 +120,7 @@ struct ReferenceImporter {
             project: project,
             kind: inspected.kind,
             note: note?.trimmedOrNil,
+            sourcePageURL: pageURL,
             originalResourceURL: resourceURL
         )
         context.insert(asset)

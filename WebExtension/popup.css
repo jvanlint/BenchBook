@@ -1,0 +1,25 @@
+:root {
+  color-scheme: light dark;
+  --bb-text: #1d1d1f; --bb-secondary: #6e6e73; --bb-border: rgba(0, 0, 0, 0.16);
+  --bb-field: #ffffff; --bb-accent: #0a84ff; --bb-focus: rgba(10, 132, 255, 0.35);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bb-text: #f5f5f7; --bb-secondary: #a1a1a6; --bb-border: rgba(255, 255, 255, 0.18);
+    --bb-field: rgba(255, 255, 255, 0.08); --bb-focus: rgba(10, 132, 255, 0.5);
+  }
+}
+body {
+  margin: 0; width: 340px; color: var(--bb-text); background: transparent;
+  font: 13px/1.35 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+main { padding: 14px; display: grid; gap: 12px; }
+h1 { margin: 0; font-size: 13px; font-weight: 600; }
+.preview { display: grid; gap: 2px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--bb-border); }
+.preview .title { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preview .where, .message, .status { color: var(--bb-secondary); }
+.message { margin: 0; }
+.footer { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.status { flex: 1; min-width: 0; }
+.status.failed { color: #d70015; }
+@media (prefers-color-scheme: dark) { .status.failed { color: #ff6961; } }
