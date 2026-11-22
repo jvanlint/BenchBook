@@ -35,7 +35,7 @@ Deferred: the Chromium extension (#8); and sync (#47).
 |---|---|
 | Deployment target | **macOS 15.0** |
 | Built with | Xcode 27, Swift 5 language mode, default MainActor isolation |
-| Dependencies | None |
+| Dependencies | [Sparkle](https://sparkle-project.org) 2 (Swift Package Manager), for updates |
 
 Why macOS 15: everything used now (SwiftData, `VersionedSchema`, `ContentUnavailableView`, `NavigationSplitView`, `@Entry`) also runs on macOS 14. macOS 15 adds SwiftData's `#Index` and `#Unique` macros, which may be useful for reference queries and identity rules, and includes SwiftData fixes released after its first version. Lowering the target to 14.0 later is possible, as long as those macros aren't adopted.
 
@@ -87,6 +87,7 @@ Every part is sandboxed and asks only for what it uses:
 | `application-groups` | ✓ | ✓ | ✓ | The extensions leave captures in the shared inbox and read the Project list; the app imports them and writes Safari's results. |
 | `network.client` | ✓ | | | Webpage previews and video details. The extensions never go online themselves: Safari downloads files through the browser. |
 | `files.user-selected.read-write` | ✓ | | | Files you open or drop, importing and exporting CSV, and backups. |
+| `temporary-exception.mach-lookup.global-name` | ✓ | | | Only `…BenchBook-spks` and `…BenchBook-spki`: Sparkle's installer helper, which replaces the app outside the sandbox. |
 
 Nothing else: no camera or microphone (the iPhone camera comes through Continuity Camera), no contacts, location, Apple Events or downloads folder.
 
@@ -101,10 +102,23 @@ Nothing else: no camera or microphone (the iPhone camera comes through Continuit
 
 BenchBook › Settings… (⌘,):
 
-- **General:** turn off automatic fetching of webpage previews and video details, the only network access BenchBook makes on its own. Refresh on a link still fetches when asked; turning it back on catches up on links saved meanwhile.
+- **General:** turn off automatic fetching of webpage previews and video details, the only network access BenchBook makes on its own apart from update checks. Refresh on a link still fetches when asked; turning it back on catches up on links saved meanwhile.
+- **Updates** (also on General): check for updates automatically, and Check Now.
 - **Image viewer and projects** (also on General): open images at Fit to Window or Actual Size; whether note boxes show when an image opens (⌘B still toggles them for that image); and the status new projects start with.
 - **Library:** where the library is stored (Show in Finder), how much space saved files, thumbnails and previews use, Clean Up Now (removes files nothing uses, as at launch) and Clear Thumbnails (they're made again when shown).
 - **Backup:** Back Up Library… and Restore from Backup… (see below).
+
+## Updates
+
+BenchBook › Check for Updates… uses [Sparkle](https://sparkle-project.org) (`App/AppUpdater.swift`). It reads the feed at `https://jvanlint.github.io/BenchBook-Site/appcast.xml`, kept in the website repository. On the second launch Sparkle asks whether to check automatically, once a day; Settings › General changes that later.
+
+- Every update shows Sparkle's window with the release notes first. Nothing downloads or installs on its own (`SUAllowsAutomaticUpdates` is off).
+- The zip and the feed are both signed with an EdDSA key, and Sparkle checks the zip before unpacking it (`SUVerifyUpdateBeforeExtraction`, `SURequireSignedFeed`). The public key is `SUPublicEDKey` in `BenchBook/Info.plist`; the private key is in the release Mac's login keychain only. Losing it means no copy can be updated again, so keep a backup (`generate_keys -x`).
+- A check sends only BenchBook's version, in the User-Agent. System profiling is off.
+- The app is sandboxed, so Sparkle installs through its Installer XPC service (`SUEnableInstallerLauncherService`). BenchBook already has `network.client`, so the Downloader service isn't used.
+- Unit tests don't start the updater. `UpdateSettingsTests` checks the Info.plist settings.
+
+Releasing: `release.sh --publish` signs the zip and adds it to `website/appcast.xml` without pushing it. `release.sh --go-live vX.Y.Z` publishes the draft release, checks the zip downloads, then pushes the appcast, which is when copies are offered the update.
 
 ## Backup and restore
 

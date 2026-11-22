@@ -709,8 +709,15 @@ Settings page.
 - Links: "Fetch webpage previews and video details automatically", explained as
   "After you save a webpage or a YouTube or Vimeo link, BenchBook reads the page
   for its preview image, title and description, or the video's poster, channel
-  and length. This is the only time BenchBook goes online on its own. When it's
-  off, use Refresh on a link to fetch its details."
+  and length. Apart from checking for updates, this is the only time BenchBook
+  goes online on its own. When it's off, use Refresh on a link to fetch its
+  details." (Windows: "This is the only time BenchBook goes online on its
+  own.")
+- Updates (Mac only), after Apple Intelligence: "Check for updates
+  automatically" and Check Now (dimmed while a check is under way), explained
+  as "BenchBook looks for a new version once a day and shows you what's new
+  before anything is installed. The check sends only BenchBook's version
+  number."
 - Image Viewer: Open images at Fit to Window or Actual Size; Show note boxes
   when an image opens.
 - Projects: Status for new projects (a menu, each status with its icon).

@@ -5,6 +5,8 @@ import SwiftUI
 struct BenchBookApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     private let library = Result { try LibraryEnvironment() }
+    /// Starts Sparkle at launch, so its scheduled checks run.
+    private let updater = AppUpdater.shared
 
     var body: some Scene {
         WindowGroup {
@@ -22,6 +24,7 @@ struct BenchBookApp: App {
             }
         }
         .commands {
+            CheckForUpdatesCommand(updater: updater)
             SidebarCommands()
             BenchBookCommands()
             // File › Import from iPhone or iPad (Continuity Camera).

@@ -34,6 +34,7 @@ private struct GeneralSettings: View {
     @Environment(\.linkInfoService) private var linkInfoService
     @Environment(\.imageSuggestionService) private var imageSuggestions
     @State private var safari = SafariExtension()
+    @Bindable private var updater = AppUpdater.shared
 
     var body: some View {
         Form {
@@ -42,7 +43,7 @@ private struct GeneralSettings: View {
             } header: {
                 Text("Links")
             } footer: {
-                Text("After you save a webpage or a YouTube or Vimeo link, BenchBook reads the page for its preview image, title and description, or the video's poster, channel and length. This is the only time BenchBook goes online on its own. When it's off, use Refresh on a link to fetch its details.")
+                Text("After you save a webpage or a YouTube or Vimeo link, BenchBook reads the page for its preview image, title and description, or the video's poster, channel and length. Apart from checking for updates, this is the only time BenchBook goes online on its own. When it's off, use Refresh on a link to fetch its details.")
                     .foregroundStyle(.secondary)
             }
 
@@ -57,6 +58,17 @@ private struct GeneralSettings: View {
                     Text(reason ?? "Describes each new image on this Mac and fills in a title or note you haven't written. Images never leave your Mac. Suggestions can be wrong, so check details such as the variant or serial. In an image's details, Suggest Title and Note works whether this is on or off.")
                         .foregroundStyle(.secondary)
                 }
+            }
+
+            Section {
+                Toggle("Check for updates automatically", isOn: $updater.automaticallyChecksForUpdates)
+                Button("Check Now") { updater.checkForUpdates() }
+                    .disabled(!updater.canCheckForUpdates)
+            } header: {
+                Text("Updates")
+            } footer: {
+                Text("BenchBook looks for a new version once a day and shows you what's new before anything is installed. The check sends only BenchBook's version number.")
+                    .foregroundStyle(.secondary)
             }
 
             Section("Image Viewer") {

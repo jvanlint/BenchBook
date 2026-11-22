@@ -889,6 +889,25 @@ reference images.
 | Show note boxes when an image opens | On |
 | Status for new projects | Researching |
 
+On the Mac, Settings also has "Check for updates automatically" (see
+[Updates](#updates)).
+
 Settings also shows the library's location and space used, and has Clean Up,
 Clear Thumbnails, Back Up, Restore, and a list of libraries kept from earlier
 restores.
+
+## Updates
+
+Mac only. BenchBook › Check for Updates… looks for a newer version. If there
+is one, a window shows its release notes with Install Update, Remind Me Later
+and Skip This Version. Nothing is downloaded or installed until the user
+chooses Install Update; BenchBook then relaunches as the new version.
+
+On the second launch BenchBook asks whether to check for updates
+automatically. If the user agrees, it checks once a day and shows the same
+window when an update is found. Settings › General can turn this on or off
+later, and has Check Now.
+
+An update is installed only if it's signed with BenchBook's update key and
+the list of versions is signed too. A check sends nothing but BenchBook's
+version number.
