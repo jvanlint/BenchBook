@@ -79,14 +79,16 @@ nonisolated struct CaptureEnvelope: Codable, Equatable, Sendable {
     var amends: [UUID]? = nil
 
     /// Converts envelope items back into captured items whose files live in `folder`.
-    /// Returns nil for any file name that would escape the folder.
+    /// Returns nil for any file name that would escape the folder, and for a
+    /// file that's a link to somewhere else.
     func capturedItems(in folder: URL) -> [CapturedItem?] {
         items.map { item in
             switch item {
             case .file(let name, let originalFilename, let resourceURL):
                 guard !name.isEmpty, !name.contains("/"), name != "..", name != "." else { return nil }
-                return .file(url: folder.appending(path: name, directoryHint: .notDirectory),
-                             originalFilename: originalFilename, resourceURL: resourceURL)
+                let url = folder.appending(path: name, directoryHint: .notDirectory)
+                guard !CaptureInboxStore.isLink(url) else { return nil }
+                return .file(url: url, originalFilename: originalFilename, resourceURL: resourceURL)
             case .link(let url, let title):
                 return .link(url: url, title: title)
             case .text(let text, let sourceURL, let title):
@@ -99,6 +101,15 @@ nonisolated struct CaptureEnvelope: Codable, Equatable, Sendable {
 /// Reads and writes envelopes in an inbox folder.
 nonisolated struct CaptureInboxStore: Sendable {
     let inboxURL: URL
+
+    /// Envelopes are a few kilobytes; anything bigger isn't one.
+    static let maxEnvelopeBytes = 1_000_000
+
+    /// True for a symbolic link. The extensions only ever write real files
+    /// and folders, so a link in the inbox wasn't put there by them.
+    static func isLink(_ url: URL) -> Bool {
+        (try? url.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true
+    }
 
     private var stagingURL: URL { inboxURL.appending(path: ".staging", directoryHint: .isDirectory) }
 
@@ -140,7 +151,7 @@ nonisolated struct CaptureInboxStore: Sendable {
             options: [.skipsHiddenFiles]
         )) ?? []
         return contents
-            .filter { (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
+            .filter { !Self.isLink($0) && (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true }
             .filter { UUID(uuidString: $0.lastPathComponent) != nil }
             .sorted {
                 let a = (try? $0.resourceValues(forKeys: [.creationDateKey]).creationDate) ?? .distantPast
@@ -152,8 +163,12 @@ nonisolated struct CaptureInboxStore: Sendable {
     func readEnvelope(in folder: URL) throws -> CaptureEnvelope {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        let data = try Data(contentsOf: folder.appending(path: CaptureEnvelope.fileName))
-        return try decoder.decode(CaptureEnvelope.self, from: data)
+        let url = folder.appending(path: CaptureEnvelope.fileName)
+        let values = try url.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileSizeKey])
+        guard values.isSymbolicLink != true, values.isRegularFile == true,
+              (values.fileSize ?? 0) <= Self.maxEnvelopeBytes
+        else { throw CocoaError(.fileReadCorruptFile) }
+        return try decoder.decode(CaptureEnvelope.self, from: Data(contentsOf: url))
     }
 
     /// Removes staging folders abandoned for more than a day.

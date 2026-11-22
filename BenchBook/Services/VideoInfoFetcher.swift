@@ -28,11 +28,11 @@ nonisolated enum LinkInfoError: Error, Equatable {
 /// publish date and description from the sites' public pages. No account
 /// or API key is needed. Never downloads the video itself.
 nonisolated struct VideoInfoFetcher: Sendable {
-    typealias Load = @Sendable (URLRequest) async throws -> (Data, URLResponse)
+    typealias Load = @Sendable (URLRequest, WebLoader.Rules) async throws -> (Data, URLResponse)
 
     static let maxDescriptionLength = 5_000
 
-    var load: Load = { request in try await URLSession.shared.data(for: request) }
+    var load: Load = { request, rules in try await WebLoader().load(request, rules: rules) }
 
     func info(for video: VideoLink.Parsed) async throws -> VideoInfo {
         switch video.provider {
@@ -111,7 +111,7 @@ nonisolated struct VideoInfoFetcher: Sendable {
         // Skips YouTube's cookie-consent page in some regions.
         request.setValue("CONSENT=YES+1", forHTTPHeaderField: "Cookie")
         do {
-            let (data, response) = try await load(request)
+            let (data, response) = try await load(request, .video)
             return (data, (response as? HTTPURLResponse)?.statusCode ?? 200)
         } catch {
             throw LinkInfoError.unavailable

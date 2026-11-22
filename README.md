@@ -77,6 +77,26 @@ Storage, inside `~/Library/Containers/com.jasonvanlint.BenchBook/Data/Library/Ap
 
 The App Group (`952LYY5FW2.com.jasonvanlint.BenchBook`) holds the capture inbox, results for the Safari extension, and the shared Project list and tag names.
 
+### Entitlements
+
+Every part is sandboxed and asks only for what it uses:
+
+| Entitlement | App | Share | Safari | Why |
+|---|---|---|---|---|
+| `app-sandbox` | ✓ | ✓ | ✓ | Required, and limits each part to its own container. |
+| `application-groups` | ✓ | ✓ | ✓ | The extensions leave captures in the shared inbox and read the Project list; the app imports them and writes Safari's results. |
+| `network.client` | ✓ | | | Webpage previews and video details. The extensions never go online themselves: Safari downloads files through the browser. |
+| `files.user-selected.read-write` | ✓ | | | Files you open or drop, importing and exporting CSV, and backups. |
+
+Nothing else: no camera or microphone (the iPhone camera comes through Continuity Camera), no contacts, location, Apple Events or downloads folder.
+
+### Safety rules
+
+- Link previews read at most 1 MB of a page, 10 MB of an image and 5 MB of a YouTube or Vimeo page, stopping as they go (`WebLoader`). Redirects, preview images, icons and video posters must be public web addresses, so a page can't point BenchBook at something on the local network. A name that resolves to a local address isn't caught; the sandbox still applies.
+- Incoming files are checked by content, not name, and capped at 200 MB (`FileInspector`). The capture inbox ignores links and names that climb out of their folder.
+- Restore extracts only plain files and folders and checks every file against the manifest, whose paths must stay inside the backup.
+- Logs never show file names or paths: error messages are logged as private.
+
 ## Settings
 
 BenchBook › Settings… (⌘,):

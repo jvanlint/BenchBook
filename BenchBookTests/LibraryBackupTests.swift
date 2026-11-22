@@ -144,6 +144,57 @@ struct LibraryBackupTests {
         }
     }
 
+    @Test func damagedBackupFilesAreRefused() async throws {
+        do {
+            let container = try openContainer()
+            _ = try await fillLibrary(container)
+            _ = try backUp()
+        }
+        // Cut short, as by an interrupted copy.
+        let whole = try Data(contentsOf: backupURL)
+        let truncated = folder.file("Truncated.benchbookbackup")
+        try whole.prefix(whole.count / 2).write(to: truncated)
+        #expect(throws: LibraryBackupError.self) {
+            try LibraryBackup.unpack(truncated, into: folder.url.appending(path: "Check1", directoryHint: .isDirectory))
+        }
+        // An empty file.
+        let empty = folder.file("Empty.benchbookbackup")
+        try Data().write(to: empty)
+        #expect(throws: LibraryBackupError.notABackup) {
+            try LibraryBackup.unpack(empty, into: folder.url.appending(path: "Check2", directoryHint: .isDirectory))
+        }
+    }
+
+    @Test func manifestPathsMustStayInsideTheBackup() async throws {
+        do {
+            let container = try openContainer()
+            _ = try await fillLibrary(container)
+            _ = try backUp()
+        }
+        // A manifest that also lists a real file outside the backup, with its
+        // correct size and checksum.
+        let outside = folder.file("outside.txt")
+        try Data("not in the backup".utf8).write(to: outside)
+        let crafted = folder.url.appending(path: "Crafted", directoryHint: .isDirectory)
+        _ = try LibraryBackup.unpack(backupURL, into: crafted)
+        let manifestURL = crafted.appending(path: LibraryBackup.manifestName)
+        var manifest = try #require(JSONSerialization.jsonObject(with: Data(contentsOf: manifestURL)) as? [String: Any])
+        var files = try #require(manifest["files"] as? [[String: Any]])
+        files.append(["path": "../outside.txt", "size": 17, "sha256": try FileInspector.sha256(of: outside)])
+        manifest["files"] = files
+        try JSONSerialization.data(withJSONObject: manifest).write(to: manifestURL)
+        let craftedBackup = folder.file("Crafted.benchbookbackup")
+        try LibraryBackup.writeArchive(of: crafted, to: craftedBackup)
+
+        #expect(throws: LibraryBackupError.notABackup) {
+            try LibraryBackup.unpack(craftedBackup, into: folder.url.appending(path: "Check", directoryHint: .isDirectory))
+        }
+        #expect(LibraryBackup.isSafeRelativePath("Library/Originals/a.png"))
+        for path in ["", "/etc/hosts", "../x", "Library/../../x", "Library//x", "./x", "Library/"] {
+            #expect(!LibraryBackup.isSafeRelativePath(path), "\(path)")
+        }
+    }
+
     @Test func linksInABackupAreRefused() throws {
         let linked = folder.url.appending(path: "Linked", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: linked, withIntermediateDirectories: true)

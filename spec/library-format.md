@@ -394,8 +394,9 @@ half-restored library or lose their current one.
      and folders. Reject absolute paths, `..` segments, drive letters, links
      and device names. Any rejection means "This isn't a BenchBook backup, or
      it's damaged."
-   - Every manifest file exists with the right size and SHA-256, and there are
-     no extra files.
+   - Every manifest path is relative, with no empty, `.` or `..` parts, so it
+     stays inside the staging folder. Every manifest file exists with the
+     right size and SHA-256, and there are no extra files.
    - `library.json` parses, every id it references exists, and its
      `schemaVersion` is one this app can read.
    - Build a new store from it in the staging folder.

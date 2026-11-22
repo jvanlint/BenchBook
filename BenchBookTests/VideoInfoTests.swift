@@ -78,11 +78,11 @@ nonisolated final class StubWeb: @unchecked Sendable {
     }
 
     var fetcher: VideoInfoFetcher {
-        VideoInfoFetcher { [self] request in try respond(to: request.url!) }
+        VideoInfoFetcher { [self] request, _ in try respond(to: request.url!) }
     }
 
     var pageFetcher: PageInfoFetcher {
-        PageInfoFetcher { [self] request in try respond(to: request.url!) }
+        PageInfoFetcher { [self] request, _ in try respond(to: request.url!) }
     }
 
     private func respond(to url: URL) throws -> (Data, URLResponse) {

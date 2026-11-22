@@ -270,7 +270,7 @@ private struct TagRow: View {
             if !photos.isEmpty { try service.add(tag, to: photos) }
             return !references.isEmpty || !photos.isEmpty
         } catch {
-            Logger.capture.error("Tagging dropped references failed: \(error.localizedDescription, privacy: .public)")
+            Logger.capture.error("Tagging dropped references failed: \(error.localizedDescription, privacy: .private)")
             return false
         }
     }

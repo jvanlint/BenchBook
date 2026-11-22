@@ -41,6 +41,63 @@ struct CaptureHandoffTests {
         #expect(FileManager.default.fileExists(atPath: url.path))
     }
 
+    @Test func craftedEnvelopesCantReachOutsideTheInbox() throws {
+        let folder = try TemporaryFolder()
+        let inbox = CaptureInboxStore(inboxURL: folder.url.appending(path: "Inbox", directoryHint: .isDirectory))
+        let outside = try Fixtures.writePNG(to: folder.file("private.png"))
+
+        // A file that's a link to one outside the inbox, and names that climb out.
+        let staging = try inbox.makeStagingFolder()
+        try FileManager.default.createSymbolicLink(at: staging.appending(path: "photo.png"), withDestinationURL: outside)
+        let envelope = CaptureEnvelope(
+            id: UUID(), createdAt: .now, projectID: UUID(), tags: [], note: nil,
+            items: [
+                .file(name: "photo.png", originalFilename: nil, resourceURL: nil),
+                .file(name: "a/b.png", originalFilename: nil, resourceURL: nil),
+                .file(name: ".", originalFilename: nil, resourceURL: nil),
+                .file(name: "", originalFilename: nil, resourceURL: nil),
+            ]
+        )
+        try inbox.commit(envelope, stagingFolder: staging)
+        let committed = try #require(inbox.pendingFolders().first)
+        #expect(try inbox.readEnvelope(in: committed).capturedItems(in: committed).allSatisfy { $0 == nil })
+    }
+
+    @Test func malformedEnvelopesAreNotRead() throws {
+        let folder = try TemporaryFolder()
+        let inboxURL = folder.url.appending(path: "Inbox", directoryHint: .isDirectory)
+        let inbox = CaptureInboxStore(inboxURL: inboxURL)
+        func envelopeFolder() throws -> URL {
+            let url = inboxURL.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+            return url
+        }
+
+        let garbled = try envelopeFolder()
+        try Data("{ not json".utf8).write(to: garbled.appending(path: CaptureEnvelope.fileName))
+        #expect(throws: (any Error).self) { try inbox.readEnvelope(in: garbled) }
+
+        let huge = try envelopeFolder()
+        try Data(repeating: 0x20, count: CaptureInboxStore.maxEnvelopeBytes + 1)
+            .write(to: huge.appending(path: CaptureEnvelope.fileName))
+        #expect(throws: (any Error).self) { try inbox.readEnvelope(in: huge) }
+
+        let linked = try envelopeFolder()
+        let elsewhere = folder.file("envelope.json")
+        try Data("{}".utf8).write(to: elsewhere)
+        try FileManager.default.createSymbolicLink(at: linked.appending(path: CaptureEnvelope.fileName),
+                                                   withDestinationURL: elsewhere)
+        #expect(throws: (any Error).self) { try inbox.readEnvelope(in: linked) }
+
+        // A link in place of an envelope folder isn't listed at all.
+        let target = folder.url.appending(path: "Elsewhere", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+        let linkedFolder = inboxURL.appending(path: UUID().uuidString)
+        try FileManager.default.createSymbolicLink(at: linkedFolder, withDestinationURL: target)
+        #expect(!inbox.pendingFolders().map(\.lastPathComponent).contains(linkedFolder.lastPathComponent))
+        #expect(inbox.pendingFolders().count == 3)
+    }
+
     /// The app side of sharing: an envelope left by the extension becomes References.
     @Test func coordinatorImportsInboxEnvelopes() async throws {
         let folder = try TemporaryFolder()

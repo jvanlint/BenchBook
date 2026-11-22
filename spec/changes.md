@@ -8,6 +8,7 @@ The spec sections are the reference. This list is only a checklist.
 
 | Change | Issue | Format change | Spec |
 |---|---|---|---|
+| Safety: link previews stop reading at size limits and fetch redirects, preview images, icons and posters only from public web addresses. The capture inbox ignores links. Restore checks that manifest paths stay inside the backup. | #15 | No | behaviour.md › Webpages, Browser extension; library-format.md › Restoring a backup |
 | A PDF markup's number badge is kept wholly on the page: one starting at the page edge is drawn moved inward instead of cut in half, in the viewer and in export. | #39 | No | behaviour.md › PDF markups |
 | A project holds each link once: saving a webpage or video link with exactly the same address as one already in the project reports it as already saved. A file saved with the page it came from (such as an image from Safari) keeps that page as its source. | #7 | No | behaviour.md › Capture |
 | A Safari extension saves pages, images, PDFs and highlighted text from the right-click menu or toolbar, shows the outcome in the page, and can move a save to another project. Windows plans an Edge and Chrome extension, which should work the same way. | #7 | No | behaviour.md › Browser extension; screens.md › Safari extension |

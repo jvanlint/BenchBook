@@ -250,6 +250,10 @@ toolbar button opens a panel to choose the project and add tags and a note.
 - **Handing over**: like the Share extension, it never writes to the library.
   It leaves an envelope in the inbox, marked as from Safari, and starts
   BenchBook in the background.
+- **Reading the inbox**: BenchBook skips an envelope folder that's a link,
+  refuses an envelope file that's a link or larger than 1 MB, and ignores a
+  named file that's a link or whose name has a `/` or is `.`, `..` or empty.
+  The extensions only ever write real files, so anything else wasn't theirs.
 - **Result**: after importing an envelope from Safari, BenchBook writes its
   result for the extension: saved (with the references added), already in
   this project, or failed with the reason. The extension waits up to 5 seconds
@@ -505,6 +509,18 @@ BenchBook never downloads videos.
 - If the response is an image, it's its own preview.
 - Read only the first 1 MB, and only the part before `</head>`. Never run the
   page's scripts.
+- **Limits**: stop reading a download at its limit rather than reading it all
+  first: the page 1 MB, a preview image or icon 10 MB, a YouTube or Vimeo page
+  or poster 5 MB. Requests time out after 20 seconds.
+- **Public addresses only** for anything a website chose: follow a redirect
+  only to an http(s) address on the public internet, and fetch preview images,
+  icons and video posters only from one. Otherwise there's no preview. Not
+  public: `localhost` and other names without a dot; names ending `.local`,
+  `.localhost`, `.internal`, `.lan`, `.localdomain` or `.home.arpa`; private,
+  loopback, link-local, carrier-grade NAT, multicast and reserved IP addresses
+  (IPv4 and IPv6, including IPv4 written as IPv6); and numeric hosts in other
+  forms (`127.1`, `2130706433`, `0x7f.0.0.1`). The link the user saved may
+  itself be on their own network.
 - **Title**: `og:title`, `twitter:title`, else `<title>`.
   **Site name**: `og:site_name`, `application-name`, `apple-mobile-web-app-title`.
   **Description**: `og:description`, `description`, `twitter:description`,

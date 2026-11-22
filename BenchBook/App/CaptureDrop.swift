@@ -53,7 +53,7 @@ nonisolated final class PromisedFile: @unchecked Sendable {
         try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         receiver.receivePromisedFiles(atDestination: folder, options: [:], operationQueue: OperationQueue()) { [self] url, error in
             if let error {
-                Logger.capture.error("Promised file failed: \(error.localizedDescription, privacy: .public)")
+                Logger.capture.error("Promised file failed: \(error.localizedDescription, privacy: .private)")
             }
             finish(error == nil ? url : nil)
         }

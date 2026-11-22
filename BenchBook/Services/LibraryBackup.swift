@@ -216,6 +216,8 @@ nonisolated enum LibraryBackup {
         guard format.format <= BackupManifest.currentFormat else { throw LibraryBackupError.newerFormat }
         guard let manifest = try? decoder.decode(BackupManifest.self, from: data) else { throw LibraryBackupError.notABackup }
         guard manifest.files.contains(where: { $0.path == storeName }) else { throw LibraryBackupError.notABackup }
+        // Every listed path must stay inside the backup.
+        guard manifest.files.allSatisfy({ isSafeRelativePath($0.path) }) else { throw LibraryBackupError.notABackup }
 
         let expected = Set(manifest.files.map(\.path))
         let found = try relativeFilePaths(in: staging).filter { $0 != manifestName }
@@ -228,6 +230,14 @@ nonisolated enum LibraryBackup {
             else { throw LibraryBackupError.damaged(file.path) }
         }
         return manifest
+    }
+
+    /// A path such as "Library/Originals/x.png": relative, with no empty,
+    /// "." or ".." parts.
+    static func isSafeRelativePath(_ path: String) -> Bool {
+        guard !path.isEmpty, !path.hasPrefix("/") else { return false }
+        return path.split(separator: "/", omittingEmptySubsequences: false)
+            .allSatisfy { !$0.isEmpty && $0 != "." && $0 != ".." }
     }
 
     /// Extracts only plain files and folders inside `folder`: no links, and

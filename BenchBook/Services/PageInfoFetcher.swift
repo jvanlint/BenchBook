@@ -24,7 +24,7 @@ nonisolated struct PagePreviewImage: Equatable, Sendable {
 /// same details Messages and Safari use for link previews. Reads only the
 /// page's HTML header; never runs the page's scripts.
 nonisolated struct PageInfoFetcher: Sendable {
-    typealias Load = @Sendable (URLRequest) async throws -> (Data, URLResponse)
+    typealias Load = @Sendable (URLRequest, WebLoader.Rules) async throws -> (Data, URLResponse)
 
     static let maxDescriptionLength = 2_000
     /// Preview images are stored no larger than this, on the longer side.
@@ -35,10 +35,10 @@ nonisolated struct PageInfoFetcher: Sendable {
     /// Smaller icons look blurry scaled up in a tile.
     static let minIconPixels = 64
 
-    var load: Load = { request in try await URLSession.shared.data(for: request) }
+    var load: Load = { request, rules in try await WebLoader().load(request, rules: rules) }
 
     func info(for url: URL) async throws -> PageInfo {
-        let (data, response) = try await get(url, accept: "text/html,application/xhtml+xml,*/*;q=0.8")
+        let (data, response) = try await get(url, accept: "text/html,application/xhtml+xml,*/*;q=0.8", rules: .page)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 200
         switch status {
         case 200..<300: break
@@ -51,7 +51,7 @@ nonisolated struct PageInfoFetcher: Sendable {
         if let mimeType = response.mimeType, let type = UTType(mimeType: mimeType), type.conforms(to: .image) {
             return PageInfo(title: nil, imageURLs: [finalURL])
         }
-        var info = Self.parse(String(decoding: data.prefix(1_000_000), as: UTF8.self), baseURL: finalURL)
+        var info = Self.parse(String(decoding: data, as: UTF8.self), baseURL: finalURL)
         if let origin = URL(string: "/", relativeTo: finalURL)?.absoluteURL {
             // Most sites have these even when the page doesn't list them.
             info.iconURLs += ["apple-touch-icon.png", "favicon.ico"].compactMap { URL(string: $0, relativeTo: origin)?.absoluteURL }
@@ -76,13 +76,13 @@ nonisolated struct PageInfoFetcher: Sendable {
     }
 
     private func image(at url: URL, minPixels: Int, maxPixels: Int) async -> Data? {
-        guard let (data, response) = try? await get(url, accept: "image/*"),
+        guard let (data, response) = try? await get(url, accept: "image/*", rules: .pageImage),
               (response as? HTTPURLResponse).map({ (200..<300).contains($0.statusCode) }) ?? true
         else { return nil }
         return Self.scaledImage(data, minPixels: minPixels, maxPixels: maxPixels)
     }
 
-    private func get(_ url: URL, accept: String) async throws -> (Data, URLResponse) {
+    private func get(_ url: URL, accept: String, rules: WebLoader.Rules) async throws -> (Data, URLResponse) {
         var request = URLRequest(url: url, timeoutInterval: 20)
         request.setValue(accept, forHTTPHeaderField: "Accept")
         request.setValue("en", forHTTPHeaderField: "Accept-Language")
@@ -90,7 +90,7 @@ nonisolated struct PageInfoFetcher: Sendable {
         // just get no preview.
         request.setValue("BenchBook (link preview)", forHTTPHeaderField: "User-Agent")
         do {
-            return try await load(request)
+            return try await load(request, rules)
         } catch {
             throw LinkInfoError.unavailable
         }

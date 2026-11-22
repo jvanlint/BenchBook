@@ -85,7 +85,7 @@ final class ImageSuggestionService {
                 try context.save()
             }
         } catch {
-            Logger.capture.info("No suggestion for an image: \(error.localizedDescription, privacy: .public)")
+            Logger.capture.info("No suggestion for an image: \(error.localizedDescription, privacy: .private)")
         }
     }
 }
