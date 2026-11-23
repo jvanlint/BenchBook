@@ -753,6 +753,69 @@ Set. The library is copied first.
 - The whole file saves at once: it all imports, or nothing does.
 - The summary gives the number added, the duplicates and the problems.
 
+### Scalemates import
+
+Import from Scalemates… reads a Scalemates paint stash export (Stash › Paints
+› export, named like `SCM-PaintStash-20261122.csv`) and marks those paints
+owned, adding any the catalogue doesn't have. It only adds: paints owned in
+BenchBook but missing from the file stay owned. Example:
+[fixtures/paints-scalemates.csv](fixtures/paints-scalemates.csv).
+
+- The header must have `Color`, `Company` and `Number` (any case), or: "This
+  isn't a Scalemates paint stash export." A header with no rows: "The file
+  has no paints to import."
+- **The header names ten columns, but each row has eleven values**: an
+  unnamed column (`S` so far) sits between Remaining and Link. Named columns
+  are read by their header position, and Link is the row's last value.
+- Preview is `R;G;B` in 0–255, written as `#RRGGBB`. `;;` or empty is no
+  colour. Anything else is reported ("Line 7: “10;20;300” isn't a colour
+  like 168;181;155, so no swatch was set.") and the paint is still added.
+- A row without Company or Number is reported ("Line 7: a paint needs a
+  company and a number, so it was skipped.") and skipped.
+- Condition, Remaining and the unnamed column are ignored.
+
+**Company.** Scalemates puts brand and range together. BenchBook splits the
+names it knows; any other company becomes the brand, with no range, and the
+summary lists it. Matching ignores case and spacing.
+
+| Company | Brand | Range | Type for "Acrylic" |
+|---|---|---|---|
+| Vallejo Model Air | Vallejo | Model Air | Water-based acrylic |
+| Vallejo Model Color | Vallejo | Model Color | Water-based acrylic |
+| Vallejo Metal Color | Vallejo | Metallic | Water-based acrylic |
+| Vallejo Model Wash | Vallejo | Model Wash | Acrylic wash |
+| Vallejo Game Air | Vallejo | Game Air | Water-based acrylic |
+| Vallejo Mecha Colors | Vallejo | Mecha Color | Water-based acrylic |
+| Vallejo Surface Primer | Vallejo | Surface Primer | Polyurethane-based paint |
+| AK Real Colors | AK Interactive | Real Color | Not set |
+| AK Interactive Air Series | AK Interactive | AIR | Water-based acrylic |
+| AK Interactive | AK Interactive | | Not set |
+| Mr. Aqueous Hobby Color | Mr. Hobby | Aqueous Hobby Color | Alcohol-compatible acrylic |
+| Ammo by Mig Jimenez | Ammo by Mig | | Water-based acrylic |
+
+**Type.** `Acrylic` is the table's type for the company (not set for one the
+table doesn't know). `Acrylic Lacquer` and `Lacquer` are Lacquer, `Enamel` is
+Enamel, `Pigments` is Pigment and `Oil` is Oil Paint. Anything else is read
+as a [paint type](#paint-types) name, or not set.
+
+**Matching the catalogue.** By brand and code, ignoring range, since
+Scalemates' ranges don't line up with the catalogue's. The code is folded as
+in the identity key, so `AK 480` matches `AK480`. Mixes are never matched.
+
+- **One paint matches:** it's marked owned. Nothing else about it changes:
+  not its name, range, swatch, type or notes. Already owned: counted, no
+  change.
+- **Several match** (the same brand and code in different ranges): the one
+  whose range is the table's range. If none or more than one is, it's
+  reported ("Line 7: AK Interactive AK 480 matches …, so none of them was
+  marked owned.") and they're all left alone.
+- **None matches:** a new paint, marked owned, with the brand, range, code,
+  name (Color), swatch and type above. Its notes are Finish, Size and Link,
+  joined with " · ": `Matt · 17ml · https://www.scalemates.com/colors/…`.
+- Later rows for a paint already in the file (another bottle) are counted
+  and skipped.
+- The whole file saves at once: it all imports, or nothing does.
+
 ### Export
 
 - Columns: `Brand,Range,Code,Name,Standard,Standard Code,Match,Type,Colour`,

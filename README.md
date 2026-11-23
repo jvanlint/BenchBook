@@ -200,7 +200,9 @@ Library › Paints is one catalogue shared by every project. Each paint has a br
 
 ## Importing and exporting paints
 
-Paints → Import CSV… reads a CSV file whose first row names the columns. Brand and Code are required; Range, Name, Standard and Standard Code, Match, Type, Colour (`#RRGGBB`), Owned (`yes`, `x`, `1`…) and Notes are optional. A standard can also be one column of text such as `FS 36270` (`FS/RLM`, or `Standard` without a `Standard Code` column), or separate `FS`, `RLM`, `BS`, `RAL` or `ANA` columns; a bare number there gets its prefix (`36270` in an `FS` column becomes `FS 36270`). Paints already in the catalogue are skipped.
+Paints → Import ▸ Import CSV… reads a CSV file whose first row names the columns. Brand and Code are required; Range, Name, Standard and Standard Code, Match, Type, Colour (`#RRGGBB`), Owned (`yes`, `x`, `1`…) and Notes are optional. A standard can also be one column of text such as `FS 36270` (`FS/RLM`, or `Standard` without a `Standard Code` column), or separate `FS`, `RLM`, `BS`, `RAL` or `ANA` columns; a bare number there gets its prefix (`36270` in an `FS` column becomes `FS 36270`). Paints already in the catalogue are skipped.
+
+Paints → Import ▸ Import from Scalemates… reads a Scalemates paint stash export and marks those paints as owned. A paint already in the catalogue (same brand and code, whatever its range) is only marked owned; any other is added, owned, with its brand and range split from Scalemates' company name ("Vallejo Model Air" → Vallejo, Model Air), its colour, type, and finish, size and Scalemates link in the notes. Owned paints that aren't in the file stay owned.
 
 ```csv
 Brand,Range,Code,Name,Standard,Standard Code,Match,Type,Colour,Owned

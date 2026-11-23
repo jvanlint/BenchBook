@@ -8,6 +8,7 @@ The spec sections are the reference. This list is only a checklist.
 
 | Change | Issue | Format change | Spec |
 |---|---|---|---|
+| Import from Scalemates… on the Paints screen reads a Scalemates paint stash export: paints already in the catalogue (by brand and code) are marked owned, others are added owned, with brand and range from a built-in company table. The Paints toolbar's Import CSV… becomes an Import menu. | #48 | No | behaviour.md › Scalemates import; screens.md › Paints catalogue; fixtures/paints-scalemates.csv |
 | The Kits catalogue gains a Link column that opens the kit's link, as in a project's Kits tab. | – | No | screens.md › Kits catalogue |
 | Four more paint types: Acrylic Wash, Enamel Wash, Pigment and Marker, before Other in the menus. Older versions show them as Not Set and keep them. | – | No | behaviour.md › Paint types |
 | Safety: link previews stop reading at size limits and fetch redirects, preview images, icons and posters only from public web addresses. The capture inbox ignores links. Restore checks that manifest paths stay inside the backup. | #15 | No | behaviour.md › Webpages, Browser extension; library-format.md › Restoring a backup |

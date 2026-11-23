@@ -387,8 +387,9 @@ menu order with Not Set last. A mix's Name has "Mix" after it, with its recipe
 as help, and its Owned box can't be ticked. Above it: Brand ▸, Range ▸ and Type ▸ menus
 ("Tamiya (286)", "Lacquer (40)", "Not Set (900)"; the label reads "Type Not
 Set" when that's chosen), Owned Only,
-and the count ("286 of 1,267 paints · 40 owned"). Toolbar: Import CSV…,
-Export CSV…, Add Mix (a flask; "Add a custom mix, with a recipe of paints from
+and the count ("286 of 1,267 paints · 40 owned"). Toolbar: Import ▸ (Import
+CSV…, Import from Scalemates…; "Import paints from a CSV file, or mark the
+paints in a Scalemates stash export as owned"), Export CSV…, Add Mix (a flask; "Add a custom mix, with a recipe of paints from
 the catalogue"), Add Paint.
 
 - Double-click to edit. Right-click: Edit Paint… (Edit Mix… for a mix), Mark
@@ -398,14 +399,21 @@ the catalogue"), Add Paint.
   project or a mix's recipe can't be deleted until they're removed from it."
 - Import shows "Imported 120 Paints", with "6 were already in your catalogue
   and were skipped." and up to ten problems ("…and 4 more problems.").
+- Import from Scalemates shows "Imported Your Scalemates Stash": "3 paints
+  marked owned.", "65 new paints added, marked owned.", then only when there
+  are any "2 paints already owned.", "3 rows repeated a paint earlier in the
+  file.", "BenchBook doesn't know how to split Example Paint Co into brand and
+  range, so the whole name is the brand." and up to ten problems.
 - Export asks first: "1,267 paints will be saved, with brand, range, code,
   name, standard, match, type and colour, in a CSV file another BenchBook can
   import. Mixes aren't included. Leave
   ownership and notes out when sharing.", with "Include whether you own each
   paint" and "Include notes", both off.
 
-Empty: "No Paints. Add the paints you use, or import a CSV file with Brand,
-Range, Code, Name, Standard, Type, Colour and Owned columns." With filters
+Empty: "No Paints. Add the paints you use, import a CSV file with Brand,
+Range, Code, Name, Standard, Type, Colour and Owned columns, or import your
+paint stash from Scalemates.", with Add Paint, Import CSV… and Import from
+Scalemates…. With filters
 that hide everything: "No Matching Paints. No paints match the chosen brand,
 range, type and ownership.", with Show All Paints.
 

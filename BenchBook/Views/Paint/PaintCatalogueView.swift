@@ -19,6 +19,8 @@ struct PaintCatalogueView: View {
     @State private var filter = PaintFilter()
     @State private var editorRequest: PaintEditorRequest?
     @State private var isImporting = false
+    /// Whether the file being chosen is a Scalemates stash export.
+    @State private var isImportingScalemates = false
     @State private var isChoosingExport = false
     @State private var exportDocument: TextFileDocument?
     /// Set by the export sheet; the Save dialog opens once the sheet closes.
@@ -81,8 +83,13 @@ struct PaintCatalogueView: View {
                     }
                     .help("Show only paints you own")
 
-                    Button("Import CSV…", systemImage: "square.and.arrow.down") { isImporting = true }
-                        .help("Import paints from a CSV file")
+                    Menu {
+                        Button("Import CSV…") { chooseImport(scalemates: false) }
+                        Button("Import from Scalemates…") { chooseImport(scalemates: true) }
+                    } label: {
+                        Label("Import", systemImage: "square.and.arrow.down")
+                    }
+                    .help("Import paints from a CSV file, or mark the paints in a Scalemates stash export as owned")
 
                     Button("Export CSV…", systemImage: "square.and.arrow.up") { isChoosingExport = true }
                         .disabled(paints.isEmpty)
@@ -123,7 +130,9 @@ struct PaintCatalogueView: View {
                 }
             }
             .fileImporter(isPresented: $isImporting, allowedContentTypes: [.commaSeparatedText, .plainText]) { result in
-                if case .success(let url) = result { importCSV(from: url) }
+                if case .success(let url) = result {
+                    if isImportingScalemates { importScalemates(from: url) } else { importCSV(from: url) }
+                }
             }
             .confirmationDialog(
                 pendingDeletion.count == 1
@@ -154,11 +163,12 @@ struct PaintCatalogueView: View {
             ContentUnavailableView {
                 Label("No Paints", systemImage: "paintpalette")
             } description: {
-                Text("Add the paints you use, or import a CSV file with Brand, Range, Code, Name, Standard, Type, Colour and Owned columns.")
+                Text("Add the paints you use, import a CSV file with Brand, Range, Code, Name, Standard, Type, Colour and Owned columns, or import your paint stash from Scalemates.")
             } actions: {
                 Button("Add Paint") { editorRequest = .new }
                     .buttonStyle(.borderedProminent)
-                Button("Import CSV…") { isImporting = true }
+                Button("Import CSV…") { chooseImport(scalemates: false) }
+                Button("Import from Scalemates…") { chooseImport(scalemates: true) }
             }
         } else if visiblePaints.isEmpty, filter == PaintFilter(ownedOnly: true) {
             ContentUnavailableView {
@@ -358,14 +368,55 @@ struct PaintCatalogueView: View {
         }
     }
 
-    private func importCSV(from url: URL) {
+    private func chooseImport(scalemates: Bool) {
+        isImportingScalemates = scalemates
+        isImporting = true
+    }
+
+    private func readText(at url: URL) throws -> String {
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+        let data = try Data(contentsOf: url)
+        guard let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .macOSRoman) else {
+            throw PaintCSVImporter.ImportError.empty
+        }
+        return text
+    }
+
+    private func importScalemates(from url: URL) {
         do {
-            let data = try Data(contentsOf: url)
-            guard let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .macOSRoman) else {
-                throw PaintCSVImporter.ImportError.empty
-            }
+            let summary = try ScalematesPaintImporter(context: modelContext).importCSV(try readText(at: url))
+            alert = (String(localized: "Imported Your Scalemates Stash"), Self.message(for: summary))
+        } catch {
+            alert = (String(localized: "Couldn't Import Paints"), error.localizedDescription)
+        }
+    }
+
+    static func message(for summary: ScalematesPaintImporter.Summary) -> String {
+        var lines = [
+            String(localized: "^[\(summary.markedOwned) paint](inflect: true) marked owned."),
+            String(localized: "^[\(summary.added) new paint](inflect: true) added, marked owned."),
+        ]
+        if summary.alreadyOwned > 0 {
+            lines.append(String(localized: "^[\(summary.alreadyOwned) paint](inflect: true) already owned."))
+        }
+        if summary.sameRows > 0 {
+            lines.append(String(localized: "^[\(summary.sameRows) row](inflect: true) repeated a paint earlier in the file."))
+        }
+        if !summary.unknownCompanies.isEmpty {
+            let names = summary.unknownCompanies.formatted(.list(type: .and))
+            lines.append(String(localized: "BenchBook doesn't know how to split \(names) into brand and range, so the whole name is the brand."))
+        }
+        lines += summary.problems.prefix(10)
+        if summary.problems.count > 10 {
+            lines.append(String(localized: "…and \(summary.problems.count - 10) more problems."))
+        }
+        return lines.joined(separator: "\n")
+    }
+
+    private func importCSV(from url: URL) {
+        do {
+            let text = try readText(at: url)
             let summary = try PaintCSVImporter(context: modelContext).importCSV(text)
             var lines: [String] = []
             if summary.duplicates > 0 {
