@@ -29,6 +29,8 @@ struct ContentView: View {
     @State private var deletionError: String?
     @State private var transferNotice: ReferenceTransferNotice?
     @State private var transferError: String?
+    @State private var projectToExport: Project?
+    @State private var isImportingProject = false
 
     private var searchQuery: SearchQuery {
         SearchQuery(text: searchText, tags: Set(searchTokens.map(\.normalizedName)))
@@ -47,7 +49,8 @@ struct ContentView: View {
                 selection: $selection,
                 onAdd: { editorRequest = .new },
                 onEdit: { editorRequest = .edit($0) },
-                onDelete: { projectPendingDeletion = $0 }
+                onDelete: { projectPendingDeletion = $0 },
+                onExport: { projectToExport = $0 }
             )
             .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 360)
         } detail: {
@@ -151,6 +154,15 @@ struct ContentView: View {
         } message: { outcome in
             Text(Self.restoreMessage(outcome))
         }
+        .modifier(ProjectTransferModifier(
+            exportRequest: $projectToExport,
+            isImporting: $isImportingProject,
+            willReplace: { project in
+                if selectedProjectID == project.id { selection = nil }
+                closeWindows(of: project)
+            },
+            didImport: { id in selection = .project(id) }
+        ))
         .focusedSceneValue(\.projectActions, editorRequest == nil ? projectActions : nil)
         .onAppear(perform: restoreSelection)
         // Choosing something in the sidebar leaves search.
@@ -307,7 +319,9 @@ struct ContentView: View {
             newProject: { editorRequest = .new },
             editProject: selectedProject.map { project in { editorRequest = .edit(project) } },
             addFiles: selectedProject.map { _ in { isAddingFiles = true } },
-            deleteProject: selectedProject.map { project in { projectPendingDeletion = project } }
+            deleteProject: selectedProject.map { project in { projectPendingDeletion = project } },
+            exportProject: selectedProject.map { project in { projectToExport = project } },
+            importProject: { isImportingProject = true }
         )
     }
 
@@ -353,6 +367,15 @@ struct ContentView: View {
     private func delete(_ project: Project) {
         // Leave the project and close its image and PDF windows before its records go.
         if selectedProjectID == project.id { selection = nil }
+        closeWindows(of: project)
+        do {
+            try ProjectService(context: modelContext).delete(project, library: assetLibrary)
+        } catch {
+            deletionError = error.localizedDescription
+        }
+    }
+
+    private func closeWindows(of project: Project) {
         ImageViewerRequests.shared.willDelete(project.references.map(\.id) + project.buildPhotos.map(\.id))
         for photo in project.buildPhotos {
             dismissWindow(id: ImageViewerWindow.id, value: photo.id)
@@ -363,11 +386,6 @@ struct ContentView: View {
             case .pdf: dismissWindow(id: PDFViewerWindow.id, value: reference.id)
             default: break
             }
-        }
-        do {
-            try ProjectService(context: modelContext).delete(project, library: assetLibrary)
-        } catch {
-            deletionError = error.localizedDescription
         }
     }
 

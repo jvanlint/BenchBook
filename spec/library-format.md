@@ -136,7 +136,7 @@ breaking an older one.
 | Type | Written as |
 |---|---|
 | id | UUID string, uppercase, with hyphens: `"0F8C4E2A-6B1D-4C55-9E3A-2D7B1F9A4C10"`. Compare without regard to case. |
-| date | ISO 8601 in UTC with milliseconds: `"2026-11-13T09:41:07.250Z"` |
+| date | ISO 8601 in UTC with milliseconds: `"2026-11-13T09:41:07.250Z"`. Round to the nearest millisecond when writing. Readers also accept dates without milliseconds. |
 | url | Absolute URL string |
 | text | JSON string. Optional fields are left out or `null` when empty, never `""`, unless the table says empty is allowed. |
 | number | JSON number. Coordinates and seconds are doubles; counts are integers. |
@@ -411,6 +411,143 @@ half-restored library or lose their current one.
 4. **Tell the user** once the app opens: restored, or why not, with a way to
    show the earlier library in Explorer or Finder.
 
+## Project file
+
+One project, moved between libraries: from one Mac to another, from a Mac to
+Windows, or back. Unlike a restore, importing one **adds to** the library and
+never replaces it. Both apps must write files the other can import.
+
+The extension is `.benchbookproject` (type `com.jasonvanlint.benchbook.project`,
+conforming to `public.data` and `public.archive`, not `public.zip-archive`, so
+Finder and Explorer don't offer to unzip it). It's a **standard ZIP**, the same
+container as a format 2 backup:
+
+```text
+manifest.json
+library.json
+Library/Originals/<asset id>.<ext>
+Library/Posters/<reference id>.jpg
+```
+
+### The ZIP container
+
+- **Writers store entries without compression** (method 0). The files are
+  photos, PDFs and HEIC, which are compressed already, and stored entries make
+  writing simple and fast. On Windows, `ZipArchive` with
+  `CompressionLevel.NoCompression` writes them.
+- **Readers accept stored and Deflate** (method 8) entries, in case a file was
+  zipped again with another tool. Any other method, encryption, or a
+  multi-part archive is refused.
+- Entry names are UTF-8 (flag bit 11 set) with `/` separators. ZIP64 is used
+  when an entry, an offset or the central directory passes 4 GB, or there are
+  over 65,535 entries.
+- Entries are plain files, mode `0644` when the writer records Unix modes. No
+  folders are needed; a reader ignores folder entries.
+- The Mac writes its own ZIPs (`ZipArchive.swift`, on Foundation and the
+  Compression framework). `ditto` isn't used. Each entry's CRC-32 is checked
+  when it's read.
+
+### manifest.json
+
+As for a backup, with `kind` and `includesPersonalDetails`:
+
+```json
+{
+  "format": 2,
+  "kind": "project",
+  "createdAt": "2026-11-23T09:41:07.250Z",
+  "appVersion": "1.3.0",
+  "platform": "mac",
+  "schemaVersion": "6.0.0",
+  "includesPersonalDetails": false,
+  "counts": { "projects": 1, "references": 212, "buildPhotos": 14, "paints": 30,
+              "aftermarketItems": 4, "kits": 1 },
+  "files": [
+    { "path": "library.json", "size": 48211, "sha256": "9f2c…" },
+    { "path": "Library/Originals/0F8C4E2A-….jpg", "size": 2381904, "sha256": "41ab…" }
+  ]
+}
+```
+
+- `kind` is `"project"`. A file without it, or with another kind, isn't a
+  project file ("This isn't a BenchBook project file, or it's damaged.").
+- `format` higher than 2: "This project was exported by a newer version of
+  BenchBook. Update BenchBook, then import it."
+- `counts` are for the import summary only.
+
+### library.json
+
+The [same tables and fields](#libraryjson) as a backup, holding one project
+and what it uses:
+
+| Table | What's included |
+|---|---|
+| projects | The one project. `projectPhotoId` only if that photo is in the file. |
+| references, videoMoments, markups | All of the project's, with markups on its build photos too. |
+| referenceTags, buildPhotoTags, tags | The project's tag links, and the tags they use. |
+| buildPhotos | All of the project's. |
+| projectPaints | All of the project's, with or without a paint. |
+| paints | The paints chosen in its paint list, and for a chosen mix the paints in its recipe. |
+| paintMixParts | The recipes of those mixes. |
+| ownedPaints | Only with personal details: whether the user owns those paints. |
+| aftermarketItems | All of the project's. |
+| kits | The kits in the project. `pricePaid` and `salePrice` only with personal details; without them `forSale` is `false`. |
+| assets | Every asset those records use: reference files, build photos, aftermarket pictures, kit box art. |
+
+Records are written oldest first (`createdAt`, then `id`), so the same project
+always gives the same file. **Dates are rounded to the millisecond** when
+written, so reading and writing a date again gives the same text.
+
+**Personal details** (kit prices, for sale, paint ownership) are left out
+unless the user asks. Everything else is always included.
+
+### Importing
+
+1. **Check**, without touching the library, as for a restore: extract to a
+   staging folder, accepting only safe names (no absolute paths, `..`,
+   backslashes, drive letters or links); every manifest file exists with the
+   right size and SHA-256; there are no files the manifest doesn't list; and
+   `library.json` holds exactly one project, with every id a record points at
+   in the file. Each asset's path is `Originals/<name>`. Otherwise: "This isn't
+   a BenchBook project file, or it's damaged." A wrong checksum names the
+   file: "This project file is damaged: “…” doesn't match what was exported.
+   Nothing was imported."
+2. **Same project?** If the library has a project with the file's project id
+   (it was exported from this library, or went to another and back), ask:
+   **Replace** it with the file's version, or **Keep Both**. Otherwise import
+   straight away.
+3. **Merge**, all in one save, so it all imports or nothing does:
+   - **Ids** are kept, so a project that goes Mac → Windows → Mac is still the
+     same project. An id already used by another record in the library gets a
+     new one. With **Keep Both**, every record of the project gets a new id and
+     the project's name gets " Copy" after it ("F-16C Viper Copy").
+   - **Replace** deletes the library's project first (as Delete Project does:
+     its kits leave it, its files go if nothing else uses them, its posters
+     go), then adds the file's.
+   - **Files** (assets): an asset whose id and SHA-256 are already in the
+     library is shared, not copied again. Otherwise the file is copied into
+     `Originals` under its asset id (a new id if that one's taken).
+   - **Tags** match by normalized name. A tag already in the library is used as
+     it is, keeping its colour; a new one keeps the file's colour.
+   - **Paints** match by identity key, recomputed from brand, range and code
+     (brand and name for a mix). A paint already in the catalogue is used as
+     it is and never changed. A new paint is added with the file's details,
+     owned only if `ownedPaints` lists it; a new mix gets its recipe.
+   - **Kits** are physical boxes, so they're never copied. A kit whose id is
+     in the library joins the imported project if it's in no project (or in
+     the project being replaced); if another project is building it, it stays
+     there and the summary says so. Other kits are added.
+   - The project and its records keep the dates in the file. Importing doesn't
+     count as editing the project, so "last updated" isn't changed.
+4. **Posters** are copied after the save, named by the imported reference's
+   id. They're previews, so a missing one isn't an error.
+5. **Summary**: the project's counts, paints added and already there, new
+   tags, kits added and already there, and kits that stayed in another
+   project.
+
+The suggested file name is the project's name with `/ \ : * ? " < > |` and
+line breaks replaced by `-`, e.g. `F-16C Viper.benchbookproject`.
+
 ## Compatibility
 
 - **Unknown fields**: ignore them when reading. An app that doesn't know a
@@ -438,9 +575,10 @@ For both apps to share backups, the Mac app needs to:
 1. Write format 2 when backing up, with `platform: "mac"`.
 2. Read format 2 when restoring, building a SwiftData store from
    `library.json`, and keep reading format 1.
-3. Write ZIP files without a new dependency, using either `/usr/bin/ditto`
-   or a small ZIP writer built on the Compression framework's Deflate.
-   This decision is still to be made.
+3. Write ZIP files without a new dependency. **Decided (#12):** a small
+   built-in writer that stores entries, and a reader for stored and Deflate
+   entries (`ZipArchive.swift`), as [Project file](#project-file) describes.
+   Project export and import already use them, with the format 2 records.
 
 These belong in their own issue, and they should ship before the Windows app,
 so Mac users can move their libraries across on day one.

@@ -361,6 +361,24 @@ apart from its references.
 assets, files in `Originals` or `Thumbnails` with no asset, leftover partial
 files, and posters with no reference.
 
+## Exporting and importing a project
+
+Moves one project, with everything it holds, to another library: another Mac,
+a Windows PC, or the same library later. The file format and the merge rules
+are in [Project file](library-format.md#project-file); in short:
+
+- **Export Project…** saves one project as a `.benchbookproject` file. Kit
+  prices and paint ownership are left out unless the user ticks "Include kit
+  prices and paint ownership".
+- **Import Project…** adds the file's project to the library. Paints already
+  in the catalogue and tags already in the library are used, not duplicated or
+  changed. A kit another project is building stays there.
+- If the library already has that project (same id), the user chooses
+  **Replace** or **Keep Both**. Keep Both adds a copy named "… Copy", sharing
+  the same files.
+- A file that's damaged, not a project file, or from a newer format changes
+  nothing.
+
 ## Sorting
 
 Text sorts use "natural" order, which ignores case and compares runs of digits

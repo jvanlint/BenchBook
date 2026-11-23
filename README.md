@@ -128,6 +128,12 @@ Releasing: `release.sh --publish` signs the zip and adds it to `website/appcast.
 
 The library you had is moved to a folder beside it, named like `BenchBook Before Restore 2026-11-10 15.30.12`, and listed in Settings › Backup to show in Finder or move to the Trash. If any step of the swap fails, every move is undone and the current library is left as it was.
 
+## Exporting and importing a project
+
+**Project › Export Project…** (or right-click a project) saves one project as a `.benchbookproject` file: its references, notes, tags, build photos, paint list, aftermarket parts, kits and every file they use. Kit prices and paint ownership are left out unless you tick "Include kit prices and paint ownership", so a file is safe to share. The file is a standard ZIP (stored, not compressed) holding `manifest.json`, `library.json` and the files, the same layout the Windows app reads and writes; see [spec/library-format.md](spec/library-format.md#project-file).
+
+**File › Import Project…** adds the project to your library without replacing anything: paints already in your catalogue and tags you already have are used as they are, and a kit another project is building stays there. If the project is already in your library, you choose **Replace** (back to the file's version) or **Keep Both** (a copy named "… Copy"). The file is checked first, and it all imports in one go or not at all.
+
 ## Using the Share menu
 
 1. Run BenchBook once from Xcode so macOS registers the extension.

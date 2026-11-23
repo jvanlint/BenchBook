@@ -175,7 +175,7 @@ struct PaintCSVImporter {
                 continue
             }
             let existing = try service.existingPaint(identityKey: key)
-            let before = existing.map(PaintDraft.init(paint:))
+            let before = existing.map { PaintDraft(paint: $0) }
             // Blank cells keep what's there: the paint's values, or a new
             // paint's empty ones.
             var draft = before ?? identity

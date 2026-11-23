@@ -27,6 +27,7 @@ struct ProjectSidebar: View {
     let onAdd: () -> Void
     let onEdit: (Project) -> Void
     let onDelete: (Project) -> Void
+    var onExport: (Project) -> Void = { _ in }
 
     @Query private var tags: [Tag]
     @Query private var paintSelections: [ProjectPaint]
@@ -70,6 +71,8 @@ struct ProjectSidebar: View {
                         .contextMenu {
                             Button("Edit Project…") { onEdit(project) }
                             statusMenu(for: project)
+                            Divider()
+                            Button("Export Project…") { onExport(project) }
                             Divider()
                             Button("Delete Project…", role: .destructive) { onDelete(project) }
                         }

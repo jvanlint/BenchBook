@@ -9,6 +9,9 @@ struct ProjectActions {
     var addFiles: (() -> Void)?
     /// Asks before deleting the selected Project. Nil when none is selected.
     var deleteProject: (() -> Void)?
+    /// Nil when no Project is selected.
+    var exportProject: (() -> Void)?
+    var importProject: () -> Void
 }
 
 /// Puts the cursor in the focused window's search field.
@@ -62,6 +65,12 @@ struct BenchBookCommands: Commands {
             }
             .keyboardShortcut("n", modifiers: [.command, .shift])
             .disabled(noteAction == nil)
+
+            Divider()
+            Button("Import Project…") {
+                projectActions?.importProject()
+            }
+            .disabled(projectActions == nil)
         }
 
         CommandGroup(after: .pasteboard) {
@@ -85,6 +94,12 @@ struct BenchBookCommands: Commands {
             }
             .keyboardShortcut("t", modifiers: [.command, .control])
             .disabled(tagAction == nil)
+
+            Divider()
+            Button("Export Project…") {
+                projectActions?.exportProject?()
+            }
+            .disabled(projectActions?.exportProject == nil)
 
             Divider()
             Button("Delete Project…") {

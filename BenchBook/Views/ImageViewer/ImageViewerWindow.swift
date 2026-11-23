@@ -41,6 +41,12 @@ final class ImageViewerRequests {
     func willDelete(_ ids: some Sequence<UUID>) {
         deletedReferences.formUnion(ids)
     }
+
+    /// Call when records with these ids exist again, e.g. a project replaced
+    /// by importing it keeps its ids.
+    func didAdd(_ ids: some Sequence<UUID>) {
+        deletedReferences.subtract(ids)
+    }
 }
 
 extension ImageLoader {

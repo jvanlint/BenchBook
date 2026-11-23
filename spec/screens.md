@@ -36,7 +36,8 @@ Counts: use the singular for one ("1 reference", "1 note", "1 part").
   "Show More (6)" or "Show Less".
 - A + button above the list adds a project.
 
-Right-click a project: Edit Project…, Delete Project…. Right-click a tag:
+Right-click a project: Edit Project…, Status ▸, Export Project…, Delete
+Project…. Right-click a tag:
 Show Tagged Items, Rename…, Colour, Manage Tags…, Delete Tag….
 
 **Dragging onto the sidebar**:
@@ -708,6 +709,41 @@ Its own window. Subtitle: "F-16CJ · Page 3 of 12 · 2 of 7 found".
 
 *The screenshot shows empty "Describe this highlight" placeholders. A retake
 with text in them would be better.*
+
+## Export and import a project
+
+`Views/ProjectTransferViews.swift`
+
+**Export Project…** (Project menu, and right-click a project in the sidebar)
+opens a sheet titled "Export “F-16C Viper”": a tick box "Include kit prices and
+paint ownership", off each time, with "The project is saved with its
+references, notes, tags, build photos, paint list, aftermarket parts, kits and
+files, in one file BenchBook on a Mac or a Windows PC can import. Leave prices
+and ownership out when sharing it with someone else." Cancel and Export….
+Export… asks where to save (suggesting "F-16C Viper.benchbookproject"),
+shows a spinner while it writes, then "Project Exported": "“F-16C Viper” is
+saved in “F-16C Viper.benchbookproject”. BenchBook on a Mac or a Windows PC
+can import it with File › Import Project….", with Show in Finder and OK.
+
+**Import Project…** (File menu) asks for a `.benchbookproject` file and shows
+a spinner while it checks it. If the library already has that project: "“F-16C
+Viper” Is Already in Your Library. Replace it with the version in the file, or
+keep both? Replacing loses any changes made to it since the file was
+exported.", with Replace, Keep Both and Cancel. Then the imported project is
+selected, and "Project Imported" says what came in: "“F-16C Viper” has 212
+references, 14 build photos and 4 aftermarket parts.", "Paints: 3 added to
+your catalogue, 27 already there.", "2 new tags.", "Kits: 1 added to your
+catalogue, 0 already there." and "Tamiya F-16C stayed in the project already
+building them.", each only when it applies.
+
+Errors: "Couldn't Export Project" or "Couldn't Import Project", with the
+reason, such as "“wheel-well.jpg” is missing from your library, so the
+project couldn't be exported." or the messages in
+[Project file](library-format.md#project-file).
+
+On Windows the commands go in the project's right-click menu and the command
+bar (there's no menu bar), and the dialogs are `ContentDialog`s with the same
+text, "Show in Explorer" in place of Show in Finder.
 
 ## Settings
 

@@ -10,7 +10,7 @@ commit.
 
 | File | What it covers |
 |---|---|
-| [library-format.md](library-format.md) | The portable library and backup format both apps read and write. This is the contract between them. |
+| [library-format.md](library-format.md) | The portable library, backup and project file formats both apps read and write. This is the contract between them. |
 | [behaviour.md](behaviour.md) | The rules every BenchBook follows: names and duplicates, file checks, deleting, search, link details, paint CSV, markup geometry. |
 | [windows-app.md](windows-app.md) | How the Windows app is built: technology, screens, what maps to what, phases, and decisions still to make. |
 | [screens.md](screens.md) | Every screen: what it shows, what it does and what it says, with screenshots in [screens/](screens/). |

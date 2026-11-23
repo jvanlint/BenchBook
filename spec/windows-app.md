@@ -228,8 +228,9 @@ phase 5.
    be found.
 2. **Markdown rendering**: the Windows Community Toolkit's Markdown control,
    or WebView2 with a small renderer.
-3. **Mac ZIP writing**: `ditto`, or a small writer on the Compression framework
-   (see [Mac app changes](library-format.md#mac-app-changes)).
+3. ~~**Mac ZIP writing**~~ Decided (#12): a small built-in writer on the Mac
+   that stores entries without compression; both apps read stored and Deflate
+   entries. See [Project file](library-format.md#project-file).
 4. **Store or direct download**, or both.
 5. **Repository**: a separate `BenchBook-Windows` repo that links back to this
    spec, or a `windows/` folder here. A folder here keeps the spec and both apps
