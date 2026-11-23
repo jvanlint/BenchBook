@@ -15,6 +15,7 @@ struct KitCatalogueView: View {
     @Query(sort: [SortDescriptor(\Project.name, comparator: .localizedStandard)]) private var projects: [Project]
     @Environment(\.modelContext) private var modelContext
     @Environment(\.assetLibrary) private var assetLibrary
+    @Environment(\.openURL) private var openURL
 
     @State private var selection = Set<UUID>()
     @State private var sortOrder = [
@@ -254,7 +255,7 @@ struct KitCatalogueView: View {
         .customizationID("project")
     }
 
-    /// Price paid and sale details.
+    /// Price paid, sale details and the link.
     @TableColumnBuilder<Kit, KeyPathComparator<Kit>>
     private var priceColumns: some TableColumnContent<Kit, KeyPathComparator<Kit>> {
         TableColumn("Price Paid", value: \.pricePaidSortKey) { kit in
@@ -282,6 +283,22 @@ struct KitCatalogueView: View {
         .width(min: 60, ideal: 80)
         .alignment(.trailing)
         .customizationID("salePrice")
+        // Opens the kit's page, e.g. on Scalemates, as in the project's Kits tab.
+        TableColumn("Link") { kit in
+            if let url = kit.link {
+                Button {
+                    openURL(url)
+                } label: {
+                    Image(systemName: "arrow.up.right.square")
+                }
+                .buttonStyle(.borderless)
+                .help("Open \(url.host() ?? url.absoluteString)")
+                .accessibilityLabel("Open Link: \(kit.displayName)")
+            }
+        }
+        .width(36)
+        .alignment(.center)
+        .customizationID("link")
     }
 
     @ViewBuilder

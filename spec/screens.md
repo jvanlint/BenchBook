@@ -290,8 +290,10 @@ every match is already in this project."
 One row per physical kit: Picture (box art, or a box icon), Brand, Name,
 Scale, Number, Status, Rating (stars), Project (the project using it, with
 "Needed for Cobra" as its tooltip when it's needed), Price Paid, For Sale (a
-tick box) and Sale Price. Kits that aren't owned show "Not Owned" in Status. Prices are in
-the device's currency format. Every column sorts; right-click a heading to
+tick box), Sale Price and Link (a button that opens the kit's link in the
+browser, as in the project's Kits tab, with the site as its tooltip: "Open
+www.scalemates.com"). Kits that aren't owned show "Not Owned" in Status. Prices are in
+the device's currency format. Every column except Link sorts; right-click a heading to
 hide columns, except Brand and Name. The title bar counts entries: "116 kits ·
 4 not owned", or "12 of 116 kits · 4 not owned" while filtered.
 
