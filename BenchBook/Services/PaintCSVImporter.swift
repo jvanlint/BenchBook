@@ -63,14 +63,27 @@ nonisolated enum CSVParser {
 /// Standard and Standard Code columns, or one column of text such as
 /// "FS 36270" ("FS/RLM", or "Standard" with no Standard Code column), or
 /// separate FS, RLM, BS, RAL or ANA columns. Brand and Code are required.
+///
+/// A row matching a paint already in the catalogue (same identity key)
+/// updates it. Only cells with something in them change the paint: a blank
+/// cell, or a column the file doesn't have, leaves that value as it was, so
+/// a sparse file can't wipe notes or colours. Brand, range and code identify
+/// the paint, so they're never changed; mixes are never matched.
 struct PaintCSVImporter {
     struct Summary: Equatable {
         var added = 0
-        /// Rows matching a paint already in the catalogue (or earlier in the file).
-        var duplicates = 0
+        /// Catalogue paints the file changed.
+        var updated = 0
+        /// Catalogue paints the file matched without changing anything.
+        var unchanged = 0
+        /// Later rows for a paint already earlier in the file, skipped.
+        var repeated = 0
         /// "Line 7: a paint needs a brand and a code." etc.
         var problems: [String] = []
     }
+
+    static let ownedYes: Set<String> = ["yes", "y", "true", "1", "x", "✓", "✔"]
+    static let ownedNo: Set<String> = ["no", "n", "false", "0"]
 
     enum ImportError: LocalizedError, Equatable {
         case empty
@@ -148,12 +161,26 @@ struct PaintCSVImporter {
                 guard let index = columns[column], row.fields.indices.contains(index) else { return "" }
                 return row.fields[index].trimmingCharacters(in: .whitespacesAndNewlines)
             }
-            var draft = PaintDraft()
-            draft.brand = value(.brand)
-            draft.range = value(.range)
-            draft.code = value(.code)
-            draft.name = value(.name)
-            draft.notes = value(.notes)
+            var identity = PaintDraft()
+            identity.brand = value(.brand)
+            identity.range = value(.range)
+            identity.code = value(.code)
+            if identity.missingRequiredField {
+                summary.problems.append(String(localized: "Line \(row.line): a paint needs a brand and a code."))
+                continue
+            }
+            let key = identity.identityKey
+            guard seenKeys.insert(key).inserted else {
+                summary.repeated += 1
+                continue
+            }
+            let existing = try service.existingPaint(identityKey: key)
+            let before = existing.map(PaintDraft.init(paint:))
+            // Blank cells keep what's there: the paint's values, or a new
+            // paint's empty ones.
+            var draft = before ?? identity
+            if let name = value(.name).trimmedOrNil { draft.name = name }
+            if let notes = value(.notes).trimmedOrNil { draft.notes = notes }
             let systemText = systemIndex.flatMap { row.fields.indices.contains($0) ? row.fields[$0].trimmedOrNil : nil }
             let standardText = standardColumns.compactMap { column -> String? in
                 guard row.fields.indices.contains(column.index),
@@ -164,9 +191,11 @@ struct PaintCSVImporter {
             }.joined(separator: " / ")
             let standard = systemText.map { Self.standard(system: $0, code: value(.standardCode)) }
                 ?? PaintStandardParser.parse(standardText)
-            draft.standardSystem = standard?.system
-            draft.standardCode = standard?.code ?? ""
-            if let text = value(.match).trimmedOrNil, standard != nil {
+            if let standard {
+                draft.standardSystem = standard.system
+                draft.standardCode = standard.code
+            }
+            if let text = value(.match).trimmedOrNil, draft.standardSystem != nil {
                 if let match = PaintMatch(text: text) {
                     draft.match = match
                 } else {
@@ -180,7 +209,15 @@ struct PaintCSVImporter {
                     summary.problems.append(String(localized: "Line \(row.line): “\(text)” isn't a paint type BenchBook knows, so no type was set."))
                 }
             }
-            draft.isOwned = ["yes", "y", "true", "1", "x", "✓", "✔"].contains(value(.owned).lowercased())
+            if let owned = value(.owned).trimmedOrNil?.lowercased() {
+                if Self.ownedYes.contains(owned) {
+                    draft.isOwned = true
+                } else if Self.ownedNo.contains(owned) {
+                    draft.isOwned = false
+                } else {
+                    summary.problems.append(String(localized: "Line \(row.line): “\(value(.owned))” isn't yes or no, so ownership wasn't changed."))
+                }
+            }
 
             let swatch = value(.swatch)
             if !swatch.isEmpty {
@@ -191,17 +228,16 @@ struct PaintCSVImporter {
                 }
             }
 
-            if draft.missingRequiredField {
-                summary.problems.append(String(localized: "Line \(row.line): a paint needs a brand and a code."))
+            if let existing {
+                if draft == before {
+                    summary.unchanged += 1
+                } else {
+                    service.apply(draft, to: existing)
+                    existing.updatedAt = .now
+                    summary.updated += 1
+                }
                 continue
             }
-            let key = draft.identityKey
-            let alreadyInCatalogue = try service.existingPaint(identityKey: key) != nil
-            if seenKeys.contains(key) || alreadyInCatalogue {
-                summary.duplicates += 1
-                continue
-            }
-            seenKeys.insert(key)
             let paint = Paint(brand: "", code: "", identityKey: key)
             context.insert(paint)
             service.apply(draft, to: paint)

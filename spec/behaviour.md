@@ -744,14 +744,27 @@ Set. The library is copied first.
   the shown names, CSV names or raw values, ignoring case. Anything else is
   reported ("Line 7: “Gouache” isn't a paint type BenchBook knows, so no type
   was set.") and the paint is still added.
-- Owned is true for `yes`, `y`, `true`, `1`, `x`, `✓` or `✔`, in any case.
+- Owned is yes for `yes`, `y`, `true`, `1`, `x`, `✓` or `✔`, and no for
+  `no`, `n`, `false` or `0`, in any case. Anything else is reported ("Line 7:
+  “maybe” isn't yes or no, so ownership wasn't changed.").
 - A bad swatch is reported ("Line 7: “bluish” isn't a colour like #4A5A6B, so
   no swatch was set.") and the paint is still added.
 - A row without brand or code is reported and skipped.
-- A row whose identity key is already in the catalogue, or earlier in the file,
-  counts as a duplicate and is skipped.
+- **A row whose identity key is already in the catalogue updates that
+  paint.** Only cells with something in them change it: a blank cell, or a
+  column the file doesn't have, leaves that value as it was, so a sparse file
+  can't wipe notes or colours, and a blank Owned keeps ownership as it is
+  (it takes an explicit no to un-own a paint). Brand, range and code identify
+  the paint, so they keep the catalogue's spelling; changing one in the file
+  adds a new paint instead. A row that changes nothing counts as already up to
+  date. Mixes are never matched. Values can't be cleared by import.
+- A blank cell in a new paint's row leaves it empty: no swatch, not owned and
+  so on.
+- A later row for a paint already earlier in the file is counted as repeated
+  and skipped.
 - The whole file saves at once: it all imports, or nothing does.
-- The summary gives the number added, the duplicates and the problems.
+- The summary gives the numbers added, updated, already up to date and
+  repeated, and the problems.
 
 ### Scalemates import
 

@@ -397,8 +397,10 @@ the catalogue"), Add Paint.
   Delete Paint… (or "Delete 3 Paints…").
 - Deleting a paint used in a project or a recipe is refused: "Paints used in a
   project or a mix's recipe can't be deleted until they're removed from it."
-- Import shows "Imported 120 Paints", with "6 were already in your catalogue
-  and were skipped." and up to ten problems ("…and 4 more problems.").
+- Import CSV shows "Imported Paints": "120 new paints added.", "6 paints in
+  your catalogue updated.", then only when there are any "3 paints already up
+  to date.", "1 row repeated a paint earlier in the file and skipped." and up
+  to ten problems ("…and 4 more problems.").
 - Import from Scalemates shows "Imported Your Scalemates Stash": "3 paints
   marked owned.", "65 new paints added, marked owned.", then only when there
   are any "2 paints already owned.", "3 rows repeated a paint earlier in the

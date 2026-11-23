@@ -392,6 +392,24 @@ struct PaintCatalogueView: View {
         }
     }
 
+    static func message(for summary: PaintCSVImporter.Summary) -> String {
+        var lines = [
+            String(localized: "^[\(summary.added) new paint](inflect: true) added."),
+            String(localized: "^[\(summary.updated) paint](inflect: true) in your catalogue updated."),
+        ]
+        if summary.unchanged > 0 {
+            lines.append(String(localized: "^[\(summary.unchanged) paint](inflect: true) already up to date."))
+        }
+        if summary.repeated > 0 {
+            lines.append(String(localized: "^[\(summary.repeated) row](inflect: true) repeated a paint earlier in the file and skipped."))
+        }
+        lines += summary.problems.prefix(10)
+        if summary.problems.count > 10 {
+            lines.append(String(localized: "…and \(summary.problems.count - 10) more problems."))
+        }
+        return lines.joined(separator: "\n")
+    }
+
     static func message(for summary: ScalematesPaintImporter.Summary) -> String {
         var lines = [
             String(localized: "^[\(summary.markedOwned) paint](inflect: true) marked owned."),
@@ -418,15 +436,7 @@ struct PaintCatalogueView: View {
         do {
             let text = try readText(at: url)
             let summary = try PaintCSVImporter(context: modelContext).importCSV(text)
-            var lines: [String] = []
-            if summary.duplicates > 0 {
-                lines.append(String(localized: "\(summary.duplicates) were already in your catalogue and were skipped."))
-            }
-            lines += summary.problems.prefix(10)
-            if summary.problems.count > 10 {
-                lines.append(String(localized: "…and \(summary.problems.count - 10) more problems."))
-            }
-            alert = (String(localized: "Imported \(summary.added) Paints"), lines.joined(separator: "\n"))
+            alert = (String(localized: "Imported Paints"), Self.message(for: summary))
         } catch {
             alert = (String(localized: "Couldn't Import Paints"), error.localizedDescription)
         }

@@ -167,7 +167,8 @@ struct PaintCSVImporterTests {
         let summary = try PaintCSVImporter(context: context).importCSV(csv)
 
         #expect(summary.added == 3)
-        #expect(summary.duplicates == 2)
+        #expect(summary.updated == 1)
+        #expect(summary.repeated == 1)
         #expect(summary.problems.count == 2)
         #expect(summary.problems.contains { $0.hasPrefix("Line 6:") })
         #expect(summary.problems.contains { $0.hasPrefix("Line 7:") })
@@ -180,6 +181,80 @@ struct PaintCSVImporterTests {
         #expect(c307.notes == "Thin 1:1")
         let white = try #require(paints.first { $0.code == "AK11001" })
         #expect(white.swatchHex == nil && white.isOwned)
+    }
+
+    /// The issue's test: the same file with only Owned changed updates
+    /// ownership and adds nothing.
+    @Test func reimportingUpdatesOwnershipOnly() throws {
+        let container = try Fixtures.makeInMemoryContainer()
+        let context = container.mainContext
+        let first = """
+        Brand,Range,Code,Name,Colour,Owned,Notes
+        Tamiya,Acrylic XF,XF-1,Flat Black,#202020,,Thin 1:1
+        Tamiya,Acrylic XF,XF-2,Flat White,#F0F0F0,yes,
+        """
+        _ = try PaintCSVImporter(context: context).importCSV(first)
+        let second = first.replacingOccurrences(of: "#202020,,", with: "#202020,yes,")
+            .replacingOccurrences(of: "#F0F0F0,yes,", with: "#F0F0F0,no,")
+        let summary = try PaintCSVImporter(context: context).importCSV(second)
+        #expect(summary == PaintCSVImporter.Summary(added: 0, updated: 2))
+
+        let paints = try context.fetch(FetchDescriptor<Paint>())
+        #expect(paints.count == 2)
+        #expect(paints.first { $0.code == "XF-1" }?.isOwned == true)
+        #expect(paints.first { $0.code == "XF-2" }?.isOwned == false)
+        #expect(paints.first { $0.code == "XF-1" }?.notes == "Thin 1:1")
+
+        let again = try PaintCSVImporter(context: context).importCSV(second)
+        #expect(again == PaintCSVImporter.Summary(unchanged: 2))
+    }
+
+    @Test func blankCellsLeaveValuesUnchanged() throws {
+        let container = try Fixtures.makeInMemoryContainer()
+        let context = container.mainContext
+        var draft = PaintDraft()
+        draft.brand = "Mr. Color"
+        draft.range = "Lacquer"
+        draft.code = "C307"
+        draft.name = "Gray"
+        draft.notes = "Thin 1:1"
+        draft.swatchHex = "#6E7377"
+        draft.standardSystem = .fs595
+        draft.standardCode = "36320"
+        draft.match = .exact
+        draft.type = .lacquer
+        draft.isOwned = true
+        let paint = try PaintService(context: context).createPaint(from: draft)
+
+        // Blank cells, and columns the file doesn't have, change nothing.
+        let sparse = """
+        Brand,Range,Code,Name,Colour,Owned,Notes,Standard,Standard Code,Match,Type
+        mr. color,LACQUER,c 307,,,,,,,,
+        """
+        #expect(try PaintCSVImporter(context: context).importCSV(sparse) == .init(unchanged: 1))
+        #expect(try PaintCSVImporter(context: context).importCSV("Brand,Range,Code\nMr. Color,Lacquer,C307") == .init(unchanged: 1))
+        #expect(PaintDraft(paint: paint) == draft)
+
+        // Filled cells change their values; brand, range and code keep the
+        // catalogue's spelling.
+        let filled = """
+        Brand,Range,Code,Name,Colour,Notes,Standard,Standard Code,Match,Type
+        mr. color,LACQUER,c 307,Gray FS36320,#707070,Thin 2:1,RAL,7001,Closest match,Enamel
+        """
+        #expect(try PaintCSVImporter(context: context).importCSV(filled) == .init(updated: 1))
+        #expect(paint.brand == "Mr. Color" && paint.range == "Lacquer" && paint.code == "C307")
+        #expect(paint.name == "Gray FS36320" && paint.notes == "Thin 2:1" && paint.swatchHex == "#707070")
+        #expect(paint.standard == PaintStandard(system: .ral, code: "7001"))
+        #expect(paint.match == .closest && paint.type == .enamel && paint.isOwned)
+    }
+
+    @Test func unclearOwnedIsReportedAndLeftAlone() throws {
+        let container = try Fixtures.makeInMemoryContainer()
+        let context = container.mainContext
+        let summary = try PaintCSVImporter(context: context).importCSV("Brand,Code,Owned\nTamiya,XF-1,maybe")
+        #expect(summary.added == 1)
+        #expect(summary.problems == ["Line 2: “maybe” isn't yes or no, so ownership wasn't changed."])
+        #expect(try context.fetch(FetchDescriptor<Paint>()).first?.isOwned == false)
     }
 
     @Test func importsColourStandards() throws {
