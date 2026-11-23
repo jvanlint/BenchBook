@@ -244,6 +244,10 @@ nonisolated enum PaintType: String, CaseIterable, Identifiable, Sendable {
     case enamel
     case oil
     case polyurethane
+    case acrylicWash
+    case enamelWash
+    case pigment
+    case marker
     case other
 
     var id: String { rawValue }
@@ -256,6 +260,10 @@ nonisolated enum PaintType: String, CaseIterable, Identifiable, Sendable {
         case .enamel: String(localized: "Enamel")
         case .oil: String(localized: "Oil Paint")
         case .polyurethane: String(localized: "Polyurethane-Based Paint")
+        case .acrylicWash: String(localized: "Acrylic Wash")
+        case .enamelWash: String(localized: "Enamel Wash")
+        case .pigment: String(localized: "Pigment")
+        case .marker: String(localized: "Marker")
         case .other: String(localized: "Other")
         }
     }
@@ -275,8 +283,16 @@ nonisolated enum PaintType: String, CaseIterable, Identifiable, Sendable {
             String(localized: "Very slow drying, excellent blending, mostly for weathering. E.g. Abteilung 502, Winsor & Newton.")
         case .polyurethane:
             String(localized: "Durable primers and coatings; depends on the formulation. E.g. Vallejo Surface Primer.")
+        case .acrylicWash:
+            String(localized: "Thin, water-based, for panel lines and shading; water cleanup. E.g. Vallejo Model Wash, Citadel Shade, AK Acrylic Wash.")
+        case .enamelWash:
+            String(localized: "Thin, solvent-based, for panel lines and filters; the excess is wiped off with enamel thinner. E.g. Ammo MIG Panel Line Wash, AK Interactive washes, Tamiya Panel Line Accent Color.")
+        case .pigment:
+            String(localized: "Dry powders for dust, mud and rust, set with a fixer or thinner. E.g. MIG Productions, AK Interactive Pigments, Vallejo Pigments.")
+        case .marker:
+            String(localized: "Paint or ink in a pen, for small details and touch-ups. E.g. Gundam Marker, Molotow Liquid Chrome, Tamiya Paint Marker.")
         case .other:
-            String(localized: "Anything else, such as metallic powders and inks.")
+            String(localized: "Anything else, such as inks and metal waxes.")
         }
     }
 
@@ -289,6 +305,10 @@ nonisolated enum PaintType: String, CaseIterable, Identifiable, Sendable {
         case .enamel: "Enamel"
         case .oil: "Oil paint"
         case .polyurethane: "Polyurethane-based paint"
+        case .acrylicWash: "Acrylic wash"
+        case .enamelWash: "Enamel wash"
+        case .pigment: "Pigment"
+        case .marker: "Marker"
         case .other: "Other"
         }
     }

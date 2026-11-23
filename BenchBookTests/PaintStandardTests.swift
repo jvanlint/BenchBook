@@ -70,6 +70,10 @@ struct PaintStandardParserTests {
         #expect(PaintType(text: "lacquer") == .lacquer)
         #expect(PaintType(text: "Alcohol-compatible acrylic") == .alcoholAcrylic)
         #expect(PaintType(text: "waterAcrylic") == .waterAcrylic)
+        #expect(PaintType(text: "Enamel wash") == .enamelWash)
+        #expect(PaintType(text: "pigment") == .pigment)
+        #expect(PaintType(text: "Acrylic Wash") == .acrylicWash)
+        #expect(PaintType(text: "marker") == .marker)
         #expect(PaintType(text: "Gouache") == nil)
     }
 }

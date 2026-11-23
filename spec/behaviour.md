@@ -157,7 +157,11 @@ BenchBook never guesses it from the brand or range. In menu order:
 | `enamel` | Enamel | Enamel | Solvent-based, slower drying. Humbrol Enamel, Tamiya Enamel, Revell Email Color. |
 | `oil` | Oil Paint | Oil paint | Very slow drying, for weathering. Abteilung 502, Winsor & Newton. |
 | `polyurethane` | Polyurethane-Based Paint | Polyurethane-based paint | Primers and coatings. Vallejo Surface Primer. |
-| `other` | Other | Other | Metallic powders, inks and so on. |
+| `acrylicWash` | Acrylic Wash | Acrylic wash | Thin, water-based, for panel lines and shading. Vallejo Model Wash, Citadel Shade, AK Acrylic Wash. |
+| `enamelWash` | Enamel Wash | Enamel wash | Thin, solvent-based, wiped back with enamel thinner. Ammo MIG Panel Line Wash, AK Interactive washes, Tamiya Panel Line Accent Color. |
+| `pigment` | Pigment | Pigment | Dry powders for dust, mud and rust. MIG Productions, AK Interactive Pigments, Vallejo Pigments. |
+| `marker` | Marker | Marker | Paint or ink in a pen, for details and touch-ups. Gundam Marker, Molotow Liquid Chrome, Tamiya Paint Marker. |
+| `other` | Other | Other | Inks, metal waxes and so on. |
 
 Empty is Not Set. An unknown type shows as Not Set and is kept. The hint is
 the menu item's help text.

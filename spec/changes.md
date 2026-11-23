@@ -8,6 +8,7 @@ The spec sections are the reference. This list is only a checklist.
 
 | Change | Issue | Format change | Spec |
 |---|---|---|---|
+| Four more paint types: Acrylic Wash, Enamel Wash, Pigment and Marker, before Other in the menus. Older versions show them as Not Set and keep them. | – | No | behaviour.md › Paint types |
 | Safety: link previews stop reading at size limits and fetch redirects, preview images, icons and posters only from public web addresses. The capture inbox ignores links. Restore checks that manifest paths stay inside the backup. | #15 | No | behaviour.md › Webpages, Browser extension; library-format.md › Restoring a backup |
 | A PDF markup's number badge is kept wholly on the page: one starting at the page edge is drawn moved inward instead of cut in half, in the viewer and in export. | #39 | No | behaviour.md › PDF markups |
 | A project holds each link once: saving a webpage or video link with exactly the same address as one already in the project reports it as already saved. A file saved with the page it came from (such as an image from Safari) keeps that page as its source. | #7 | No | behaviour.md › Capture |
