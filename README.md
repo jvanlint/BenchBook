@@ -283,3 +283,7 @@ After a webpage link is saved, BenchBook reads the page's header for the details
 ## Video details
 
 After a YouTube or Vimeo link is saved, BenchBook fetches its poster image, title, channel, length, publish date and description from the sites' public pages (oEmbed, plus the YouTube watch page). No account or API key is needed, and the video itself is never downloaded. Saving never waits for this: links saved while offline get their details the next time BenchBook launches, and right-clicking a video offers Refresh Video Details. A title the user typed is kept; a browser page title such as "… - YouTube" is replaced. Video details and webpage previews are the only network access the app makes on its own (`com.apple.security.network.client`), and Settings can turn them off.
+
+## Licence
+
+BenchBook is released under the [MIT Licence](LICENSE).
