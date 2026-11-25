@@ -165,12 +165,33 @@ works.
 
 ## Distribution and updates
 
-- MSIX package, signed. Azure Trusted Signing is the cheapest trusted
-  certificate. A self-signed package makes users install a certificate, which
-  isn't acceptable.
-- The Microsoft Store is the simplest route: it handles signing, installs and
-  updates. A direct download from GitHub Releases can use an `.appinstaller`
-  file to update itself.
+- Today: an unsigned zip on GitHub Releases, one for x64 and one for Arm64,
+  with SHA256SUMS.txt. The user unzips it and runs BenchBook.exe; the library
+  lives in `%LOCALAPPDATA%\BenchBook`, apart from the app folder.
+- **Updates use NetSparkleUpdater** (decided), the .NET counterpart of the
+  Mac's Sparkle, so both apps behave as [Updates](behaviour.md#updates)
+  describes:
+  - Two feeds on the website, next to the Mac's `appcast.xml`:
+    `appcast-windows-x64.xml` and `appcast-windows-arm64.xml`. Each item has
+    the version, the release notes and the zip's download URL on GitHub
+    Releases.
+  - Feeds and zips are signed with Ed25519. Windows has its own key pair, not
+    the Mac's: the public key is built into the app and the private key is kept
+    out of the repo (a GitHub Actions secret for the release build).
+  - The release build writes and signs both feeds; publishing the release and
+    pushing the feeds is the go-live step, as on the Mac.
+  - The update window shows release notes with Install Update, Remind Me Later
+    and Skip This Version. Install Update downloads the zip, checks its
+    signature, and hands over to a small updater that waits for BenchBook to
+    close, replaces the app folder, and starts the new version.
+  - The once-a-day check is off until the user agrees on the second launch,
+    and sends only the version number.
+- Signing comes later. Until it does, SmartScreen may warn on the first run of
+  each new version. Azure Trusted Signing is the cheapest trusted
+  certificate; a self-signed package makes users install a certificate, which
+  isn't acceptable. Once signed, an MSIX package through the Microsoft Store
+  (which handles installs and updates itself) can be added alongside the
+  zip.
 - Version numbers match the Mac app's (1.x.y) when the two can read each
   other's backups. The build number counts commits, as on the Mac.
 
@@ -231,7 +252,9 @@ phase 5.
 3. ~~**Mac ZIP writing**~~ Decided (#12): a small built-in writer on the Mac
    that stores entries without compression; both apps read stored and Deflate
    entries. See [Project file](library-format.md#project-file).
-4. **Store or direct download**, or both.
+4. ~~**Store or direct download**~~ Direct download for now, updated with
+   NetSparkleUpdater (see [Distribution and updates](#distribution-and-updates)).
+   The Store can follow once the app is signed.
 5. **Repository**: a separate `BenchBook-Windows` repo that links back to this
    spec, or a `windows/` folder here. A folder here keeps the spec and both apps
    in one place. A separate repo keeps each history focused.

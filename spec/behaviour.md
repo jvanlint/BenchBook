@@ -987,7 +987,7 @@ reference images.
 | Show note boxes when an image opens | On |
 | Status for new projects | Researching |
 
-On the Mac, Settings also has "Check for updates automatically" (see
+Settings also has "Check for updates automatically" (see
 [Updates](#updates)).
 
 Settings also shows the library's location and space used, and has Clean Up,
@@ -996,10 +996,11 @@ restores.
 
 ## Updates
 
-Mac only. BenchBook › Check for Updates… looks for a newer version. If there
-is one, a window shows its release notes with Install Update, Remind Me Later
-and Skip This Version. Nothing is downloaded or installed until the user
-chooses Install Update; BenchBook then relaunches as the new version.
+BenchBook › Check for Updates… on the Mac, or Check Now in Settings › General
+on either, looks for a newer version. If there is one, a window shows its
+release notes with Install Update, Remind Me Later and Skip This Version.
+Nothing is downloaded or installed until the user chooses Install Update;
+BenchBook then relaunches as the new version.
 
 On the second launch BenchBook asks whether to check for updates
 automatically. If the user agrees, it checks once a day and shows the same
@@ -1009,3 +1010,9 @@ later, and has Check Now.
 An update is installed only if it's signed with BenchBook's update key and
 the list of versions is signed too. A check sends nothing but BenchBook's
 version number.
+
+On Windows the update is the zip for the PC's processor (x64 or Arm64).
+BenchBook closes, its folder is replaced with the new one, and it opens again.
+The library in `%LOCALAPPDATA%\BenchBook` isn't touched. If the folder can't be
+replaced (for example, it's somewhere the user can't write to), BenchBook says
+so and offers to open the download page instead.
