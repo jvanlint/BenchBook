@@ -2,11 +2,13 @@
 
 A native macOS app for gathering and using scale-modelling research, organised by build Project.
 
-Current release: **1.1.0**. Download it from [Releases](https://github.com/jvanlint/BenchBook/releases/latest).
+Current release: **1.3.0**. Download it from [Releases](https://github.com/jvanlint/BenchBook/releases/latest) or the [website](https://jvanlint.github.io/BenchBook-Site/).
+
+There's also a Windows version, [BenchBook for Windows](https://github.com/jvanlint/BenchBook-Windows), built from the shared spec in [`spec/`](spec/README.md). Report Windows problems in [its own issues](https://github.com/jvanlint/BenchBook-Windows/issues).
 
 ## Current scope
 
-What BenchBook 1.1 does:
+What BenchBook 1.3 does:
 
 - Project sidebar, sorted by name, date created or last updated, a create/edit sheet (name required), and a Kits / References / Paint / Aftermarket / Build Photos workspace.
 - Project status (Researching, In Progress, Paused, Completed), with a sidebar filter for one status or all projects.
@@ -18,16 +20,18 @@ What BenchBook 1.1 does:
 - Select several references by ⌘-clicking, ⇧-clicking a range, ⌘A, or dragging a selection rectangle across empty space, as in Finder (hold ⇧ to add to the selection or ⌘ to flip tiles in and out; Esc cancels; the gallery scrolls when you drag to its top or bottom edge).
 - Move or copy references to another project: right-click › Move to Project or Copy to Project, or drag tiles onto a project in the sidebar (hold Option to copy). Copies keep their tags, image notes, PDF markups and video moments, and share the stored file instead of duplicating it.
 - Kits: a library-wide catalogue with one entry per kit (brand, scale, number, status, rating, prices, picture), Scalemates stash import and CSV export. Each kit can belong to one project, and its status follows the project's.
-- Paints: a library-wide catalogue (add, edit, owned, CSV import and export, filter by brand, range, type and ownership), colour standards (FS 595, RAL, RLM, BS 381C and others) with match and type, custom mixes with a recipe of catalogue paints in parts, a shopping list of paints and kits to buy that exports as text, and a per-project paint list with what each paint is used for, notes and what still needs buying.
+- Paints: a library-wide catalogue (add, edit, owned, CSV import and export, Scalemates stash import, filter by brand, range, type and ownership), colour standards (FS 595, RAL, RLM, BS 381C and others) with match and type, custom mixes with a recipe of catalogue paints in parts, a shopping list of paints and kits to buy that exports as text, and a per-project paint list with what each paint is used for, notes and what still needs buying.
 - Build Photos: your own photos of the build, marked WIP or Completed, with notes, tags and box notes, one chosen as the project photo, and export with location data removed.
 - iPhone camera: File › Import from iPhone or iPad takes a photo straight into Build Photos, or into the picture of a kit or aftermarket part (Continuity Camera).
 - Aftermarket: each project's decals, resin, photo-etch and other parts, with type, status, scale or fit, product page, picture and notes.
 - Image notes: zoom and pan a photo, draw boxes around features, and attach a numbered note to each. The original image is never changed.
 - PDF markup: read a PDF with page thumbnails, zoom and find, and add numbered notes, highlights and arrows in six colours. Export Marked-Up Copy… saves a separate PDF with them drawn in. The original PDF is never changed.
 - Compare images side by side: select two to four images and choose Open Side by Side (or press Return). Each image zooms on its own; the Notes and Info panel follows the image you last clicked. Switch between a row and a grid, double-click an image to fill the window, and drag images in from any project's gallery to add or replace one.
+- Export and import a project as a `.benchbookproject` file, a standard ZIP that BenchBook for Windows reads and writes too.
+- Backup and restore of the whole library, and updates through Sparkle.
 - Local SwiftData persistence, with originals copied byte-for-byte into an app-managed file library.
 
-Deferred: the Chromium extension (#8); and sync (#47).
+Planned: paints read from instruction sheets (#32), the Chromium extension (#8), and sync (#47).
 
 ## Requirements
 
@@ -56,6 +60,8 @@ BenchBookSafari/ The Safari extension's native part, which answers the web code'
 WebExtension/    The Safari extension's web code: menus, notice, toolbar panel, downloads
 BenchBookTests/  Swift Testing unit tests
 WebExtensionTests/ Node tests for the web code (not in any target)
+spec/            The shared spec for the Mac and Windows apps: behaviour, screens,
+                 library format, fixtures, and changes for Windows to catch up on
 ```
 
 Rules:
@@ -64,7 +70,7 @@ Rules:
 - Every capture path goes through `ReferenceImporter`. It checks file contents (not names), copies the original byte-for-byte into the asset library, then saves the Reference. Within a Project, an identical file is reported as already saved instead of being added twice.
 - The Share and Safari extensions never write to the library. Each leaves an envelope (files plus JSON) in the App Group inbox, and `CaptureCoordinator` imports it when BenchBook is running. The extension starts BenchBook in the background after sending. For Safari envelopes, BenchBook writes a result to `Results/` in the App Group, which the Safari extension waits for (up to 5 seconds) to show in the page. The App Group also holds the Project list, the active Project and tag names.
 - `SafariCaptureService` (in `Shared/`) checks every message from the Safari extension before anything is written. Files arrive in base64 chunks into a staging folder, so large PDFs don't need one huge message.
-- Schemas are versioned (`BenchBookSchemaV1` to `BenchBookSchemaV6`, `BenchBookMigrationPlan`). `BenchBookSchemaV1` is the model 1.0 shipped with; `BenchBookSchemaV6` is 1.1's. Add a new schema and stage for each model change; never edit one that has shipped.
+- Schemas are versioned (`BenchBookSchemaV1` to `BenchBookSchemaV6`, `BenchBookMigrationPlan`). `BenchBookSchemaV1` is the model 1.0 shipped with; `BenchBookSchemaV6` is the current one, unchanged since 1.1. Add a new schema and stage for each model change; never edit one that has shipped.
 - Image notes and PDF markups are both `Markup` records. An image's are notes only, with boxes in fractions of the image from its top-left corner; a PDF's are in page points from the bottom left.
 - If the store fails to open, the app shows an error and leaves the store alone. It never deletes or resets it.
 
